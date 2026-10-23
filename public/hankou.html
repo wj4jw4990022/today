@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>漢口總店｜致日子</title>
+<meta name="description" content="致日子漢口總店：一棟樓、四層空間、八間店，各自接受線上預約。">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=Noto+Serif+TC:wght@500;700&family=Cormorant+Garamond:ital,wght@1,400;1,500&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=Noto+Serif+TC:wght@500;700&family=Cormorant+Garamond:ital,wght@1,400;1,500&display=swap"></noscript>
+<meta property="og:type" content="website"><meta property="og:site_name" content="致日子 TO DAY Coffee"><meta property="og:title" content="漢口總店｜致日子"><meta property="og:description" content="致日子漢口總店：一棟樓、四層空間、八間店，各自接受線上預約。"><meta property="og:image" content="https://aged-surf-919d.wj4wj4990022.workers.dev/assets/og.png"><meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="assets/favicon.png"><link rel="apple-touch-icon" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="hk">
+<div id="nav"></div>
+<main id="main">
+<div class="hkh">
+ <div><div class="en" style="font-size:19px">Hankou Main Store</div><h1 class="h">漢口總店</h1><div class="hint2" id="count">一棟樓，多間店。由一樓往上逛，每一層都有不同的日子。</div></div>
+ <div class="chips"><span><b>地址</b><span data-c="漢口總店|地址">高雄市三民區漢口街 200 號</span></span><span><b>電話</b><span data-c="漢口總店|電話">[電話]</span></span><span><b>交通</b><span data-c="漢口總店|交通">[捷運、公車、停車資訊]</span></span></div>
+</div>
+<div class="fbar" id="fbar"></div>
+<div class="ele" id="ele"></div>
+<div id="floors"><div class="skel" style="padding:40px 56px">載入中…</div></div>
+<section class="band" style="background:var(--dark);margin-top:0"><div style="flex:1 1 320px"><div class="en" style="color:#D2AE86">Access</div><div class="h" style="font-size:28px;margin:4px 0 10px">交通與停車</div><div style="font-size:14px;line-height:2.1"><span data-c="漢口總店|交通">[捷運、公車、停車資訊]</span><br><span data-c="漢口總店|地址">高雄市三民區漢口街 200 號</span></div></div><a class="btn" data-c="漢口總店|地圖連結" data-link="1" href="#">開啟 Google 地圖</a></section>
+</main><div id="foot"></div>
+<script src="assets/config.js"></script>
+<script src="assets/demo-data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+Z.init('hankou', function (d) {
+  var shops = d.shops.filter(function (s) { return s.hall === '漢口總店'; }), order = [], by = {};
+  shops.forEach(function (s) { var f = String(s.floor).split(' ')[0]; if (!by[f]) { by[f] = []; order.push(f); } by[f].push(s); });
+  order.sort(function (a, b) { return parseInt(a, 10) - parseInt(b, 10); });
+  document.getElementById('count').textContent = '一棟樓，' + shops.length + ' 間店。由一樓往上逛，每一層都有不同的日子。';
+  document.getElementById('floors').innerHTML = order.map(function (f) {
+    return '<section class="fx" id="fl-' + Z.esc(f) + '"><div class="la"><div class="fl">' + Z.esc(f) + '</div></div><div class="cards">' + by[f].map(Z.card).join('') + '</div></section>';
+  }).join('');
+  var nav = order.map(function (f, i) { return '<a href="#fl-' + Z.esc(f) + '" data-f="' + Z.esc(f) + '"' + (i === 0 ? ' class="on"' : '') + '>' + Z.esc(f) + '</a>'; }).join('');
+  document.getElementById('ele').innerHTML = '<div class="t">Floor</div>' + nav;
+  document.getElementById('fbar').innerHTML = '<span class="t">Floor</span>' + nav;
+  document.querySelectorAll('.ele a,.fbar a').forEach(function (a) {
+    a.addEventListener('click', function (e) { e.preventDefault(); var t = document.getElementById('fl-' + a.getAttribute('data-f')); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  });
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (en) { if (en.isIntersecting) { var f = en.target.id.slice(3); document.querySelectorAll('.ele a,.fbar a').forEach(function (a) { a.classList.toggle('on', a.getAttribute('data-f') === f); }); } });
+    }, { rootMargin: '-35% 0px -55% 0px' });
+    document.querySelectorAll('.fx').forEach(function (el) { io.observe(el); });
+  }
+});
+</script>
+</body>
+</html>

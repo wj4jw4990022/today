@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>店家介紹｜致日子 漢口總店</title>
+<meta name="description" content="致日子：高雄的複合式餐館。漢口總店一棟樓八間店，黃埔二店日式質感空間。">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=Noto+Serif+TC:wght@500;700&family=Cormorant+Garamond:ital,wght@1,400;1,500&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=Noto+Serif+TC:wght@500;700&family=Cormorant+Garamond:ital,wght@1,400;1,500&display=swap"></noscript>
+<meta property="og:type" content="website"><meta property="og:site_name" content="致日子 TO DAY Coffee"><meta property="og:title" content="店家介紹｜致日子 漢口總店"><meta property="og:description" content="致日子：高雄的複合式餐館。漢口總店一棟樓八間店，黃埔二店日式質感空間。"><meta property="og:image" content="https://aged-surf-919d.wj4wj4990022.workers.dev/assets/og.png"><meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="assets/favicon.png"><link rel="apple-touch-icon" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="hk">
+<div id="nav"></div>
+<main id="main">
+ <div class="sec" style="padding-bottom:0;padding-top:40px"><div class="crumb"><a href="hankou.html">漢口總店</a>　／　<span id="cf"></span></div></div>
+ <section class="sec row" style="padding-top:40px">
+  <div class="col">
+   <div class="fl" id="fl" style="font-size:96px"></div>
+   <h1 class="h" id="nm" style="font-size:56px;letter-spacing:.12em"></h1>
+   <div id="tags" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+   <p id="intro" style="margin:0;font-size:16px;line-height:2.2;max-width:480px"></p>
+   <div id="cta" style="display:flex;flex-wrap:wrap;gap:14px;margin-top:6px"></div>
+  </div>
+  <div class="col" style="max-width:580px"><div id="pic"></div></div>
+ </section>
+ <section class="sec" id="isec" style="padding-top:0;display:none"><div class="en">Menu &amp; Service</div><h2 class="h" id="ititle" style="font-size:30px;margin:4px 0 8px"></h2><div class="ig" id="items"></div></section>
+ <section class="sec" id="gsec" style="padding-top:0;display:none"><div class="en">Gallery</div><div class="gal" id="gal"></div></section>
+ <section class="sec" style="padding-top:0"><div class="en">Same Building</div><h2 class="h" style="font-size:30px;margin:4px 0 16px">漢口總店的其他店家</h2><div class="more" id="more"></div></section>
+</main>
+<div id="foot"></div>
+<script src="assets/config.js"></script>
+<script src="assets/demo-data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+var id = new URLSearchParams(location.search).get('id') || '';
+if (id === 'p') location.replace('huangpu.html');
+Z.init('shop', function (d) {
+  var shop = d.shops.filter(function (s) { return s.id === id && s.hall === '漢口總店'; })[0];
+  if (!shop) { Z.fail(document.getElementById('main'), '找不到這間店。'); return; }
+  var f = String(shop.floor).split(' '), el = function (x) { return document.getElementById(x); };
+  document.title = shop.name + '｜致日子 漢口總店';
+  el('cf').textContent = shop.floor + '　' + shop.name;
+  el('fl').textContent = f[0];
+  el('nm').textContent = shop.name;
+  el('tags').innerHTML = (f[1] ? '<span class="tag">' + Z.esc(f[1]) + '</span>' : '') + (Z.isPlaceholder(shop.type) ? '' : '<span class="tag">' + Z.esc(shop.type) + '</span>') + '<span class="tag">' + (Z.isPlaceholder(shop.hours) ? '[營業時間]' : Z.esc(shop.hours)) + '</span>';
+  var hs = Z.hoursState(shop);
+  if (hs) el('tags').insertAdjacentHTML('beforeend', '<span class="stt ' + hs.state + '" style="padding:4px 14px">' + Z.esc(hs.text) + '</span>');
+  var its = shop.items || [];
+  if (its.length) {
+    el('isec').style.display = 'block'; el('ititle').textContent = shop.itemsTitle || '服務項目';
+    var cats = [], byc = {}; its.forEach(function (i) { var c = i.cat || ''; if (!byc[c]) { byc[c] = []; cats.push(c); } byc[c].push(i); });
+    el('items').innerHTML = cats.map(function (c) {
+      return (c ? '<div class="gt">' + Z.esc(c) + '</div>' : '') + '<div class="list">' + byc[c].map(function (i) {
+        return '<div class="m">' + Z.photo(i.image, i.name) + '<div class="mt"><b>' + Z.esc(i.name) + '</b>' + (Z.isPlaceholder(i.desc) || !i.desc ? '' : '<span>' + Z.esc(i.desc) + '</span>') + '</div>' + (i.price ? '<div class="pr">' + Z.esc(i.price) + '</div>' : '') + '</div>';
+      }).join('') + '</div>';
+    }).join('');
+  }
+  var mb = Z.mainBtn(shop, 'btn sm'); if (mb && shop.contact && shop.contact.btnMode !== 'none' && (shop.open || shop.contact.btnMode === 'tel')) { document.body.classList.add('hasbar'); document.body.insertAdjacentHTML('beforeend', '<div class="sbar"><span class="sn">' + Z.esc(shop.name) + '</span>' + mb.replace('btn sm', 'btn sm" style="background:var(--accent);color:#fff') + '</div>'); }
+  el('intro').textContent = Z.isPlaceholder(shop.intro) ? '[店家介紹]' : shop.intro;
+  el('cta').innerHTML = Z.mainBtn(shop) + (shop.id === 'h1' ? '<a class="btn line" href="hankou-menu.html">看餐點</a>' : '') + '<a class="btn line" href="hankou.html">回漢口總店</a>' +
+    (shop.contact && shop.contact.phone && shop.contact.btnMode !== 'tel' ? '<a class="cap" style="align-self:center" href="tel:' + Z.esc(String(shop.contact.phone).replace(/[^0-9+#]/g, '')) + '">☎ ' + Z.esc(shop.contact.phone) + '</a>' : '') + Z.social(shop);
+  el('pic').innerHTML = Z.photo(shop.image, shop.name, 'height:480px;background:var(--ph)');
+  var g = (shop.gallery || []).filter(Z.safeUrl);
+  if (g.length) {
+    el('gsec').style.display = 'block';
+    el('gal').innerHTML = g.map(function (u) { return '<a href="' + Z.esc(u) + '" data-lb="1"><img src="' + Z.esc(u) + '" alt="' + Z.esc(shop.name) + '" loading="lazy"></a>'; }).join('');
+    el('gal').addEventListener('click', function (e) {
+      var a = e.target.closest('[data-lb]'); if (!a) return; e.preventDefault();
+      var o = document.createElement('div'); o.className = 'lb'; o.innerHTML = '<img src="' + Z.esc(a.getAttribute('href')) + '" alt="">';
+      o.onclick = function () { o.remove(); }; document.body.appendChild(o);
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { var o = document.querySelector('.lb'); if (o) o.remove(); } });
+  }
+  el('more').innerHTML = d.shops.filter(function (s) { return s.hall === '漢口總店' && s.id !== shop.id; }).map(function (s) {
+    return '<a href="shop.html?id=' + encodeURIComponent(s.id) + '"><span class="en" style="min-width:48px">' + Z.esc(String(s.floor).split(' ')[0]) + '</span><span class="sn" style="font-size:19px">' + Z.esc(s.name) + '</span>' + (s.open ? '' : '<span class="cap" style="margin-left:auto">暫停預約</span>') + '</a>';
+  }).join('');
+});
+</script>
+</body>
+</html>

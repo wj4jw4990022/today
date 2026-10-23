@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>健康餐｜致日子</title>
+<meta name="description" content="致日子健康餐：三種份量、三種主菜，營養標示完整，可單點或訂閱。">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=Noto+Serif+TC:wght@500;700&family=Cormorant+Garamond:ital,wght@1,400;1,500&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=Noto+Serif+TC:wght@500;700&family=Cormorant+Garamond:ital,wght@1,400;1,500&display=swap"></noscript>
+<meta property="og:type" content="website"><meta property="og:site_name" content="致日子 TO DAY Coffee"><meta property="og:title" content="健康餐｜致日子"><meta property="og:description" content="三種份量、三種主菜，營養標示完整。"><meta property="og:image" content="https://aged-surf-919d.wj4wj4990022.workers.dev/assets/og.png">
+<link rel="icon" type="image/png" href="assets/favicon.png"><link rel="apple-touch-icon" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/health.css">
+</head>
+<body class="hk">
+<div id="nav"></div>
+<main id="main"><div id="hx"><div class="skel" style="padding:80px 56px">載入中…</div></div></main>
+<div id="foot"></div>
+<script src="assets/config.js"></script>
+<script src="assets/demo-data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+var E = Z.esc, SIZES = ['LIGHT', 'BALANCE', 'POWER'], COL = { '紅': '#C9483A', '黃': '#E0B33A', '綠': '#3F7A4F', '橙': '#D9822B', '紫': '#7A4A8A', '白': '#D8D8CC', '棕': '#8A5A3B' };
+var M = null, sel = '';
+function pic(url, label, h) {
+  var u = Z.safeUrl(url);
+  return '<div class="ph x-pic' + (u ? ' has' : '') + '" style="height:' + h + 'px">' + (u ? '<img src="' + E(u) + '" alt="' + E(label) + '" loading="lazy">' : '餐點照片') + '</div>';
+}
+function mmdd(s) { var p = s.split('-'); return Number(p[1]) + '/' + Number(p[2]); }
+function weekRange(s) { var d = new Date(s + 'T12:00:00'), e = new Date(d.getTime() + 6 * 86400000); return mmdd(s) + ' – ' + (e.getMonth() + 1) + '/' + e.getDate(); }
+function money(n) { return Number(n).toLocaleString('en-US'); }
+
+function sizeCards() {
+  var list = M.items.filter(function (i) { return i.main === sel; }).sort(function (a, b) { return so(a.size) - so(b.size); });
+  return '<div class="x-sz">' + list.map(function (i) {
+    return '<div>' + pic(i.image, i.name || (i.size + ' ' + i.main), 220) + '<div class="x-bd"><div class="x-nm">' + E(i.size) + '<small>' + E(i.rice) + 'g 飯</small></div>' +
+      '<div class="x-mac"><div><b>' + i.kcal + '</b>大卡</div><div><b>' + i.protein + 'g</b>蛋白質</div><div><b>' + i.carb + 'g</b>碳水</div><div><b>' + i.fat + 'g</b>脂肪</div></div>' +
+      '<div style="font-size:13px;color:var(--mute);line-height:1.9">' + E(i.mainDesc || i.main) + '・黑米五穀飯 ' + E(i.rice) + 'g・溏心蛋 1 顆・蔬菜 ' + E(i.vegG) + 'g</div>' +
+      (i.desc ? '<div style="font-size:13px;line-height:1.9">' + E(i.desc) + '</div>' : '') +
+      '<div class="x-pr"><b>' + money(i.price) + '</b><span>元／盒</span></div>' +
+      '<div class="x-acts" style="margin-top:6px"><span class="btn sm off">線上單點即將開放</span></div></div></div>';
+  }).join('') + '</div>';
+}
+function draw(d) {
+  M = d; var h = document.getElementById('hx');
+  if (!d || !d.open || !d.items.length) { h.innerHTML = '<section class="x-hero"><div class="x-in"><div><div class="en">Healthy Box</div><h1 class="h">致日子健康餐</h1><p>健康餐即將推出，敬請期待。</p></div></div></section>'; return; }
+  var mains = [], sizes = [];
+  d.items.forEach(function (i) { if (mains.indexOf(i.main) < 0) mains.push(i.main); if (sizes.indexOf(i.size) < 0) sizes.push(i.size); });
+  sizes.sort(function (a, b) { return so(a) - so(b); });
+  if (mains.indexOf(sel) < 0) sel = mains[0];
+  var v = d.veg, vegG = d.items[0].vegG, vn = v ? v.fixed.length + v.rotating.length : 0;
+  var riceBy = {}; d.items.forEach(function (i) { riceBy[i.size] = i.rice; });
+  var sauces = d.addons.filter(function (a) { return a.type === '醬汁'; }), drinks = d.addons.filter(function (a) { return a.type === '飲品'; });
+  var freeS = sauces.filter(function (a) { return a.free; }), paidS = sauces.filter(function (a) { return !a.free && a.price !== null; });
+  var allergen = ['蛋（溏心蛋）'].concat(sauces.filter(function (a) { return a.desc && /含/.test(a.desc); }).map(function (a) { return a.name + a.desc; }));
+  var minPer = d.plans.length ? Math.min.apply(null, d.plans.map(function (p) { return p.per; })) : 0;
+  var up = []; sizes.forEach(function (s) { if (d.upgrade.size[s]) up.push(s + ' +' + d.upgrade.size[s]); });
+  mains.forEach(function (m) { if (d.upgrade.main[m]) up.push('換' + m + ' +' + d.upgrade.main[m]); });
+
+  var html = '<header class="x-hero"><div class="x-in"><div><div class="en">Healthy Box</div><h1 class="h">致日子健康餐</h1><p>一套配方，' + sizes.length + ' 種份量。主菜可選' + E(mains.join('、')) + '，搭配黑米五穀飯、溏心蛋與蔬菜。每一份都標示熱量、蛋白質、碳水與脂肪。</p></div>' +
+    '<div class="x-stat"><div><b>' + mains.length + '</b><span>種主菜</span></div><div><b>' + sizes.length + '</b><span>種份量</span></div><div><b>' + E(vegG) + 'g</b><span>每盒蔬菜</span></div></div></div></header><div class="x-mx">';
+  html += '<section class="x-sec2"><div class="x-sh"><div><div class="en">Menu</div><h2 class="h">選擇主菜與份量</h2></div><div class="x-chips2" id="mains">' +
+    mains.map(function (m) { return '<button type="button" class="chip' + (m === sel ? ' on' : '') + '" data-m="' + E(m) + '">' + E(m) + '</button>'; }).join('') + '</div></div><div id="sizes">' + sizeCards() + '</div>' +
+    '<div class="x-note">營養標示不含醬汁與加購飲品。' + (v && v.rotating.length ? '輪替蔬菜每週不同，營養數字為平均估算值。' : '') + '過敏原：' + E(allergen.join('；')) + '。完整過敏原資訊請洽店員。</div></section>';
+
+  html += '<section class="x-sec2" style="padding-top:0"><div class="x-sh"><div><div class="en">Every Box</div><h2 class="h">每盒都有</h2></div></div><div class="x-inc">' +
+    '<div><div class="x-t">主食</div><div class="x-v">黑米五穀飯</div><p>' + sizes.map(function (s) { return E(s) + ' ' + E(riceBy[s]) + 'g'; }).join('<br>') + '</p></div>' +
+    '<div><div class="x-t">蛋</div><div class="x-v">溏心蛋 1 顆</div><p>每盒固定附一顆。</p></div>' +
+    '<div><div class="x-t">蔬菜</div><div class="x-v">' + (vn ? vn + ' 種・' : '') + E(vegG) + 'g</div><p>' + (v ? '固定：' + E(v.fixed.map(function (x) { return x.name; }).join('、')) + (v.rotating.length ? '；每週輪替 ' + v.rotating.length + ' 種' : '') : '依當週市場採購') + '。</p></div>' +
+    '<div><div class="x-t">醬汁</div><div class="x-v">' + (freeS.length ? '免費' + (freeS.length > 1 ? ' ' + freeS.length + ' 選 1' : '附贈') : '另附醬汁') + '</div><p>' + (freeS.length ? E(freeS.map(function (a) { return a.name; }).join('、')) + '。' : '') + paidS.map(function (a) { return E(a.name) + '另加 ' + a.price + ' 元'; }).join('；') + (paidS.length ? '。' : '') + '</p></div></div></section>';
+
+  if (v) html += '<section class="x-sec2" style="padding-top:0"><div class="x-sh"><div><div class="en">This Week</div><h2 class="h">本週蔬菜</h2></div><span class="cap">' + weekRange(v.weekStart) + ' 本週</span></div><div class="x-veg">' +
+    v.fixed.map(function (x) { return vegCell(x, '固定' + (x.grams ? ' ' + x.grams + 'g' : '')); }).join('') + v.rotating.map(function (x) { return vegCell(x, '本週輪替' + (x.grams ? ' ' + x.grams + 'g' : '')); }).join('') + '</div></section>';
+
+  if (drinks.length) html += '<section class="x-sec2" style="padding-top:0"><div class="x-sh"><div><div class="en">Add-ons</div><h2 class="h">加購飲品</h2></div></div><div class="x-two" style="--n:' + Math.min(drinks.length, 2) + '">' +
+    drinks.map(function (a) { return '<div>' + pic(a.image, a.name, 180).replace('餐點照片', '飲品照片') + '<div style="height:16px"></div><div class="h" style="font-size:20px">' + E(a.name) + '</div>' + (a.protein ? '<div class="cap" style="margin:4px 0 8px">蛋白質約 ' + a.protein + 'g</div>' : '') + (a.desc ? '<div style="font-size:13px;color:var(--mute);line-height:1.9">' + E(a.desc) + '</div>' : '') + '<div class="x-pr"><b>' + (a.price === null ? '—' : money(a.price)) + '</b><span>元（加購）</span></div></div>'; }).join('') + '</div></section>';
+
+  if (d.plans.length) html += '<section class="x-sec2" style="padding-top:0"><div class="x-sh"><div><div class="en">Subscription</div><h2 class="h">月訂閱方案</h2></div><span class="cap">以 ' + d.days + ' 天為一期・預約制</span></div><div class="x-plans" style="--n:' + d.plans.length + '">' +
+    d.plans.map(function (p) {
+      var low = p.per === minPer && d.plans.length > 1;
+      return '<div' + (low ? ' class="x-hot"' : '') + '>' + (low ? '<div class="x-flag">每餐最低</div>' : '') + '<div class="x-n">' + p.meals + '<small>餐</small></div><div class="x-big">' + money(p.total) + '<small> 元</small></div><div class="cap">每餐 ' + money(p.per) + ' 元</div>' +
+        '<ul><li>中午、晚上皆可預約</li><li>門市自取或固定配送點</li><li>每期可暫停 ' + d.pause.times + ' 次、最多 ' + d.pause.days + ' 天</li></ul><span class="btn line sm off">即將開放</span></div>';
+    }).join('') + '</div>' + (up.length ? '<div class="x-upg"><b>方案以 ' + E(d.items.filter(function (i) { return !i.upg; }).map(function (i) { return i.size + ' ' + i.main; })[0] || '基本餐') + ' 為基本價，升級另加：</b>' + up.map(function (u) { return '<span>' + E(u) + '</span>'; }).join('') + '</div>' : '') +
+    '<div class="x-note">訂閱與線上單點即將開放，屆時需以 LINE 登入。</div></section>';
+
+  html += '</div><section class="x-band2"><div class="en" style="color:#D2AE86">Contact</div><div class="h" style="font-size:28px;margin:6px 0 20px">想了解月訂閱或團體訂購？</div><a class="btn" href="contact.html">聯絡我們</a></section>';
+  h.innerHTML = html;
+}
+function vegCell(x, sub) { return '<div><i style="background:' + (COL[x.color] || '#9AA58F') + '"></i>' + E(x.name) + '<small>' + E(sub) + '</small></div>'; }
+document.addEventListener('click', function (e) {
+  var b = e.target.closest && e.target.closest('[data-m]'); if (!b || !M) return;
+  sel = b.getAttribute('data-m');
+  document.querySelectorAll('#mains .chip').forEach(function (c) { c.classList.toggle('on', c.getAttribute('data-m') === sel); });
+  document.getElementById('sizes').innerHTML = sizeCards();
+});
+Z.init('healthy', function () {
+  Z.get({ action: 'healthMenu' }).then(draw).catch(function (e) { Z.fail(document.getElementById('hx'), e.message); });
+});
+</script>
+</body>
+</html>

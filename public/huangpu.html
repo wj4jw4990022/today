@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>黃埔二店｜致日子</title>
+<meta name="description" content="致日子黃埔二店：黃埔新村西四巷 37 號，日式質感空間。">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=Noto+Serif+TC:wght@500;700&family=Cormorant+Garamond:ital,wght@1,400;1,500&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=Noto+Serif+TC:wght@500;700&family=Cormorant+Garamond:ital,wght@1,400;1,500&display=swap"></noscript>
+<meta property="og:type" content="website"><meta property="og:site_name" content="致日子 TO DAY Coffee"><meta property="og:title" content="黃埔二店｜致日子"><meta property="og:description" content="致日子黃埔二店：黃埔新村西四巷 37 號，日式質感空間。"><meta property="og:image" content="https://aged-surf-919d.wj4wj4990022.workers.dev/assets/og.png"><meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="assets/favicon.png"><link rel="apple-touch-icon" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="hp">
+<div id="nav"></div>
+
+<main id="main">
+<section class="sec row" style="padding-top:80px">
+ <div class="col">
+  <div class="en">Huangpu Second Store</div>
+  <h1 class="h" style="font-size:76px;letter-spacing:.14em">黃埔二店</h1>
+  <p data-c="黃埔二店|簡介" style="margin:0;font-size:16px;line-height:2.2;max-width:480px">[黃埔二店介紹文字]</p>
+  <div style="display:flex;flex-wrap:wrap;gap:8px"><span class="tag" data-c="黃埔二店|營業時間">[營業時間]</span><span class="tag" data-c="黃埔二店|電話">07-7193820</span></div>
+  <div class="cap" data-c="黃埔二店|地址">高雄市鳳山區黃埔新村西四巷 37 號</div>
+  <div id="cta" style="display:flex;flex-wrap:wrap;gap:14px;margin-top:6px"><a class="btn" href="booking.html?shop=p">黃埔訂位</a><a class="btn line" href="huangpu-menu.html">黃埔餐點</a></div>
+ </div>
+ <div class="col" style="max-width:580px"><div class="ph" data-ci="黃埔二店|封面" style="height:500px">[照片：黃埔二店外觀]</div></div>
+</section>
+<section class="sec row" style="border-top:1px solid var(--line)">
+ <div class="col" style="flex-basis:300px"><div class="en">Space</div><h2 class="h" style="font-size:34px">空間與氛圍</h2></div>
+ <div class="col" style="flex-basis:460px"><p data-c="黃埔二店|空間介紹" style="margin:0;font-size:15px;line-height:2.3">[空間介紹文字]</p></div>
+</section>
+<section class="sec" style="padding-top:0"><div class="row" style="align-items:stretch"><div class="col"><div class="ph" data-ci="黃埔二店|相片1" style="height:260px">[照片]</div></div><div class="col"><div class="ph" data-ci="黃埔二店|相片2" style="height:260px">[照片]</div></div><div class="col"><div class="ph" data-ci="黃埔二店|相片3" style="height:260px">[照片]</div></div></div></section>
+<section class="band"><div><div class="en" style="color:#EAD9BF">Access</div><div class="h" style="font-size:28px;margin:4px 0 10px">交通與停車</div><div style="font-size:14px;line-height:2.1" data-c="黃埔二店|交通">[交通與停車資訊]</div></div></section>
+</main><div id="foot"></div>
+<script src="assets/config.js"></script>
+<script src="assets/demo-data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+
+Z.init('huangpu', function (d) {
+  var s = d.shops.filter(function (x) { return x.id === 'p'; })[0];
+  if (s && !s.open) document.querySelector('#cta .btn').outerHTML = '<span class="btn off" style="opacity:.5;pointer-events:none">暫停預約</span>';
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>合作洽談｜致日子</title>
+<meta name="description" content="活動、聯名、場地合作，歡迎來信洽談。">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=Noto+Serif+TC:wght@500;700&family=Cormorant+Garamond:ital,wght@1,400;1,500&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=Noto+Serif+TC:wght@500;700&family=Cormorant+Garamond:ital,wght@1,400;1,500&display=swap"></noscript>
+<meta property="og:type" content="website"><meta property="og:site_name" content="致日子 TO DAY Coffee"><meta property="og:title" content="合作洽談｜致日子"><meta property="og:description" content="活動、聯名、場地合作，歡迎來信洽談。"><meta property="og:image" content="https://aged-surf-919d.wj4wj4990022.workers.dev/assets/og.png"><meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="assets/favicon.png"><link rel="apple-touch-icon" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="hk">
+<div id="nav"></div>
+
+<main id="main" class="sec row" style="padding-top:72px;align-items:flex-start">
+ <div class="col" style="flex-basis:340px">
+  <div class="en">Collaboration</div>
+  <h1 class="h" style="font-size:52px">合作洽談</h1>
+  <p data-c="全站|合作說明" style="margin:0;font-size:15px;line-height:2.2">[合作說明：活動、聯名、場地、攝影拍攝等，歡迎留下資料，我們會盡快與你聯絡。]</p>
+  <div style="background:var(--dark);color:var(--darkfg);padding:28px;font-size:14px;line-height:2.1"><div class="en" style="color:#D2AE86">Contact</div>漢口總店　<span data-c="漢口總店|電話">[電話]</span><br>黃埔二店　<span data-c="黃埔二店|電話">07-7193820</span></div>
+ </div>
+ <div class="col" style="flex-basis:520px">
+  <div id="done" style="display:none"></div>
+  <form id="f" style="display:flex;flex-direction:column;gap:30px">
+   <div class="field"><label>合作類型</label><div id="types" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px"></div></div>
+   <div style="display:flex;flex-wrap:wrap;gap:28px"><div class="field" style="flex:1 1 200px"><label for="org">單位 / 品牌名稱</label><input id="org" maxlength="80"></div><div class="field" style="flex:1 1 200px"><label for="name">聯絡人</label><input id="name" required maxlength="40"></div></div>
+   <div style="display:flex;flex-wrap:wrap;gap:28px"><div class="field" style="flex:1 1 200px"><label for="phone">電話</label><input id="phone" maxlength="20" inputmode="tel"></div><div class="field" style="flex:1 1 200px"><label for="email">Email</label><input id="email" type="email" maxlength="80"></div></div>
+   <div class="field"><label for="message">合作內容</label><textarea id="message" required maxlength="2000"></textarea></div>
+   <input class="hide" id="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+   <div id="err"></div>
+   <div><button class="btn" id="go" type="submit">送出</button></div>
+  </form>
+ </div>
+</main><div id="foot"></div>
+<script src="assets/config.js"></script>
+<script src="assets/demo-data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+
+var types = ['活動合作', '品牌聯名', '場地租借', '攝影拍攝', '其他'], type = types[0];
+function $(id) { return document.getElementById(id); }
+function drawTypes() { $('types').innerHTML = types.map(function (t) { return '<button type="button" class="chip' + (t === type ? ' on' : '') + '" data-t="' + t + '">' + t + '</button>'; }).join(''); }
+drawTypes();
+$('types').addEventListener('click', function (e) { var b = e.target.closest('[data-t]'); if (b) { type = b.getAttribute('data-t'); drawTypes(); } });
+$('f').addEventListener('submit', function (e) {
+  e.preventDefault(); $('err').innerHTML = ''; $('go').disabled = true; $('go').textContent = '送出中…';
+  Z.post({ action: 'contact', type: type, org: $('org').value, name: $('name').value, phone: $('phone').value, email: $('email').value, message: $('message').value, website: $('website').value })
+    .then(function () { $('f').style.display = 'none'; $('done').style.display = 'block'; $('done').innerHTML = '<div class="msg ok"><div class="h" style="font-size:24px;margin-bottom:8px">已收到你的訊息</div>我們會盡快與你聯絡。</div>'; })
+    .catch(function (er) { $('err').innerHTML = '<div class="msg err">' + Z.esc(er.message) + '</div>'; $('go').disabled = false; $('go').textContent = '送出'; });
+});
+Z.init('contact');
+</script>
+</body>
+</html>

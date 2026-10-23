@@ -1,0 +1,17 @@
+INSERT INTO shops (shop_id,hall,floor,name,type,is_open,hours_text) VALUES ('h1','漢口總店','1F 前段','致日子咖啡','餐館',1,'待補');
+INSERT INTO shops (shop_id,hall,floor,name,type,is_open,hours_text) VALUES ('h3c','漢口總店','3F','杉徑・川合空間','待補',0,'待補');
+INSERT INTO shops (shop_id,hall,floor,name,type,is_open,hours_text) VALUES ('p','黃埔二店','全館','黃埔','餐館',1,'待補');
+INSERT INTO booking_settings (shop_id,shop_name,slots,capacity,max_party,closed_days,advance_days,notify_email) VALUES ('h1','x','11:30,13:00',2,8,'待補',30,'a@b.c');
+INSERT INTO booking_settings (shop_id,shop_name,slots,capacity,max_party,closed_days,advance_days,notify_email) VALUES ('h3c','x','11:00',1,1,'待補',30,'a@b.c');
+INSERT INTO booking_settings (shop_id,shop_name,slots,capacity,max_party,closed_days,advance_days,notify_email) VALUES ('p','x','11:30',1,8,'週二、週三（暫定）',30,'a@b.c');
+INSERT INTO site_content (page,block,field,text) VALUES ('漢口總店','基本資料','地址','漢口街200號');
+INSERT INTO admins (email,scope) VALUES ('boss@x.com','*');
+INSERT INTO admins (email,scope) VALUES ('h1only@x.com','h1');
+INSERT INTO health_settings (key,value) VALUES ('方案8餐_總價','1400'),('方案8餐_每餐','175'),('方案12餐_總價','1980'),('方案12餐_每餐','165'),('方案20餐_總價','3100'),('份量加價_LIGHT','0'),('份量加價_BALANCE','20'),('份量加價_POWER','50'),('主菜加價_雞胸','0'),('主菜加價_雞腿排','10'),('主菜加價_牛排','50'),('松露醬開放','FALSE'),('每期天數','30'),('暫停每期次數','1'),('暫停最多天數','7'),('健康餐頁面開放','FALSE');
+INSERT INTO health_items (item_id,shop_id,size,main,main_desc,rice_g,veg_g,kcal,protein,carb,fat,price,sub_extra,name,visible,sort_order) VALUES ('HM-L-CB','h1','LIGHT','雞胸','雞胸 100g',120,250,545,40,54,19,190,0,'健康餐 LIGHT 雞胸',1,1);
+INSERT INTO health_items (item_id,shop_id,size,main,main_desc,rice_g,veg_g,kcal,protein,carb,fat,price,sub_extra,name,visible,sort_order) VALUES ('HM-B-CB','h1','BALANCE','雞胸','雞胸 150g',150,250,650,53,65,20,220,20,'健康餐 BALANCE 雞胸',1,2);
+INSERT INTO health_items (item_id,shop_id,size,main,main_desc,rice_g,veg_g,kcal,protein,carb,fat,price,sub_extra,name,visible,sort_order) VALUES ('HM-X','h1','POWER','牛排','x',200,250,1,1,1,1,290,100,'隱藏品項',0,3);
+INSERT INTO addon_items (item_id,shop_id,type,name,content,protein,price,is_free,visible,sort_order) VALUES ('AD-S-OIL','h1','醬汁','油醋','',NULL,0,1,1,1);
+INSERT INTO addon_items (item_id,shop_id,type,name,content,protein,price,is_free,visible,sort_order) VALUES ('AD-S-TRF','h1','醬汁','松露醬','取代附贈的醬汁',NULL,30,0,1,4);
+INSERT INTO addon_items (item_id,shop_id,type,name,content,protein,price,is_free,visible,sort_order) VALUES ('AD-D-PSM','h1','飲品','高蛋白豆漿','x',24,60,0,1,11);
+INSERT INTO addon_items (item_id,shop_id,type,name,content,protein,price,is_free,visible,sort_order) VALUES ('AD-D-PSC','h1','飲品','高蛋白豆漿咖啡','x',25,NULL,0,0,12);

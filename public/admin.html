@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>後台｜致日子</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=Noto+Serif+TC:wght@500;700&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=Noto+Serif+TC:wght@500;700&display=swap"></noscript>
+<link rel="icon" type="image/png" href="assets/favicon.png"><link rel="apple-touch-icon" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:18px 32px;border-bottom:1px solid var(--line)}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;padding:18px 32px 0}
+.pg{padding:28px 32px 80px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{font-weight:500;text-align:left;color:var(--mute);letter-spacing:.1em;font-size:12px}
+th,td{padding:10px 10px 10px 0;border-bottom:1px solid var(--line);vertical-align:top}
+.tw{overflow-x:auto}
+.tw.hn th,.tw.hn td{white-space:nowrap}
+.tw.hn td.sd{white-space:normal}
+.card{border:1px solid var(--line);padding:24px;display:flex;flex-direction:column;gap:18px;margin-bottom:24px}
+.g{display:flex;flex-wrap:wrap;gap:20px}
+.g>.field{flex:1 1 200px}
+.side{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}
+.sw{display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-size:14px}
+.sw input{width:18px;height:18px;accent-color:var(--accent)}
+select.st,input.mini{font:inherit;font-size:13px;background:transparent;border:1px solid var(--line);padding:4px 6px;color:var(--ink)}
+.pill{display:inline-block;font-size:11px;letter-spacing:.1em;border:1px solid var(--accent2);color:var(--accent2);padding:1px 8px;margin-left:6px}
+.t{display:inline-flex;gap:4px;align-items:center;margin:0 8px 8px 0}
+.x{background:none;border:0;color:var(--mute);cursor:pointer;font-size:16px}
+.thumb{width:72px;height:72px;object-fit:cover;border:1px solid var(--line);display:block}
+.gal-ed{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px}
+.gal-ed figure{margin:0;position:relative}
+.gal-ed .x{position:absolute;top:-8px;right:-8px;background:var(--dark);color:var(--darkfg);width:22px;height:22px;line-height:20px;text-align:center;font-size:14px;border-radius:50%}
+.upl{display:inline-flex;gap:10px;align-items:center}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:32px}
+.scard{border:1px solid var(--line);padding:20px;display:flex;flex-direction:column;gap:10px}
+.scard.off{background:rgba(0,0,0,.03)}
+.scard .sn2{font-size:19px;font-weight:500}
+.badge{display:inline-block;font-size:12px;border:1px solid var(--line);padding:2px 10px;margin-right:6px}
+.badge.hot{border-color:var(--accent);color:var(--accent)}
+.sub{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 24px;border-bottom:1px solid var(--line);padding-bottom:14px}
+.back{background:none;border:0;color:var(--mute);cursor:pointer;font:inherit;font-size:13px;padding:0;margin-bottom:10px}
+.icard{border:1px solid var(--line);padding:18px;margin-bottom:16px;display:flex;gap:18px;flex-wrap:wrap}
+.icard .im{width:112px;flex:0 0 112px;display:flex;flex-direction:column;gap:8px}
+.icard .im .thumb{width:112px;height:112px}
+.icard .bd{flex:1 1 320px;display:flex;flex-direction:column;gap:12px}
+.icard.new{border-style:dashed}
+.hrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+/* 修改標示 */
+.dirty{position:relative;background:rgba(201,162,39,.13);box-shadow:-4px 0 0 #c9a227}
+.dtag{position:absolute;top:0;right:0;font-size:11px;letter-spacing:.08em;background:#c9a227;color:#fff;padding:1px 8px;pointer-events:none}
+.was{font-size:12px;color:var(--mute);margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;word-break:break-all}
+.rd{background:rgba(201,162,39,.07)}
+.rd [data-isave],.rd [data-save]{background:#c9a227;color:#fff;border-color:#c9a227}
+#dbar{position:fixed;left:0;right:0;bottom:0;z-index:8;background:var(--dark);color:var(--darkfg);padding:12px 32px;display:none;gap:16px;align-items:center;flex-wrap:wrap;box-shadow:0 -2px 12px rgba(0,0,0,.25)}
+#dbar .l{flex:1 1 280px;font-size:14px;line-height:1.6}
+#dbar .l b{color:#e8c860}
+#dbar button{font:inherit;font-size:14px;padding:8px 22px;cursor:pointer;border:1px solid var(--darkfg);background:transparent;color:var(--darkfg)}
+#dbar button.pri{background:#c9a227;border-color:#c9a227;color:#fff}
+.thumb.s{width:44px;height:44px;display:inline-block;vertical-align:middle;margin-right:6px}
+.thumb.big{width:168px;height:168px}
+img.thumb,img.pvi{cursor:zoom-in}
+img.broken{background:#f3e0e0;color:#a33;font-size:11px;object-fit:contain}
+.gal-ed figure.new::after{content:'新';position:absolute;left:0;top:0;background:#c9a227;color:#fff;font-size:11px;padding:0 6px}
+.ed{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:28px;align-items:start}
+.pvw{position:sticky;top:12px;border:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:10px;background:#fff}
+.pvw .pvh{font-size:13px;letter-spacing:.1em;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.pvw .pvh span{font-size:11px;color:var(--mute);letter-spacing:0}
+.pvw .pvimg{position:relative;aspect-ratio:4/3;background:var(--soft);overflow:hidden}
+.pvw .pvimg img{width:100%;height:100%;object-fit:cover;display:block}
+.pvw .pvimg .ph{height:100%;display:flex;align-items:center;justify-content:center;color:var(--mute);font-size:13px}
+.pvw .pvimg em{position:absolute;left:0;top:0;background:#c9a227;color:#fff;font-size:11px;font-style:normal;padding:1px 8px}
+.pvw .pn{font-size:20px;font-weight:500}
+.pvw .pt{font-size:12px;color:var(--mute);letter-spacing:.1em}
+.pvw .pi{font-size:13px;line-height:1.8;color:var(--ink);white-space:pre-wrap}
+.pvw .pbtn{display:inline-block;align-self:flex-start;border:1px solid var(--ink);padding:6px 20px;font-size:13px}
+.pvw .ps{font-size:12px;color:var(--mute);display:flex;gap:12px;flex-wrap:wrap}
+.pvw .pg3{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.pvw .pg3 img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
+#lb{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:20;display:none;align-items:center;justify-content:center;cursor:zoom-out;padding:24px}
+#lb img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+/* 所見即所得：後台店家資料 */
+.vbar{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:20px}
+.seg{display:inline-flex;border:1px solid var(--ink)}
+.seg button{font:inherit;font-size:13px;border:0;background:transparent;color:var(--ink);padding:5px 18px;cursor:pointer;letter-spacing:.08em}
+.seg button.on{background:var(--ink);color:var(--bg)}
+.ed2{display:grid;grid-template-columns:minmax(0,520px) 360px;justify-content:start;gap:32px;align-items:start}
+.frame{min-width:0}
+.stg.mob .frame{max-width:390px;margin:0 auto;width:100%}
+.stg.mob .ed2{grid-template-columns:1fr}
+.stg.mob .side2{max-width:390px;margin:0 auto;width:100%}
+.edcard{max-width:none}
+.edcard .herow{position:relative;display:block}
+.edcard .sl{flex:none;display:block;width:100%;aspect-ratio:4/3;max-height:340px;cursor:pointer;position:relative;outline:2px dashed rgba(138,90,59,.55);outline-offset:-8px}
+.edcard .sl img{width:100%;height:100%;object-fit:cover;display:block}
+.edcard .nohero{height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--mute);background:var(--soft);min-height:200px}
+.edcard .chg{position:absolute;right:10px;top:10px;z-index:3;border:0;background:rgba(23,48,42,.85);color:#fff;font:inherit;font-size:13px;padding:5px 14px;cursor:pointer;letter-spacing:.08em}
+.edcard .cnt{position:absolute;right:10px;bottom:10px;background:rgba(23,48,42,.8);color:#fff;font-size:12px;padding:1px 12px;pointer-events:none}
+.edcard .cnt:empty{display:none}
+.edcard .herow.dirty{box-shadow:none;outline:3px solid #c9a227;outline-offset:-3px}
+.edcard .herow .was{position:absolute;left:0;bottom:0;background:rgba(255,255,255,.92);padding:4px 10px;margin:0;z-index:4}
+.edcard #galf{padding:8px 10px 10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:rgba(0,0,0,.025)}
+.edcard .gtt{font-size:12px;color:var(--mute);margin-bottom:8px}
+.edcard .gal-ed{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin:0}
+.edcard .gal-ed figure{margin:0;position:relative}
+.edcard .gal-ed .thumb{width:100%;height:84px}
+.edcard .gal-ed .x{top:-7px;right:-7px;cursor:pointer;z-index:3}
+.edcard .gfa{display:flex;flex-direction:row;gap:0;max-width:none;position:absolute;left:0;right:0;bottom:0;background:rgba(23,48,42,.78)}
+.edcard .gfa button{flex:1;border:0;background:transparent;color:#fff;font-size:14px;line-height:22px;cursor:pointer;padding:0}
+.edcard .gfa button:hover{background:var(--accent)}
+.addp{border:2px dashed var(--accent);background:var(--soft);color:var(--accent);font:inherit;font-size:12px;cursor:pointer;min-height:84px;line-height:1.5}
+.addp small{display:block;font-size:11px;color:var(--mute)}
+.field .ghost,.ghost{font:inherit;color:inherit;background:transparent;border:0;outline:2px dashed rgba(201,162,39,.55);outline-offset:2px;padding:2px 4px;width:100%;letter-spacing:inherit;resize:none;overflow:hidden}
+.edcard .field .ghost{border:0;padding:2px 4px;min-height:0;font-size:inherit}
+.edcard .field .ghost.nm2{font-size:23px}
+.edcard .field .ghost.tg2{font-size:13.5px}
+.edcard .field .btnin{padding:9px 6px;font-size:12px;background:var(--accent);color:#fff;text-align:center}
+.ghost:focus{outline:2px solid #c9a227;background:rgba(255,255,255,.6)}
+.ghost.nm2{font-family:'Noto Serif TC',serif;font-size:23px;letter-spacing:.08em;font-weight:500}
+.ghost.tg2{font-size:13.5px;color:var(--mute);line-height:1.8}
+.tag .ghost{font-size:inherit;padding:0 2px;outline-offset:1px}
+.btnin{background:var(--accent);color:#fff;text-align:center;width:8em;padding:9px 6px;font-size:12px;letter-spacing:.2em;outline-color:#c9a227}
+.btnin:focus{background:var(--accent);color:#fff}
+.edcard .acts{align-items:center;margin-top:6px;padding-top:6px}
+.edcard .bd{gap:14px}
+.edcard .bd .field.dirty{padding-top:2px}
+.edcard .dtag{top:-20px}
+.gh{opacity:.45;pointer-events:none}
+.nobtn{font-size:12px;color:var(--mute)}
+.stt.dim{opacity:.5}
+.introf{margin-top:22px}
+.side2{display:flex;flex-direction:column;gap:16px;position:sticky;top:12px}
+.sc{border:1px solid var(--line);padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+.sc .h{font-size:16px}
+.chl{margin:0;padding-left:18px;font-size:12.5px;line-height:1.8;color:var(--ink)}
+.chl b{font-weight:500}
+.stg.view .ghost{outline:none;pointer-events:none}
+.stg.view .dirty{background:none;box-shadow:none}
+.stg.view .herow.dirty{outline:none}
+.stg.view .was,.stg.view .dtag,.stg.view .edit-only,.stg.view #galf{display:none}
+.stg.view .sl{outline:none;cursor:default;pointer-events:none}
+#imd{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:18;display:none;align-items:center;justify-content:center;padding:16px}
+#imd .box{background:var(--bg);width:min(520px,100%);padding:22px;display:flex;flex-direction:column;gap:14px;max-height:100%;overflow:auto}
+#imd .pvbox{aspect-ratio:4/3;background:var(--soft);display:flex;align-items:center;justify-content:center;overflow:hidden}
+#imd .pvbox img{width:100%;height:100%;object-fit:cover}
+@media(max-width:980px){.ed2{grid-template-columns:1fr}.side2{position:static}}
+body.hasbar .pg{padding-bottom:170px}
+@media(max-width:980px){.ed{grid-template-columns:1fr}.pvw{position:static}#dbar{padding:12px 16px}}
+@media(max-width:640px){.top,.tabs,.pg{padding-left:16px;padding-right:16px}}
+#toast{position:fixed;right:20px;bottom:20px;background:var(--dark);color:var(--darkfg);padding:10px 18px;font-size:13px;display:none;z-index:9}
+</style>
+</head>
+<body class="hk">
+<div id="login" style="max-width:420px;margin:12vh auto;padding:0 24px;display:none">
+ <div class="logo">致日子</div><div class="cap" style="margin:6px 0 28px">店家後台</div>
+ <p class="sd">請用已授權的 Google 帳號登入。</p>
+ <div id="gbtn" style="margin:20px 0"></div><div id="lerr"></div>
+</div>
+<div id="app" style="display:none">
+ <div class="top"><div><span class="logo" style="font-size:18px">致日子</span><span class="cap" style="margin-left:14px">店家後台</span></div><div class="sd"><span id="me"></span>　<a href="#" id="out" style="text-decoration:underline">登出</a></div></div>
+ <div class="tabs" id="tabs"></div>
+ <div class="pg" id="pg"></div>
+</div>
+<input type="file" id="fi" accept="image/jpeg,image/png,image/webp,image/*" hidden>
+<div id="toast"></div>
+<div id="dbar"></div>
+<div id="imd"></div>
+<div id="lb"><img alt=""></div>
+<script src="assets/config.js"></script>
+<script src="assets/app.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+var E = Z.esc, tok = '', me = null, view = 'home', stab = 'bookings', shopSel = '', hallSel = '漢口總店', cache = {};
+function $(id) { return document.getElementById(id); }
+function toast(m) { var t = $('toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(toast.h); toast.h = setTimeout(function () { t.style.display = 'none'; }, 2200); }
+try { tok = sessionStorage.getItem('zt') || ''; } catch (e) {}
+
+/* ---------- 圖片上傳：先在瀏覽器縮到 1600px 的 JPG，再傳給後端 ---------- */
+var pend = null;
+/* ---------- 修改追蹤：哪些欄位改了、原本是什麼、還沒儲存提醒 ---------- */
+var W = { root: null, save: null, label: '儲存', redraw: null, v: [], n: 0, ls: [], onupd: null };
+function valOf(el) { return el.type === 'checkbox' ? el.checked : el.value; }
+function setVal(el, v) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); }
+function isHttps(u) { return /^https:\/\//.test(u || '') || /^\/img\/[\w-]+$/.test(u || ''); } // 含本站上傳的 /img/編號
+function trunc(s, n) { s = String(s == null ? '' : s).replace(/\s+/g, ' '); return s.length > n ? s.slice(0, n) + '…' : s; }
+function labelOf(el) {
+  var d = el.getAttribute('data-lb'); if (d) return d;
+  var f = el.closest('.field'), l = f && f.querySelector('label');
+  if (!l) l = el.closest('.sw');
+  if (!l) { var td = el.closest('td'); if (td && td.closest('table')) { var th = td.closest('table').rows[0].cells[td.cellIndex]; return th ? th.textContent : '欄位'; } }
+  var t = l ? (l.querySelector('b') || l).textContent : '欄位';
+  return t.replace(/^＋ 新增：/, '').split(/[（(]/)[0].trim() || '欄位';
+}
+function boxOf(el) {
+  if (el.type === 'hidden') { var c = el.closest('.icard'); return (c && c.querySelector('.im')) || el.parentNode; }
+  return el.closest('.field,.sw,td') || el.parentNode;
+}
+function mark(box, on, hint, tag) {
+  box.classList.toggle('dirty', on);
+  var t = box.querySelector(':scope>.dtag'); if (t) t.remove();
+  var w = box.querySelector(':scope>.was'); if (w) w.remove();
+  if (!on) return;
+  if (tag) box.insertAdjacentHTML('afterbegin', '<span class="dtag">已修改</span>');
+  if (hint) box.insertAdjacentHTML('beforeend', '<div class="was">' + hint + '</div>');
+}
+function hintOf(el) {
+  if (el.hasAttribute('data-nohint') || el.type === 'checkbox') return '';
+  var o = el._o;
+  if (el.hasAttribute('data-img') || el.type === 'hidden') return o ? '原本：<img class="thumb s" src="' + E(o) + '" alt="">' : '原本：沒有圖片';
+  if (el.tagName === 'SELECT') return '原本：' + E(el._ot || o);
+  return '原本：' + (o === '' ? '（空白）' : E(trunc(o, 60)));
+}
+function syncImgs(root) {
+  root.querySelectorAll('input[data-f=image]:not([type=hidden])').forEach(function (el) {
+    var im = el.previousElementSibling; if (!im || !im.classList.contains('pvs')) return;
+    if (isHttps(el.value)) { if (im.getAttribute('src') !== el.value) { im.classList.remove('broken'); im.src = el.value; } im.style.display = 'inline-block'; } else im.style.display = 'none';
+  });
+}
+function upd() {
+  var root = W.root; if (!root) return;
+  var ls = [];
+  root.querySelectorAll('input,textarea,select').forEach(function (el) {
+    if (el._o === undefined) return;
+    var d = valOf(el) !== el._o;
+    var b = boxOf(el);
+    if (el.type === 'checkbox' && b.classList.contains('sw') === false && b.tagName !== 'TD') b = el.parentNode;
+    mark(b, d, d ? hintOf(el) : '', d && b.classList.contains('field'));
+    if (d) ls.push(labelOf(el));
+  });
+  W.v.forEach(function (v) {
+    var d = JSON.stringify(v.get()) !== v.orig;
+    mark(v.box, d, '', d);
+    if (d) ls.push(v.lb);
+  });
+  root.querySelectorAll('.icard,tr[data-i]').forEach(function (r) { r.classList.toggle('rd', !!r.querySelector('.dirty')); });
+  syncImgs(root);
+  var seen = {}; W.ls = ls.filter(function (x) { return seen[x] ? 0 : (seen[x] = 1); }); W.n = W.ls.length;
+  var bar = $('dbar'); document.body.classList.toggle('hasbar', !!W.n);
+  if (!W.n) { bar.style.display = 'none'; bar._h = ''; }
+  else {
+    bar.style.display = 'flex';
+    var h = '<div class="l"><b>有 ' + W.n + ' 處尚未儲存</b>：' + W.ls.map(E).join('、') + (W.save ? '' : '<br><span style="opacity:.7;font-size:12px">請按該列的「儲存」按鈕</span>') + '</div>' +
+      (W.redraw ? '<button type="button" data-bar="undo">還原</button>' : '') + (W.save ? '<button type="button" class="pri" data-bar="save">' + E(W.label) + '</button>' : '');
+    if (bar._h !== h) { bar._h = h; bar.innerHTML = h; } // 內容沒變就不重畫，否則輸入框失焦時按鈕會被換掉、點擊失效
+  }
+  if (W.onupd) W.onupd();
+}
+function watch(root, o) {
+  o = o || {};
+  W.root = root; W.save = o.save || null; W.label = o.label || '儲存'; W.redraw = o.redraw || null; W.onupd = o.onupd || null;
+  root.querySelectorAll('input,textarea,select').forEach(function (el) {
+    if (el.type === 'file' || el.hasAttribute('data-skip')) return;
+    el._o = valOf(el); if (el.tagName === 'SELECT' && el.selectedIndex >= 0) el._ot = el.options[el.selectedIndex].text;
+  });
+  W.v = (o.virt || []).map(function (v) { return { lb: v.lb, get: v.get, box: v.box, orig: JSON.stringify(v.get()) }; });
+  root.oninput = root.onchange = upd;
+  upd();
+}
+function clearW() { W.root = null; W.save = null; W.redraw = null; W.onupd = null; W.v = []; W.n = 0; W.ls = []; $('dbar').style.display = 'none'; }
+function guard() {
+  if (!W.n) return true;
+  if (confirm('有 ' + W.n + ' 處修改還沒儲存（' + W.ls.slice(0, 4).join('、') + (W.n > 4 ? '…' : '') + '）。\n\n確定要離開、放棄這些修改嗎？')) { clearW(); return true; }
+  return false;
+}
+function savedMsg(pre) { return (pre || '已儲存') + (W.ls.length ? '：' + W.ls.join('、') : ''); }
+function labelsIn(el) {
+  var o = [];
+  el.querySelectorAll('input,textarea,select').forEach(function (x) { if (x._o !== undefined && valOf(x) !== x._o) o.push(labelOf(x)); });
+  return o;
+}
+window.addEventListener('beforeunload', function (e) { if (W.n) { e.preventDefault(); e.returnValue = ''; } });
+document.addEventListener('error', function (e) {
+  var t = e.target; if (t && t.tagName === 'IMG' && (t.classList.contains('thumb') || t.classList.contains('pvi'))) { t.classList.add('broken'); t.alt = '圖片無法載入，請確認網址是否為公開的 https 圖片'; t.title = t.alt; }
+}, true);
+document.addEventListener('click', function (e) {
+  var t = e.target, b = t.closest && t.closest('[data-bar]');
+  if (b) {
+    if (b.getAttribute('data-bar') === 'save') { if (W.save) W.save(); }
+    else if (W.redraw && confirm('要放棄所有未儲存的修改，還原成目前已儲存的內容嗎？')) { var f = W.redraw; clearW(); f(); }
+    return;
+  }
+  var im = t.closest && t.closest('img.thumb,img.pvi');
+  if (im && im.getAttribute('src') && !im.classList.contains('broken')) { $('lb').firstChild.src = im.src; $('lb').style.display = 'flex'; }
+  else if (t.closest && t.closest('#lb')) $('lb').style.display = 'none';
+});
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') $('lb').style.display = 'none'; });
+
+function shrink(file) {
+  return new Promise(function (res, rej) {
+    var url = URL.createObjectURL(file), img = new Image();
+    img.onload = function () {
+      var w = img.naturalWidth, h = img.naturalHeight, k = Math.min(1, 1600 / Math.max(w, h));
+      w = Math.round(w * k); h = Math.round(h * k);
+      var c = document.createElement('canvas'); c.width = w; c.height = h;
+      var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, w, h); x.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      c.toBlob(function (b) { b ? res(b) : rej(new Error('圖片處理失敗')); }, 'image/jpeg', 0.85);
+    };
+    img.onerror = function () { rej(new Error('這個檔案無法讀取。請使用 JPG、PNG 或 WebP（iPhone 的 HEIC 請先轉成 JPG）')); };
+    img.src = url;
+  });
+}
+function b64(blob) {
+  return new Promise(function (res, rej) { var r = new FileReader(); r.onload = function () { res(String(r.result).split(',')[1]); }; r.onerror = rej; r.readAsDataURL(blob); });
+}
+function upload(file, target) {
+  if (!/^image\//.test(file.type) && !/\.(jpe?g|png|webp|heic)$/i.test(file.name)) return Promise.reject(new Error('請選擇圖片檔'));
+  return shrink(file).then(b64).then(function (d) { return call('adminUploadImage', { target: target, name: file.name, data: d }); });
+}
+function pickFiles(multiple, target, done) {
+  var fi = $('fi'); fi.multiple = !!multiple; fi.value = '';
+  pend = { target: target, done: done }; fi.click();
+}
+function upBtn(label) { return '<button type="button" class="btn sm" data-up="1">' + (label || '上傳圖片') + '</button>'; }
+
+function call(action, body) {
+  return Z.post(Object.assign({ action: action, idToken: tok }, body || {})).then(function (r) {
+    if (/^admin(Save|Set|Delete|Upload)/.test(action)) if (Z.clearPub) Z.clearPub(); // 後台改過資料，這台瀏覽器的前台快取立刻作廢
+    return r;
+  }).catch(function (e) {
+    if (/登入/.test(e.message)) { logout(e.message); }
+    throw e;
+  });
+}
+function logout(msg) {
+  tok = ''; try { sessionStorage.removeItem('zt'); } catch (e) {}
+  $('app').style.display = 'none'; $('login').style.display = 'block';
+  if (msg) $('lerr').innerHTML = '<div class="msg err">' + E(msg) + '</div>';
+  drawBtn();
+}
+$('out').onclick = function (e) { e.preventDefault(); logout(); };
+function drawBtn() {
+  var cfg = window.SITE_CONFIG || {};
+  if (Z.demo || !cfg.GOOGLE_CLIENT_ID) { $('gbtn').innerHTML = '<div class="msg err">尚未設定 API_URL 與 GOOGLE_CLIENT_ID（見 README），後台暫時無法登入。</div>'; return; }
+  if (!window.google || !google.accounts) { setTimeout(drawBtn, 300); return; }
+  google.accounts.id.initialize({ client_id: cfg.GOOGLE_CLIENT_ID, callback: function (r) { tok = r.credential; try { sessionStorage.setItem('zt', tok); } catch (e) {} start(); } });
+  google.accounts.id.renderButton($('gbtn'), { theme: 'outline', size: 'large', text: 'signin_with', locale: 'zh-TW' });
+}
+function reload(cb) { call('adminInit').then(function (r) { me = r; cb(); }).catch(err); }
+function start() {
+  call('adminInit').then(function (r) {
+    me = r; $('login').style.display = 'none'; $('app').style.display = 'block'; $('me').textContent = r.email;
+    if (!me.all && me.shops.length === 1) { shopSel = me.shops[0].id; view = 'shop'; }
+    drawTabs(); show();
+  }).catch(function (e) { $('lerr').innerHTML = '<div class="msg err">' + E(e.message) + '</div>'; $('login').style.display = 'block'; $('app').style.display = 'none'; drawBtn(); });
+}
+function drawTabs() {
+  var t = [['home', '店家總覽']];
+  if (me.all || me.shops.some(function (x) { return x.id === 'h1'; })) t.push(['health', '健康餐']);
+  if (me.all) t.push(['content', '網站內容'], ['inq', '合作洽談']);
+  $('tabs').innerHTML = t.map(function (x) { return '<button class="chip' + ((x[0] === view || (x[0] === 'home' && view === 'shop' && me.shops.length > 1)) ? ' on' : '') + '" data-view="' + x[0] + '">' + x[1] + '</button>'; }).join('');
+}
+$('fi').onchange = function () {
+  var files = Array.from(this.files || []), p = pend; if (!files.length || !p) return;
+  toast('上傳中…（' + files.length + ' 張）');
+  var urls = [];
+  files.reduce(function (chain, f) { return chain.then(function () { return upload(f, p.target).then(function (r) { urls.push(r.url); }); }); }, Promise.resolve())
+    .then(function () { toast('上傳完成，記得按「儲存」'); p.done(urls); })
+    .catch(function (e) { toast(e.message); if (urls.length) p.done(urls); });
+};
+function show() {
+  clearW();
+  $('pg').innerHTML = '<div class="skel">載入中…</div>';
+  ({ home: vHome, shop: vShop, content: vContent, inq: vInq, health: vHealth })[view]();
+}
+function err(e) { ($('sp') || $('pg')).innerHTML = '<div class="msg err">' + E(e.message) + '</div>'; }
+function getShop(id) { return me.shops.filter(function (x) { return x.id === id; })[0]; }
+function shopName(id) { var s = getShop(id); return s ? (s.hall === '漢口總店' ? s.floor + ' ' : '') + s.name : id; }
+
+/* ---------- 店家總覽 ---------- */
+function vHome() {
+  reload(function () {
+    var halls = [], by = {};
+    me.shops.forEach(function (s) { if (!by[s.hall]) { by[s.hall] = []; halls.push(s.hall); } by[s.hall].push(s); });
+    var tot = me.shops.reduce(function (n, s) { return n + s.pendingCount; }, 0);
+    $('pg').innerHTML = (tot ? '<div class="msg" style="margin-bottom:20px">目前共有 <b>' + tot + '</b> 筆待確認的訂位。</div>' : '') +
+      (me.shops.length > 1 ? '<div style="margin-bottom:24px"><button class="btn sm" data-bulk="1">全部開放預約</button> <button class="btn sm" data-bulk="0">全部暫停預約</button></div>' : '') +
+      halls.map(function (h) {
+        return '<div class="en" style="margin-bottom:12px">' + E(h) + '</div><div class="fgrid">' + by[h].map(function (s) {
+          return '<div class="scard' + (s.open ? '' : ' off') + '"><div class="cap">' + E(s.floor) + '</div><div class="sn2">' + E(s.name) + '</div>' +
+            '<div class="sd">' + (s.hoursPreview ? E(s.hoursPreview) : '<span style="color:var(--mute)">營業時間尚未設定</span>') + '</div>' +
+            '<div><span class="badge">今日 ' + s.todayCount + ' 筆</span><span class="badge' + (s.pendingCount ? ' hot' : '') + '">待確認 ' + s.pendingCount + '</span></div>' +
+            '<label class="sw"><input type="checkbox" data-open="' + E(s.id) + '"' + (s.open ? ' checked' : '') + '>開放線上預約</label>' +
+            '<div><button class="btn sm" data-manage="' + E(s.id) + '">管理這間店</button></div></div>';
+        }).join('') + '</div>';
+      }).join('');
+  });
+}
+
+/* ---------- 單店管理 ---------- */
+var STABS = [['bookings', '訂位'], ['data', '店家資料'], ['settings', '預約設定'], ['items', '服務項目'], ['menu', '菜單']];
+function vShop(skip) {
+  clearW();
+  (skip ? function (cb) { cb(); } : reload)(function () {
+    var s = getShop(shopSel); if (!s) { view = 'home'; drawTabs(); return show(); }
+    drawTabs();
+    var tabs = STABS.filter(function (t) { return t[0] !== 'menu' || s.id === 'h1' || s.id === 'p'; })
+      .filter(function (t) { return !((s.id === 'h1' || s.id === 'p') && t[0] === 'items'); });
+    if (!tabs.some(function (t) { return t[0] === stab; })) stab = 'bookings';
+    $('pg').innerHTML = (me.shops.length > 1 ? '<button class="back" data-view="home">← 回店家總覽</button>' : '') +
+      '<div class="cap">' + E(s.floor) + '</div><div class="h" style="font-size:28px;margin-bottom:16px">' + E(s.name) + (s.open ? '' : '<span class="pill">暫停預約</span>') + '</div>' +
+      '<div class="sub">' + tabs.map(function (t) { return '<button class="chip' + (t[0] === stab ? ' on' : '') + '" data-stab="' + t[0] + '">' + (t[0] === 'items' ? E(s.itemsTitle || '服務項目') : t[1]) + '</button>'; }).join('') + '</div><div id="sp"><div class="skel">載入中…</div></div>';
+    try { ({ bookings: vBookings, data: vData, settings: vSettings, items: vItems, menu: vMenu })[stab](s); } catch (e) { err(e); }
+  });
+}
+
+/* 訂位（單店） */
+var bf = { status: '', when: 'up' };
+function vBookings(s) {
+  call('adminBookings', { shopId: s.id }).then(function (rows) {
+    var today = Z.ymd(new Date());
+    rows = rows.filter(function (r) { return (!bf.status || r.status === bf.status) && (bf.when === 'all' || r.date >= today); });
+    rows.sort(function (a, b) { return bf.when === 'up' ? (a.date + a.slot).localeCompare(b.date + b.slot) : (b.date + b.slot).localeCompare(a.date + a.slot); });
+    $('sp').innerHTML = '<div class="g" style="margin-bottom:20px;align-items:flex-end">' +
+      '<div class="field"><label>狀態</label><select id="fst"><option value="">全部</option>' + ['待確認', '已確認', '已到店', '已取消'].map(function (x) { return '<option' + (x === bf.status ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><label>日期</label><select id="fw"><option value="up"' + (bf.when === 'up' ? ' selected' : '') + '>今天起</option><option value="all"' + (bf.when === 'all' ? ' selected' : '') + '>全部（新到舊）</option></select></div>' +
+      '<div><button class="btn sm" id="rf">重新整理</button></div></div>' +
+      (rows.length ? '<div class="tw"><table><tr><th>日期</th><th>時段</th><th>人數</th><th>姓名 / 電話</th><th>備註</th><th>狀態</th></tr>' +
+      rows.map(function (r) {
+        return '<tr><td>' + E(r.date) + '</td><td>' + E(r.slot) + '</td><td>' + E(r.party) + '</td><td>' + E(r.name) + '<br><span class="sd">' + E(r.phone) + (r.email ? '<br>' + E(r.email) : '') + '</span></td><td>' + E(r.note) + '</td><td>' +
+          '<select class="st" data-id="' + E(r.id) + '">' + ['待確認', '已確認', '已到店', '已取消'].map(function (x) { return '<option' + (x === r.status ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></td></tr>';
+      }).join('') + '</table></div>' : '<div class="skel">沒有符合的訂位。</div>');
+    $('fst').onchange = function () { bf.status = this.value; vBookings(s); };
+    $('fw').onchange = function () { bf.when = this.value; vBookings(s); };
+    $('rf').onclick = function () { vBookings(s); };
+    document.querySelectorAll('select.st').forEach(function (x) {
+      x.onchange = function () { call('adminSetBookingStatus', { id: x.getAttribute('data-id'), status: x.value }).then(function () { toast('已更新'); }).catch(function (e) { toast(e.message); vBookings(s); }); };
+    });
+  }).catch(err);
+}
+
+/* 店家資料 */
+function vData(s) {
+  s.raw = s.raw || { btnText: '預約', btnMode: '預約', phone: '', ig: '', fb: '', line: '' }; // 後端還是舊版時的預設值
+  var sub = s.hall === '漢口總店' && String(s.floor).indexOf(' ') > 0 ? String(s.floor).split(' ')[1] : '';
+  var closedTxt = s.closed.length ? s.closed.map(function (n) { return '週' + Z.wd[n]; }).join('、') + '公休' : '無公休日';
+  var mode = s.raw.btnMode, gal = (s.gallery || []).slice(), gal0 = (s.gallery || []).slice();
+  function opt(v, t) { return '<option value="' + v + '"' + (mode === v ? ' selected' : '') + '>' + t + '</option>'; }
+  $('sp').innerHTML =
+   '<div class="vbar"><div class="seg" id="segm"><button type="button" data-m="edit" class="on">編輯</button><button type="button" data-m="view">預覽</button></div>' +
+   '<div class="seg" id="segd"><button type="button" data-d="pc" class="on">電腦</button><button type="button" data-d="mob">手機</button></div>' +
+   '<span class="sd">畫面就是前台漢口樓層頁的卡片。直接點圖片、文字就能修改；黃色＝已修改、還沒儲存。</span></div>' +
+   '<div class="stg" id="stg"><div class="ed2"><div class="frame">' +
+   '<article class="cx edcard">' +
+     '<div class="field herow"><div class="car"><div class="sl" id="hero" title="點一下更換主圖"><img id="imp" alt=""' + (s.image ? ' src="' + E(s.image) + '"' : ' style="display:none"') + '><div class="nohero" id="nohero" style="' + (s.image ? 'display:none' : '') + '">尚未設定主圖<br><small>點這裡上傳</small></div></div><button type="button" class="chg edit-only" id="chgimg">⟲ 更換主圖</button><span class="cnt" id="cntp"></span></div><input type="hidden" id="im" data-img="1" data-lb="店家主圖" value="' + E(s.image) + '"></div>' +
+     '<div class="field" id="galf"><div class="gtt edit-only">相簿照片　<span id="galn"></span></div><div class="gal-ed" id="gal"></div></div>' +
+     '<div class="bd"><div class="row2"><span class="tag">' + (sub ? E(sub) + '・' : '') + '<input class="ghost" id="ty" data-lb="類型" style="width:7em" value="' + E(s.type) + '" placeholder="類型"></span><span class="stt" id="stt"></span></div>' +
+     '<div class="field"><input class="ghost nm2" id="nm" data-lb="店名" value="' + E(s.name) + '" placeholder="店名"></div>' +
+     '<div class="field"><textarea class="ghost tg2" id="tg" rows="2" maxlength="40" data-lb="一句話介紹" placeholder="點這裡輸入一句話介紹（最多 40 字）">' + E(s.tagline || '') + '</textarea></div>' +
+     '<div class="acts"><span class="field" id="btnw" style="display:inline-block"><input class="ghost btnin" id="bt" maxlength="10" data-lb="按鈕文字" value="' + E(s.raw.btnText || '預約') + '"></span><span class="nobtn" id="nobtn" style="display:none">（目前設為不顯示主按鈕）</span>' + (s.id === 'h1' ? '<span class="btn sm gh">看菜單</span>' : '') + '<span class="btn sm gh">看介紹</span></div></div>' +
+   '</article>' +
+   '<div class="field introf"><label>店家介紹頁的完整介紹（點進「看介紹」後看到的說明）</label><textarea id="in" data-lb="完整介紹">' + E(s.intro) + '</textarea></div>' +
+   '</div>' +
+   '<aside class="side2">' +
+     '<div class="sc"><div class="h">首頁與營業時間</div>' +
+       '<label class="sw"><input type="checkbox" id="sh"' + (s.showHours ? ' checked' : '') + '><b>在首頁與樓層頁顯示營業狀態</b></label>' +
+       '<div class="hrow"><div class="field" style="flex:1 1 110px"><label>開始</label><input id="hs" type="time" value="' + E(s.hoursStart) + '"></div><div class="field" style="flex:1 1 110px"><label>結束</label><input id="he" type="time" value="' + E(s.hoursEnd) + '"></div></div>' +
+       '<div class="sd">公休日在「預約設定」：目前是「' + E(closedTxt) + '」。</div>' +
+       '<div class="field"><label>補充說明（只在沒填開始／結束時顯示）</label><input id="hr" value="' + E(s.hours) + '" placeholder="例如：依預約為主"></div></div>' +
+     '<div class="sc"><div class="h">按鈕與聯絡</div>' +
+       '<div class="field"><label>主按鈕的功能</label><select id="bm">' + opt('預約', '線上預約（到預約頁）') + opt('電話', '撥打電話') + opt('不顯示', '不顯示按鈕') + '</select></div>' +
+       '<div class="field"><label>店家電話</label><input id="ph" value="' + E(s.raw.phone) + '" placeholder="07-0000000"></div>' +
+       '<div class="field"><label>Instagram 連結</label><input id="ig" value="' + E(s.raw.ig) + '" placeholder="https://instagram.com/..."></div>' +
+       '<div class="field"><label>Facebook 連結</label><input id="fb" value="' + E(s.raw.fb) + '" placeholder="https://facebook.com/..."></div>' +
+       '<div class="field"><label>LINE 連結</label><input id="ln2" value="' + E(s.raw.line) + '" placeholder="https://line.me/..."></div>' +
+       '<div class="sd">按鈕文字直接在左邊卡片上改。選「撥打電話」要先填電話。</div></div>' +
+     '<div class="sc"><div class="h">服務項目區</div><div class="field"><label>標題</label><input id="it" maxlength="12" value="' + E(s.itemsTitle) + '" placeholder="服務項目、療程、方案、商品"></div></div>' +
+     '<div class="sc"><div class="h">這次修改</div><div id="chl" class="sd">還沒有修改</div></div>' +
+     '<div><button class="btn" id="saveShop" style="width:100%">儲存店家資料</button></div>' +
+   '</aside></div></div>';
+
+  /* 狀態標籤、按鈕顯示依目前填寫即時更新 */
+  function refresh() {
+    var hs = Z.hoursState({ hoursStart: $('hs').value, hoursEnd: $('he').value, closed: s.closed }), st = $('stt');
+    st.className = 'stt ' + (hs ? hs.state : '') + ($('sh').checked ? '' : ' dim');
+    st.textContent = (hs ? hs.text : (($('hr').value || '營業時間未設定'))) + ($('sh').checked ? '' : '（前台不顯示）');
+    var no = $('bm').value === '不顯示'; $('btnw').style.display = no ? 'none' : ''; $('nobtn').style.display = no ? '' : 'none';
+    var all = [$('im').value].concat(gal).filter(function (u, i, a) { return isHttps(u) && a.indexOf(u) === i; }).length;
+    $('cntp').textContent = all > 1 ? '1 / ' + all : '';
+    document.querySelectorAll('#sp textarea.tg2').forEach(function (t) { t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; });
+    var rows = [];
+    W.root && W.root.querySelectorAll('input,textarea,select').forEach(function (el) {
+      if (el._o === undefined || valOf(el) === el._o) return;
+      var v = valOf(el), o = el._o;
+      if (el.type === 'checkbox') { rows.push('<li><b>' + E(labelOf(el)) + '</b>　' + (v ? '改為開啟' : '改為關閉') + '</li>'); return; }
+      if (el.hasAttribute('data-img')) { rows.push('<li><b>' + E(labelOf(el)) + '</b>　已更換圖片</li>'); return; }
+      if (el.tagName === 'SELECT') { rows.push('<li><b>' + E(labelOf(el)) + '</b>　' + E(el._ot || o) + ' → ' + E(el.options[el.selectedIndex].text) + '</li>'); return; }
+      rows.push('<li><b>' + E(labelOf(el)) + '</b>　' + (o ? E(trunc(o, 18)) : '（空白）') + ' → ' + (v ? E(trunc(v, 18)) : '（清空）') + '</li>');
+    });
+    W.v.forEach(function (x) { if (JSON.stringify(x.get()) !== x.orig) rows.push('<li><b>' + E(x.lb) + '</b>　' + gal0.length + ' 張 → ' + gal.length + ' 張</li>'); });
+    $('chl').innerHTML = rows.length ? '<ul class="chl">' + rows.join('') + '</ul>' : '還沒有修改';
+  }
+
+  /* 相簿：新增、移除、設為主圖、左右移動 */
+  function drawGal() {
+    $('gal').innerHTML = gal.map(function (u, i) {
+      return '<figure' + (gal0.indexOf(u) < 0 ? ' class="new"' : '') + '><img class="thumb" src="' + E(u) + '" alt=""><span class="x" data-rmg="' + i + '" title="移除">×</span>' +
+        '<div class="gfa edit-only"><button type="button" data-mv="' + i + ',-1" title="往前">‹</button><button type="button" data-mainfrom="' + i + '" title="設為主圖">★</button><button type="button" data-mv="' + i + ',1" title="往後">›</button></div></figure>';
+    }).join('') + '<button type="button" class="addp edit-only" id="addg">＋<br>新增照片<small>可一次選多張</small></button>';
+    var add = gal.filter(function (u) { return gal0.indexOf(u) < 0; }).length, del = gal0.filter(function (u) { return gal.indexOf(u) < 0; }).length;
+    $('galn').textContent = '共 ' + gal.length + ' 張' + ((add || del) ? '（新增 ' + add + '、移除 ' + del + '，按儲存才生效）' : '') + '；前台縮圖列只顯示前 5 張，點 ★ 設為主圖';
+    if (W.root) upd();
+  }
+  $('gal').onclick = function (e) {
+    var t = e.target, r = t.getAttribute('data-rmg'), m = t.getAttribute('data-mv'), f = t.getAttribute('data-mainfrom');
+    if (r !== null) { gal.splice(Number(r), 1); drawGal(); }
+    else if (m) { var p = m.split(','), i = Number(p[0]), j = i + Number(p[1]); if (j >= 0 && j < gal.length) { var x = gal[i]; gal[i] = gal[j]; gal[j] = x; drawGal(); } }
+    else if (f !== null) { var k = Number(f), old = $('im').value, nu = gal[k]; if (old && isHttps(old)) gal[k] = old; else gal.splice(k, 1); setVal($('im'), nu); drawGal(); }
+    else if (t.closest('#addg')) pickFiles(true, 'shop:' + s.id, function (u) { gal = gal.concat(u).filter(function (v, i, a) { return a.indexOf(v) === i; }).slice(0, 12); drawGal(); });
+  };
+  drawGal();
+
+  /* 換主圖視窗：預覽、上傳或貼網址 */
+  function imgDlg() {
+    var d = $('imd'), cur = $('im').value;
+    d.innerHTML = '<div class="box"><div class="h" style="font-size:18px">更換主圖</div><div class="pvbox" id="dpv">' + (isHttps(cur) ? '<img src="' + E(cur) + '" alt="">' : '<span class="sd">尚未設定主圖</span>') + '</div>' +
+      '<div class="hrow"><button type="button" class="btn sm" id="dup">上傳新圖</button><span class="sd">JPG、PNG、WebP；系統會自動縮小</span></div>' +
+      '<div class="field"><label>或貼上圖片網址（https）</label><input id="dur" value="' + E(cur) + '"></div>' +
+      '<div class="hrow"><button type="button" class="btn" id="dok">使用這張</button><button type="button" class="btn sm" id="dno">取消</button><button type="button" class="btn sm" id="drm" style="margin-left:auto">移除主圖</button></div></div>';
+    d.style.display = 'flex';
+    function show(u) { $('dur').value = u; $('dpv').innerHTML = isHttps(u) ? '<img src="' + E(u) + '" alt="">' : '<span class="sd">請貼上 https 開頭的圖片網址</span>'; }
+    $('dur').oninput = function () { show(this.value); };
+    $('dup').onclick = function () { pickFiles(false, 'shop:' + s.id, function (u) { if (u[0]) show(u[0]); }); };
+    $('dno').onclick = function () { d.style.display = 'none'; };
+    $('drm').onclick = function () { setVal($('im'), ''); d.style.display = 'none'; };
+    $('dok').onclick = function () { var u = $('dur').value.trim(); if (u && !isHttps(u)) { toast('圖片網址要以 https:// 開頭'); return; } setVal($('im'), u); d.style.display = 'none'; };
+  }
+  $('hero').onclick = $('chgimg').onclick = imgDlg;
+  $('im').addEventListener('input', function () {
+    var ok = isHttps(this.value), im = $('imp'); if (ok) { im.classList.remove('broken'); im.src = this.value; }
+    im.style.display = ok ? 'block' : 'none'; $('nohero').style.display = ok ? 'none' : '';
+  });
+
+  /* 編輯／預覽、電腦／手機 */
+  $('segm').onclick = function (e) {
+    var m = e.target.getAttribute('data-m'); if (!m) return;
+    $('stg').classList.toggle('view', m === 'view');
+    document.querySelectorAll('#sp .ghost').forEach(function (x) { x.readOnly = m === 'view'; });
+    this.querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-m') === m); });
+  };
+  $('segd').onclick = function (e) {
+    var m = e.target.getAttribute('data-d'); if (!m) return;
+    $('stg').classList.toggle('mob', m === 'mob');
+    this.querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-d') === m); });
+  };
+
+  $('saveShop').onclick = save;
+  function save() {
+    var msg = savedMsg('店家資料已儲存'); if (!W.n) { toast('沒有任何修改'); return; }
+    call('adminSaveShop', { shopId: s.id, fields: { '店名': $('nm').value, '類型': $('ty').value, '項目標題': $('it').value, '營業時間': $('hr').value, '營業開始': $('hs').value, '營業結束': $('he').value, '首頁顯示營業時間': $('sh').checked,
+      '介紹': $('in').value, '一句話介紹': $('tg').value, '圖片網址': $('im').value, '相簿圖片': gal,
+      '按鈕模式': $('bm').value, '按鈕文字': $('bt').value, '電話': $('ph').value, 'Instagram': $('ig').value, 'Facebook': $('fb').value, 'LINE': $('ln2').value } })
+      .then(function () { toast(msg); vShop(); }).catch(function (e) { toast(e.message); });
+  }
+  watch($('sp'), { save: save, label: '儲存店家資料', redraw: function () { vData(s); }, onupd: refresh, virt: [{ lb: '相簿照片', get: function () { return gal; }, box: $('galf') }] });
+}
+
+/* 預約設定 */
+function vSettings(s) {
+  var slots = s.slots.map(function (t) { return '<span class="t"><input class="mini" type="time" value="' + t + '" data-slot data-skip><button class="x" type="button" data-rm>×</button></span>'; }).join('');
+  $('sp').innerHTML =
+   '<div class="card"><label class="sw"><input type="checkbox" id="open" data-skip' + (s.open ? ' checked' : '') + '><b>開放線上預約</b><span class="sd">關閉後，前台按鈕會顯示「暫停預約」，已收到的訂位不受影響。</span></label></div>' +
+   '<div class="card"><div class="h" style="font-size:20px">可預約時段</div><div class="field" id="slf" style="padding:6px 0"><div id="slots">' + slots + '</div><div><button class="btn sm" type="button" id="addSlot">＋ 新增時段</button></div></div>' +
+   '<div class="g"><div class="field"><label>每時段可接幾組</label><input id="cap" type="number" min="1" max="200" value="' + s.cap + '"></div><div class="field"><label>單筆人數上限</label><input id="mp" type="number" min="1" max="100" value="' + s.maxParty + '"></div><div class="field"><label>最多提前幾天預約</label><input id="adv" type="number" min="1" max="365" value="' + s.advance + '"></div></div>' +
+   '<div class="field" id="clf"><label>公休日（該星期不開放預約，也會顯示在營業時間後面）</label><div>' + Z.wd.map(function (w, i) { return '<label class="sw" style="margin-right:16px"><input type="checkbox" data-skip data-cl="' + i + '"' + (s.closed.indexOf(i) >= 0 ? ' checked' : '') + '>週' + w + '</label>'; }).join('') + '</div></div>' +
+   '<div class="g"><div class="field"><label>通知 Email（多個用逗號分隔）</label><input id="em" value="' + E(s.email) + '"></div><div class="field"><label>LINE 通知對象（保留，之後串接官方帳號）</label><input id="ln" value="' + E(s.line) + '"></div></div>' +
+   '<div><button class="btn" id="saveSet">儲存預約設定</button></div></div>';
+  $('open').onchange = function () { var on = this.checked; setOpen(s.id, on).then(function () { toast(on ? '已開放預約' : '已暫停預約'); vShop(); }); };
+  $('addSlot').onclick = function () { $('slots').insertAdjacentHTML('beforeend', '<span class="t"><input class="mini" type="time" value="12:00" data-slot data-skip><button class="x" type="button" data-rm>×</button></span>'); upd(); };
+  $('slots').onclick = function (e) { if (e.target.hasAttribute('data-rm')) { e.target.parentNode.remove(); upd(); } };
+  function slotsNow() { return Array.from(document.querySelectorAll('[data-slot]')).map(function (i) { return i.value; }).filter(Boolean).sort(); }
+  function closedNow() { return Array.from(document.querySelectorAll('[data-cl]:checked')).map(function (i) { return Number(i.getAttribute('data-cl')); }); }
+  $('saveSet').onclick = saveSet;
+  function saveSet() {
+    if (!W.n) { toast('沒有任何修改'); return; }
+    var msg = savedMsg('預約設定已儲存');
+    var v = Array.from(document.querySelectorAll('[data-slot]')).map(function (i) { return i.value; }).filter(Boolean);
+    call('adminSaveSettings', { shopId: s.id, fields: { slots: v, cap: $('cap').value, maxParty: $('mp').value, advance: $('adv').value,
+      closed: Array.from(document.querySelectorAll('[data-cl]:checked')).map(function (i) { return Number(i.getAttribute('data-cl')); }), email: $('em').value, line: $('ln').value } })
+      .then(function () { toast(msg); vShop(); }).catch(function (e) { toast(e.message); });
+  }
+  watch($('sp'), { save: saveSet, label: '儲存預約設定', redraw: function () { vSettings(s); }, virt: [{ lb: '可預約時段', get: slotsNow, box: $('slf') }, { lb: '公休日', get: closedNow, box: $('clf') }] });
+}
+function setOpen(id, on) { return call('adminSetShopOpen', { shopId: id, open: on }).catch(function (e) { toast(e.message); throw e; }); }
+
+/* 服務項目（每間店自己的項目：名稱、介紹、價格、圖片） */
+function itemCard(r, i) {
+  var isNew = !r.id;
+  return '<div class="icard' + (isNew ? ' new' : '') + '" data-i="' + i + '"><div class="im"><img class="thumb" alt=""' + (r.image ? ' src="' + E(r.image) + '"' : ' style="background:var(--soft)"') + '><button type="button" class="btn sm" data-up-item="1" style="padding:6px 10px">上傳圖片</button></div>' +
+    '<div class="bd"><div class="g"><div class="field" style="flex:2 1 200px"><label>' + (isNew ? '＋ 新增：名稱' : '名稱') + '</label><input data-f="name" value="' + E(r.name) + '"></div><div class="field"><label>分類（選填）</label><input data-f="cat" value="' + E(r.cat) + '"></div>' +
+    '<div class="field"><label>價格</label><input data-f="price" value="' + E(r.price) + '" placeholder="例如 NT$1,200 起"></div><div class="field" style="flex:0 0 80px"><label>排序</label><input data-f="order" value="' + E(r.order) + '"></div></div>' +
+    '<div class="field"><label>介紹</label><textarea data-f="desc" style="min-height:60px">' + E(r.desc) + '</textarea></div><input data-f="image" data-lb="圖片" type="hidden" value="' + E(r.image) + '">' +
+    '<div class="hrow"><label class="sw"><input type="checkbox" data-f="on"' + (r.on ? ' checked' : '') + '>顯示在前台</label><button class="btn sm" data-isave="' + i + '">' + (isNew ? '新增' : '儲存') + '</button>' + (isNew ? '' : '<button class="btn sm" data-idel="' + i + '">刪除</button>') + '</div></div></div>';
+}
+function vItems(s) {
+  call('adminItemList', { shopId: s.id }).then(function (rows) {
+    cache.items = [{ id: '', cat: '', name: '', desc: '', price: '', image: '', on: true, order: '' }].concat(rows);
+    $('sp').innerHTML = '<p class="sd">這裡填這間店的「' + E(s.itemsTitle) + '」，會顯示在前台店家頁。標題可在「店家資料」修改。價格可以自由輸入文字。排序數字小的在前面。</p>' + cache.items.map(itemCard).join('');
+    watch($('sp'), { redraw: function () { vItems(s); } });
+  }).catch(err);
+}
+function itemOf(i) {
+  var el = document.querySelector('.icard[data-i="' + i + '"]'), o = {};
+  el.querySelectorAll('[data-f]').forEach(function (x) { o[x.getAttribute('data-f')] = x.type === 'checkbox' ? x.checked : x.value; });
+  o.id = cache.items[i].id; return o;
+}
+
+/* 菜單（只有兩間餐館） */
+function vMenu(s) {
+  hallSel = s.hall;
+  call('adminMenuList', { hall: hallSel }).then(function (rows) {
+    cache.menu = rows;
+    $('sp').innerHTML = '<div class="tw"><table><tr><th>分類</th><th>品名</th><th>介紹</th><th>價格</th><th>圖片網址</th><th>排序</th><th>供應中</th><th></th></tr>' +
+      rows.concat([{ id: '', cat: '', name: '', desc: '', price: '', image: '', on: true, order: '' }]).map(function (r, i) {
+        return '<tr data-i="' + i + '"><td><input class="mini" style="width:90px" data-f="cat" value="' + E(r.cat) + '"></td><td><input class="mini" style="width:130px" data-f="name" value="' + E(r.name) + '"></td><td><input class="mini" style="width:200px" data-f="desc" value="' + E(r.desc) + '"></td><td><input class="mini" style="width:70px" data-f="price" value="' + E(r.price) + '"></td><td><img class="thumb s pvs" alt="" style="display:none"><input class="mini" style="width:120px" data-f="image" value="' + E(r.image) + '"> <button type="button" class="btn sm" data-up-row="1" style="padding:4px 10px">上傳</button></td><td><input class="mini" style="width:50px" data-f="order" value="' + E(r.order) + '"></td><td><input type="checkbox" data-f="on"' + (r.on ? ' checked' : '') + '></td><td><button class="btn sm" data-save="' + i + '">' + (r.id ? '儲存' : '新增') + '</button>' + (r.id ? ' <button class="btn sm" data-del="' + i + '">刪除</button>' : '') + '</td></tr>';
+      }).join('') + '</table></div><p class="sd">最後一列是新增品項。分類相同的品項會顯示在同一區；排序數字小的在前面。修改過的欄位會標成黃色，按該列的「儲存」才生效。</p>';
+    watch($('sp'), { redraw: function () { vMenu(s); } });
+  }).catch(err);
+}
+function rowItem(i) {
+  var tr = document.querySelector('tr[data-i="' + i + '"]'), o = {};
+  tr.querySelectorAll('[data-f]').forEach(function (el) { o[el.getAttribute('data-f')] = el.type === 'checkbox' ? el.checked : el.value; });
+  var base = cache.menu[i]; if (base) o.id = base.id; return o;
+}
+
+
+/* ---------- 健康餐管理（品項、醬汁與飲品、本週蔬菜、規則與價格） ---------- */
+var htab = 'items', HT = [['items', '餐點品項'], ['addons', '醬汁與飲品'], ['veg', '本週蔬菜'], ['settings', '規則與價格']];
+function vHealth() {
+  var tabs = HT.filter(function (t) { return t[0] !== 'settings' || me.all; });
+  if (!tabs.some(function (t) { return t[0] === htab; })) htab = 'items';
+  $('pg').innerHTML = '<div class="cap">健康餐</div><div class="h" style="font-size:28px;margin-bottom:6px">健康餐管理</div><div id="hopen"></div>' +
+    '<div class="sub">' + tabs.map(function (t) { return '<button class="chip' + (t[0] === htab ? ' on' : '') + '" data-htab="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div><div id="sp"><div class="skel">載入中…</div></div>';
+  call('adminHealthList').then(function (r) {
+    cache.h = r;
+    $('hopen').innerHTML = '<div class="msg" style="margin:8px 0 18px">' + (r.open ? '健康餐頁面<b>已對外開放</b>。' : '健康餐頁面<b>尚未對外開放</b>，一般訪客看不到選單與價格。' + (me.all ? '確認上架後，到「規則與價格」把「健康餐頁面開放」改成 TRUE。' : '')) + ' <a href="healthy.html" target="_blank" rel="noopener" style="text-decoration:underline">查看前台頁面</a></div>';
+    ({ items: hItems, addons: hAddons, veg: hVeg, settings: hSet })[htab](r);
+  }).catch(err);
+}
+function hInp(f, v, w) { return '<input class="mini" style="width:' + w + 'px" data-f="' + f + '" value="' + E(v) + '">'; }
+function hImg(v, tg) { return '<img class="thumb s pvs" alt="" style="display:none"><input class="mini" style="width:84px" data-f="image" value="' + E(v) + '"> <button type="button" class="btn sm" data-hup="' + E(tg) + '" style="padding:4px 10px">上傳</button>'; }
+function hRow(tr) { var o = {}; tr.querySelectorAll('[data-f]').forEach(function (el) { o[el.getAttribute('data-f')] = el.type === 'checkbox' ? el.checked : el.value; }); return o; }
+function hItems(r) {
+  var rows = r.items.concat([{ id: '', size: '', main: '', mainDesc: '', rice: '', vegG: '250', kcal: '', protein: '', carb: '', fat: '', price: '', upg: '0', name: '', desc: '', image: '', on: true, order: '' }]);
+  $('sp').innerHTML = '<p class="sd">每一列是一款餐點（份量 × 主菜，不能重複）。份量、主菜、營養與價格都可以直接改，也可以新增或刪除；最後一列是新增。價格、營養數字改完按該列「儲存」才生效；取消勾選「顯示」就不會出現在前台。「訂閱加價」是這一款相對基本餐的差額（僅供參考，實際加價規則在「規則與價格」）。</p><div class="tw hn"><table><tr><th>份量</th><th>主菜</th><th>主菜內容</th><th>飯 g</th><th>蔬菜 g</th><th>熱量</th><th>蛋白質</th><th>碳水</th><th>脂肪</th><th>單點價</th><th>訂閱加價</th><th>介紹</th><th>圖片</th><th>排序</th><th>顯示</th><th></th></tr>' +
+    rows.map(function (x, i) {
+      return '<tr data-hi="' + i + '"><td>' + hInp('size', x.size, 74) + '</td><td>' + hInp('main', x.main, 66) + '</td><td>' + hInp('mainDesc', x.mainDesc, 96) + '</td><td>' + hInp('rice', x.rice, 44) + '</td><td>' + hInp('vegG', x.vegG, 44) + '</td><td>' + hInp('kcal', x.kcal, 50) + '</td><td>' + hInp('protein', x.protein, 44) + '</td><td>' + hInp('carb', x.carb, 44) + '</td><td>' + hInp('fat', x.fat, 44) + '</td><td>' + hInp('price', x.price, 54) + '</td><td>' + hInp('upg', x.upg, 50) + '</td><td>' + '</td><td>' + hInp('desc', x.desc, 130) + '</td><td>' + hImg(x.image, 'health:' + (x.id || 'new')) + '</td><td>' + hInp('order', x.order, 40) + '</td><td><input type="checkbox" data-f="on"' + (x.on ? ' checked' : '') + '></td><td><button class="btn sm" data-hsave="items">' + (x.id ? '儲存' : '新增') + '</button>' + (x.id ? ' <button class="btn sm" data-hdel="items">刪除</button>' : '') + '</td></tr>';
+    }).join('') + '</table></div>';
+  watch($('sp'), { redraw: vHealth });
+}
+function hAddons(r) {
+  var rows = r.addons.concat([{ id: '', type: '飲品', name: '', desc: '', protein: '', price: '', free: false, image: '', on: true, order: '' }]);
+  $('sp').innerHTML = '<p class="sd">醬汁（含免費附贈與加價的）與加購飲品。「免費」勾選＝附贈；收費品項要填加購價才能顯示，價格還沒定的請先取消「顯示」。松露醬另外受「規則與價格」的「松露醬開放」控制。最後一列是新增。</p><div class="tw hn"><table><tr><th>類型</th><th>名稱</th><th>內容／說明</th><th>蛋白質 g</th><th>加購價</th><th>免費</th><th>圖片</th><th>排序</th><th>顯示</th><th></th></tr>' +
+    rows.map(function (x, i) {
+      return '<tr data-hi="' + i + '"><td><select class="st" data-f="type"><option' + (x.type === '醬汁' ? ' selected' : '') + '>醬汁</option><option' + (x.type === '飲品' ? ' selected' : '') + '>飲品</option></select></td><td>' + hInp('name', x.name, 120) + '</td><td>' + hInp('desc', x.desc, 190) + '</td><td>' + hInp('protein', x.protein, 44) + '</td><td>' + hInp('price', x.price, 54) + '</td><td><input type="checkbox" data-f="free"' + (x.free ? ' checked' : '') + '></td><td>' + hImg(x.image, 'addon:' + (x.id || 'new')) + '</td><td>' + hInp('order', x.order, 40) + '</td><td><input type="checkbox" data-f="on"' + (x.on ? ' checked' : '') + '></td><td><button class="btn sm" data-hsave="addons">' + (x.id ? '儲存' : '新增') + '</button>' + (x.id ? ' <button class="btn sm" data-hdel="addons">刪除</button>' : '') + '</td></tr>';
+    }).join('') + '</table></div>';
+  watch($('sp'), { redraw: vHealth });
+}
+function mondayOf(d) { var x = new Date(d.getTime() + 8 * 3600000); var w = (x.getUTCDay() + 6) % 7; return new Date(x.getTime() - w * 86400000).toISOString().slice(0, 10); }
+function hVeg(r) {
+  var rows = r.veg.concat([{ start: '', fixed: '', r1: '', r2: '', image: '', by: '', at: '' }]);
+  $('sp').innerHTML = '<p class="sd">每週更新一次：選這週的「起始日」（通常是週一），填固定蔬菜與兩種輪替蔬菜。前台會自動顯示起始日已到的最新一週，所以可以提前一週填好。寫法：<b>花椰菜 60g（綠）、高麗菜 60g（綠）、炒菇 50g（棕）</b>——克數與括號內的顏色（紅／黃／綠／橙／紫／白／棕）都可省略，前台用顏色小方塊表示。同一個起始日再存一次＝覆蓋。最後一列是新增。</p><div class="tw hn"><table><tr><th>週起始日</th><th>固定蔬菜</th><th>輪替蔬菜 1</th><th>輪替蔬菜 2</th><th>圖片</th><th>最後更新</th><th></th></tr>' +
+    rows.map(function (x, i) {
+      var cur = x.start && x.start === r.currentWeek;
+      return '<tr data-hi="' + i + '"><td>' + (x.start ? '<input class="mini" style="width:104px" data-f="start" data-skip="1" readonly value="' + E(x.start) + '">' + (cur ? '<span class="pill">本週</span>' : '') : '<input class="mini" type="date" style="width:130px" data-f="start" value="' + mondayOf(new Date()) + '" data-skip="1">') + '</td><td>' + hInp('fixed', x.fixed, 260) + '</td><td>' + hInp('r1', x.r1, 110) + '</td><td>' + hInp('r2', x.r2, 110) + '</td><td>' + hImg(x.image, 'veg:' + (x.start || 'new')) + '</td><td class="sd" style="font-size:12px">' + E(x.by || '') + '<br>' + E(x.at || '') + '</td><td><button class="btn sm" data-hsave="veg">' + (x.start ? '儲存' : '新增') + '</button>' + (x.start ? ' <button class="btn sm" data-hdel="veg">刪除</button>' : '') + '</td></tr>';
+    }).join('') + '</table></div>';
+  watch($('sp'), { redraw: vHealth });
+}
+function hSet(r) {
+  $('sp').innerHTML = '<p class="sd">這裡是價格與營運規則（只有總管理員看得到）。只能改「值」；說明欄有「待主管批准」的項目，請先確認再改。改完按該列「儲存」。</p><div class="tw hn"><table><tr><th>設定項目</th><th>值</th><th>說明</th><th>狀態</th><th></th></tr>' +
+    r.settings.map(function (x, i) { return '<tr data-hi="' + i + '"><td>' + E(x.key) + '</td><td>' + hInp('value', x.value, 170) + '</td><td class="sd" style="font-size:12px;min-width:260px">' + E(x.note || '') + '</td><td class="sd" style="font-size:12px">' + E(x.status) + '</td><td><button class="btn sm" data-hsave="settings">儲存</button></td></tr>'; }).join('') + '</table></div>';
+  watch($('sp'), { redraw: vHealth });
+}
+document.addEventListener('click', function (e) {
+  var t = e.target, b;
+  if ((b = t.closest('[data-htab]'))) { if (!guard()) return; htab = b.getAttribute('data-htab'); vHealth(); return; }
+  if ((b = t.closest('[data-hup]'))) { var inp = b.parentNode.querySelector('input[data-f=image]'); pickFiles(false, b.getAttribute('data-hup'), function (u) { if (u[0]) setVal(inp, u[0]); }); return; }
+  if ((b = t.closest('[data-hsave]'))) {
+    var tr = b.closest('tr'), kind = b.getAttribute('data-hsave'), i = Number(tr.getAttribute('data-hi')), ls = labelsIn(tr), o = hRow(tr), H = cache.h, req, nm;
+    if (!ls.length) { toast('這一列沒有修改'); return; }
+    if (kind === 'items') { if (H.items[i]) { o.id = H.items[i].id; o.name = H.items[i].name; } nm = o.size + ' ' + o.main; req = call('adminSaveHealthItem', { item: o }); }
+    else if (kind === 'addons') { if (H.addons[i]) o.id = H.addons[i].id; nm = o.name; req = call('adminSaveAddon', { item: o }); }
+    else if (kind === 'veg') { nm = o.start + ' 這週'; req = call('adminSaveVeg', { veg: o }); }
+    else { nm = H.settings[i].key; req = call('adminSaveHealthSetting', { key: H.settings[i].key, value: o.value }); }
+    req.then(function () { toast('已儲存「' + nm + '」' + (ls.length ? '：' + ls.join('、') : '')); clearW(); vHealth(); }).catch(function (er) { toast(er.message); });
+    return;
+  }
+  if ((b = t.closest('[data-hdel]'))) {
+    var kd = b.getAttribute('data-hdel'), ix = Number(b.closest('tr').getAttribute('data-hi'));
+    if (kd === 'items' && confirm('確定刪除「' + cache.h.items[ix].size + ' ' + cache.h.items[ix].main + '」？（只是暫時不賣的話，取消勾選「顯示」就好）')) call('adminDeleteHealthItem', { id: cache.h.items[ix].id }).then(function () { toast('已刪除'); clearW(); vHealth(); }).catch(function (er) { toast(er.message); });
+    if (kd === 'addons' && confirm('確定刪除「' + cache.h.addons[ix].name + '」？（只是不想賣的話，取消勾選「顯示」就好）')) call('adminDeleteAddon', { id: cache.h.addons[ix].id }).then(function () { toast('已刪除'); clearW(); vHealth(); }).catch(function (er) { toast(er.message); });
+    if (kd === 'veg' && confirm('確定刪除 ' + cache.h.veg[ix].start + ' 這週的蔬菜？')) call('adminDeleteVeg', { start: cache.h.veg[ix].start }).then(function () { toast('已刪除'); clearW(); vHealth(); }).catch(function (er) { toast(er.message); });
+  }
+});
+
+/* ---------- 全域點擊 ---------- */
+document.addEventListener('click', function (e) {
+  var t = e.target, b;
+  if ((b = t.closest('[data-view],[data-manage],[data-stab]')) && !guard()) return;
+  if ((b = t.closest('[data-view]'))) { view = b.getAttribute('data-view'); drawTabs(); show(); return; }
+  if ((b = t.closest('[data-manage]'))) { shopSel = b.getAttribute('data-manage'); view = 'shop'; stab = 'bookings'; drawTabs(); show(); return; }
+  if ((b = t.closest('[data-stab]'))) { stab = b.getAttribute('data-stab'); vShop(true); return; }
+  if ((b = t.closest('[data-bulk]'))) { var on = b.getAttribute('data-bulk') === '1'; Promise.all(me.shops.map(function (s) { return setOpen(s.id, on); })).then(function () { toast(on ? '已全部開放' : '已全部暫停'); vHome(); }); return; }
+  if ((b = t.closest('[data-up-item]'))) {
+    var card = b.closest('.icard'), hid = card.querySelector('[data-f=image]'), th = card.querySelector('.thumb');
+    pickFiles(false, 'shop:' + shopSel, function (u) { if (u[0]) { th.classList.remove('broken'); th.src = u[0]; th.style.visibility = 'visible'; setVal(hid, u[0]); } }); return;
+  }
+  if ((b = t.closest('[data-isave]'))) { var ii = b.getAttribute('data-isave'), ib = labelsIn(b.closest('.icard')); if (!ib.length) { toast('這個項目沒有修改'); return; } var iname = itemOf(ii).name; call('adminSaveItem', { shopId: shopSel, item: itemOf(ii) }).then(function () { toast('已儲存「' + iname + '」：' + ib.join('、')); clearW(); vItems(getShop(shopSel)); }).catch(function (er) { toast(er.message); }); return; }
+  if ((b = t.closest('[data-idel]'))) { var di = b.getAttribute('data-idel'); if (confirm('確定刪除這個項目？')) call('adminDeleteItem', { shopId: shopSel, id: cache.items[di].id }).then(function () { toast('已刪除'); vItems(getShop(shopSel)); }).catch(function (er) { toast(er.message); }); return; }
+  if ((b = t.closest('[data-up-c]'))) { var ci = b.parentNode.querySelector('input'); pickFiles(false, 'content', function (u) { if (u[0]) setVal(ci, u[0]); }); return; }
+  if ((b = t.closest('[data-up-row]'))) { var inp = b.parentNode.querySelector('input'); pickFiles(false, 'menu:' + hallSel, function (u) { if (u[0]) setVal(inp, u[0]); }); return; }
+  if ((b = t.closest('[data-save]'))) { var mb = labelsIn(b.closest('tr')); if (!mb.length) { toast('這一列沒有修改'); return; } var mn = rowItem(b.getAttribute('data-save')).name; call('adminSaveMenu', { hall: hallSel, item: rowItem(b.getAttribute('data-save')) }).then(function () { toast('已儲存「' + mn + '」：' + mb.join('、')); clearW(); vMenu(getShop(shopSel)); }).catch(function (er) { toast(er.message); }); return; }
+  if ((b = t.closest('[data-del]')) && confirm('確定刪除這個品項？')) call('adminDeleteMenu', { hall: hallSel, id: cache.menu[b.getAttribute('data-del')].id }).then(function () { toast('已刪除'); vMenu(getShop(shopSel)); }).catch(function (er) { toast(er.message); });
+});
+document.addEventListener('change', function (e) {
+  var c = e.target.closest && e.target.closest('[data-open]'); if (!c) return;
+  var on = c.checked; setOpen(c.getAttribute('data-open'), on).then(function () { toast(on ? '已開放預約' : '已暫停預約'); vHome(); }).catch(function () { c.checked = !on; });
+});
+
+/* ---------- 網站內容 ---------- */
+var SUGGEST = [['首頁', '品牌', '標語'], ['首頁', '品牌', '品牌故事'], ['首頁', '圖片', '主圖'], ['漢口總店', '基本資料', '簡介'], ['漢口總店', '基本資料', '營業時間'], ['漢口總店', '基本資料', '電話'], ['漢口總店', '基本資料', '地址'], ['漢口總店', '基本資料', '交通'], ['漢口總店', '圖片', '封面'],
+  ['黃埔二店', '基本資料', '簡介'], ['黃埔二店', '基本資料', '空間介紹'], ['黃埔二店', '基本資料', '營業時間'], ['黃埔二店', '基本資料', '電話'], ['黃埔二店', '基本資料', '地址'], ['黃埔二店', '基本資料', '交通'], ['黃埔二店', '圖片', '封面'], ['黃埔二店', '圖片', '相片1'], ['黃埔二店', '圖片', '相片2'], ['黃埔二店', '圖片', '相片3'],
+  ['全站', '社群', 'Facebook'], ['全站', '社群', 'Instagram'], ['全站', '合作', '合作說明']];
+function vContent() {
+  call('adminContentList').then(function (rows) {
+    var have = {}; rows.forEach(function (r) { have[r.page + '|' + r.field] = 1; });
+    SUGGEST.forEach(function (s) { if (!have[s[0] + '|' + s[2]]) rows.push({ page: s[0], block: s[1], field: s[2], text: '', image: '' }); });
+    cache.content = rows;
+    $('pg').innerHTML = '<p class="sd">留白或填「待補」的欄位，前台會顯示預設字樣。圖片請貼公開的 https 網址（例如 Google 雲端硬碟、Imgur 或自家圖床）。</p><div class="tw"><table><tr><th>頁面</th><th>欄位</th><th>文字</th><th>圖片網址</th></tr>' +
+      rows.map(function (r, i) { return '<tr data-i="' + i + '"><td>' + E(r.page) + '</td><td>' + E(r.field) + '</td><td><textarea class="mini" style="width:340px;min-height:44px;font:inherit;font-size:13px" data-f="text" data-lb="' + E(r.page + '・' + r.field) + '">' + E(r.text) + '</textarea></td><td><img class="thumb s pvs" alt="" style="display:none"><input class="mini" style="width:170px" data-f="image" data-img="1" data-lb="' + E(r.page + '・' + r.field + '（圖片）') + '" value="' + E(r.image) + '"> <button type="button" class="btn sm" data-up-c="1" style="padding:4px 10px">上傳</button></td></tr>'; }).join('') +
+      '</table></div><p><button class="btn" id="saveC">儲存全部</button></p>';
+    $('saveC').onclick = saveC;
+    function saveC() {
+      if (!W.n) { toast('沒有任何修改'); return; }
+      var cmsg = W.n + ' 處修改已儲存';
+      var out = cache.content.map(function (r, i) {
+        var tr = document.querySelector('tr[data-i="' + i + '"]');
+        return { page: r.page, block: r.block, field: r.field, text: tr.querySelector('[data-f=text]').value, image: tr.querySelector('[data-f=image]').value, _changed: tr.querySelector('[data-f=text]').value !== (r.text || '') || tr.querySelector('[data-f=image]').value !== (r.image || '') };
+      }).filter(function (r) { return r._changed; });
+      if (!out.length) { toast('沒有變更'); return; }
+      var names = out.map(function (r) { return r.page + '・' + r.field; });
+      call('adminSaveContent', { rows: out }).then(function () { toast('已儲存 ' + out.length + ' 筆：' + trunc(names.join('、'), 60)); clearW(); vContent(); }).catch(function (er) { toast(er.message); });
+    }
+    watch($('pg'), { save: saveC, label: '儲存全部', redraw: vContent });
+  }).catch(err);
+}
+
+/* ---------- 合作洽談 ---------- */
+function vInq() {
+  call('adminInquiries').then(function (rows) {
+    $('pg').innerHTML = rows.length ? '<div class="tw"><table><tr><th>時間</th><th>類型</th><th>單位 / 聯絡人</th><th>聯絡方式</th><th>內容</th><th>狀態</th></tr>' + rows.map(function (r) {
+      return '<tr><td>' + E(r.time) + '</td><td>' + E(r.type) + '</td><td>' + E(r.org) + '<br>' + E(r.name) + '</td><td>' + E(r.phone) + '<br>' + E(r.email) + '</td><td style="max-width:360px;white-space:pre-wrap">' + E(r.message) + '</td><td><select class="st" data-row="' + r.row + '">' + ['新', '處理中', '已回覆', '結案'].map(function (s) { return '<option' + (s === r.status ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select></td></tr>';
+    }).join('') + '</table></div>' : '<div class="skel">目前沒有洽談資料。</div>';
+    document.querySelectorAll('select[data-row]').forEach(function (s) { s.onchange = function () { call('adminSetInquiryStatus', { row: s.getAttribute('data-row'), status: s.value }).then(function () { toast('已更新'); }); }; });
+  }).catch(err);
+}
+
+if (tok) start(); else { $('login').style.display = 'block'; drawBtn(); }
+</script>
+</body>
+</html>

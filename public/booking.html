@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>線上訂位｜致日子</title>
+<meta name="description" content="致日子線上訂位：漢口總店各店家與黃埔二店。">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=Noto+Serif+TC:wght@500;700&family=Cormorant+Garamond:ital,wght@1,400;1,500&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=Noto+Serif+TC:wght@500;700&family=Cormorant+Garamond:ital,wght@1,400;1,500&display=swap"></noscript>
+<meta property="og:type" content="website"><meta property="og:site_name" content="致日子 TO DAY Coffee"><meta property="og:title" content="線上訂位｜致日子"><meta property="og:description" content="致日子線上訂位：漢口總店各店家與黃埔二店。"><meta property="og:image" content="https://aged-surf-919d.wj4wj4990022.workers.dev/assets/og.png"><meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="assets/favicon.png"><link rel="apple-touch-icon" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="hk">
+<div id="nav"></div>
+
+<main id="main" class="sec" style="max-width:920px;margin:0 auto;padding-top:64px">
+ <div class="en">Reservation</div>
+ <h1 class="h" style="font-size:52px;margin:4px 0 8px">線上訂位</h1>
+ <div class="sd" style="margin-bottom:36px">每間店各自接受預約。標示「暫停預約」的店目前不接受線上預約。</div>
+ <div id="done" style="display:none"></div>
+ <form id="f" autocomplete="on" style="display:flex;flex-direction:column;gap:34px">
+  <div class="field"><label for="shop">01　選擇店家</label><select id="shop"></select></div>
+  <div class="field"><label>02　選擇日期</label><div id="dates" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px"></div></div>
+  <div class="field"><label>03　選擇時段</label><div id="slots" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px"><span class="sd">請先選擇日期</span></div></div>
+  <div style="display:flex;flex-wrap:wrap;gap:28px">
+   <div class="field" style="flex:1 1 140px"><label for="party">04　人數</label><select id="party"></select></div>
+   <div class="field" style="flex:2 1 220px"><label for="name">姓名</label><input id="name" required maxlength="40" autocomplete="name"></div>
+   <div class="field" style="flex:2 1 220px"><label for="phone">電話</label><input id="phone" required maxlength="20" inputmode="tel" autocomplete="tel"></div>
+  </div>
+  <div class="field"><label for="email">Email（選填，會寄確認信給你）</label><input id="email" type="email" maxlength="80" autocomplete="email"></div>
+  <div class="field"><label for="note">備註（選填）</label><textarea id="note" maxlength="300"></textarea></div>
+  <input class="hide" id="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+  <div id="err"></div>
+  <div><button class="btn" id="go" type="submit" disabled>送出訂位</button></div>
+ </form>
+</main><div id="foot"></div>
+<script src="assets/config.js"></script>
+<script src="assets/demo-data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+
+var shops = [], shop = null, date = '', slot = '', reqId = 0;
+var q = new URLSearchParams(location.search).get('shop');
+function $(id) { return document.getElementById(id); }
+function setShop(id) {
+  shop = shops.filter(function (s) { return s.id === id; })[0];
+  document.body.className = shop && shop.hall === '黃埔二店' ? 'hp' : 'hk';
+  $('party').innerHTML = Array.from({ length: shop.maxParty }, function (_, i) { return '<option>' + (i + 1) + '</option>'; }).join('');
+  date = ''; slot = ''; drawDates(); $('slots').innerHTML = '<span class="sd">請先選擇日期</span>'; sync();
+}
+function drawDates() {
+  var out = [], n = Math.min(shop.advanceDays, 21), t = new Date();
+  for (var i = 0; i <= n; i++) {
+    var d = new Date(t.getFullYear(), t.getMonth(), t.getDate() + i), ds = Z.ymd(d), off = !shop.open || shop.closed.indexOf(d.getDay()) >= 0;
+    out.push('<button type="button" class="chip' + (ds === date ? ' on' : '') + '" data-d="' + ds + '"' + (off ? ' disabled' : '') + '>' + (d.getMonth() + 1) + '/' + d.getDate() + ' ' + Z.wd[d.getDay()] + '</button>');
+  }
+  $('dates').innerHTML = shop.open ? out.join('') : '<span class="sd">這間店目前暫停線上預約</span>';
+}
+function loadSlots() {
+  var my = ++reqId; slot = ''; sync();
+  $('slots').innerHTML = '<span class="sd">查詢中…</span>';
+  Z.get({ action: 'availability', shopId: shop.id, date: date }).then(function (r) {
+    if (my !== reqId) return;
+    if (!r.slots.length) { $('slots').innerHTML = '<span class="sd">' + Z.esc(r.reason || '這天沒有可預約的時段') + '</span>'; return; }
+    $('slots').innerHTML = r.slots.map(function (s) {
+      return '<button type="button" class="chip" data-t="' + s.time + '"' + (s.left <= 0 ? ' disabled' : '') + '>' + s.time + (s.left <= 0 ? '（額滿）' : '') + '</button>';
+    }).join('');
+  }).catch(function (e) { if (my === reqId) $('slots').innerHTML = '<span class="sd">' + Z.esc(e.message) + '</span>'; });
+}
+function sync() { $('go').disabled = !(shop && shop.open && date && slot); }
+document.addEventListener('click', function (e) {
+  var d = e.target.closest('[data-d]'), t = e.target.closest('[data-t]');
+  if (d && !d.disabled) { date = d.getAttribute('data-d'); drawDates(); loadSlots(); }
+  if (t && !t.disabled) { slot = t.getAttribute('data-t'); document.querySelectorAll('[data-t]').forEach(function (b) { b.classList.toggle('on', b === t); }); sync(); }
+});
+$('shop').addEventListener('change', function () { setShop(this.value); });
+$('f').addEventListener('submit', function (e) {
+  e.preventDefault(); $('err').innerHTML = ''; $('go').disabled = true; $('go').textContent = '送出中…';
+  Z.post({ action: 'book', shopId: shop.id, date: date, slot: slot, party: $('party').value, name: $('name').value, phone: $('phone').value, email: $('email').value, note: $('note').value, website: $('website').value })
+    .then(function (r) {
+      $('f').style.display = 'none'; var dn = $('done'); dn.style.display = 'block';
+      dn.innerHTML = '<div class="msg ok"><div class="h" style="font-size:24px;margin-bottom:10px">訂位已送出</div>' + Z.esc(shop.name) + '<br>' + Z.esc(date) + '　' + Z.esc(slot) + '　' + Z.esc($('party').value) + ' 位<br>訂位編號：' + Z.esc(r.id) +
+        '<br><br>店家確認後會與你聯絡。' + ($('email').value ? '確認信已寄到你的信箱。' : '') + '</div><p><a class="btn line" href="index.html">回首頁</a></p>';
+      window.scrollTo(0, 0);
+    }).catch(function (er) {
+      $('err').innerHTML = '<div class="msg err">' + Z.esc(er.message) + '</div>'; $('go').textContent = '送出訂位'; if (date) loadSlots();
+    });
+});
+Z.init('', function (d) {
+  shops = d.shops;
+  var halls = []; shops.forEach(function (s) { if (halls.indexOf(s.hall) < 0) halls.push(s.hall); });
+  $('shop').innerHTML = halls.map(function (h) {
+    return '<optgroup label="' + Z.esc(h) + '">' + shops.filter(function (s) { return s.hall === h; }).map(function (s) {
+      return '<option value="' + Z.esc(s.id) + '"' + (s.open ? '' : ' disabled') + '>' + Z.esc((h === '漢口總店' ? s.floor + '　' : '') + s.name + (s.open ? '' : '（暫停預約）')) + '</option>';
+    }).join('') + '</optgroup>';
+  }).join('');
+  var first = shops.filter(function (s) { return s.id === q && s.open; })[0] || shops.filter(function (s) { return s.open; })[0] || shops[0];
+  $('shop').value = first.id; setShop(first.id);
+});
+</script>
+</body>
+</html>
