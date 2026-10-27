@@ -106,6 +106,59 @@ await t('未登入被拒；亂填 token 被拒', async () => { assert(!(await po
 await t('未知操作被拒；GET 預設回應', async () => { assert(!(await post({ action: 'hack' })).ok); assert(!(await post({ ...A, action: 'adminNope' })).ok); assert((await get({ action: 'zzz' })).ok); });
 await t('正式環境不接受假 token', async () => { const e2 = S.env.ALLOW_TEST_TOKENS; S.env.ALLOW_TEST_TOKENS = '0'; const real = globalThis.fetch; globalThis.fetch = async (u, o) => String(u).includes('googleapis.com') ? new Response('{}', { status: 400 }) : real(u, o); const r = await post({ ...A, action: 'adminInit' }); globalThis.fetch = real; S.env.ALLOW_TEST_TOKENS = e2; assert(!r.ok); });
 
+/* ===== 店家排列、前台顯示、新增與刪除 ===== */
+let newShop = '';
+const pubIds = async () => (await get({ action: 'public' })).data.shops.map((x) => x.id);
+await t('新增店家：預設不對外顯示，建立預約設定；名稱樓層必填；單店管理員不能新增', async () => {
+  assert(!(await post({ ...B, action: 'adminAddShop', floor: '4F', name: 'x' })).ok);
+  assert(!(await post({ ...A, action: 'adminAddShop', floor: '', name: 'x' })).ok);
+  assert(!(await post({ ...A, action: 'adminAddShop', floor: '4F', name: ' ' })).ok);
+  assert(!(await post({ ...A, action: 'adminAddShop', hall: '黃埔二店', floor: '4F', name: 'x' })).ok);
+  const r = await post({ ...A, action: 'adminAddShop', floor: '4F 後段', name: '新店', type: '美甲' }); assert(r.ok, r.error); newShop = r.data.id;
+  assert(!(await pubIds()).includes(newShop));
+  assert.equal((await q('SELECT COUNT(*) n FROM booking_settings WHERE shop_id=?', newShop))[0].n, 1);
+  const ad = (await post({ ...A, action: 'adminInit' })).data.shops.find((x) => x.id === newShop); assert(ad && ad.visible === false && ad.floor === '4F 後段' && ad.open === false);
+});
+await t('打開前台顯示後出現在公開資料且排最後；單店管理員不能改顯示與樓層', async () => {
+  assert(!(await post({ ...B, action: 'adminSaveShop', shopId: 'h1', fields: { 前台顯示: false } })).ok);
+  assert(!(await post({ ...B, action: 'adminSaveShop', shopId: 'h1', fields: { 樓層: '9F' } })).ok);
+  assert((await post({ ...A, action: 'adminSaveShop', shopId: newShop, fields: { 前台顯示: true, 樓層: '4F 中段' } })).ok);
+  const ids = await pubIds(); assert.equal(ids[ids.length - 1], newShop);
+  assert.equal((await get({ action: 'public' })).data.shops.find((x) => x.id === newShop).floor, '4F 中段');
+  assert(!(await post({ ...A, action: 'adminSaveShop', shopId: newShop, fields: { 樓層: ' ' } })).ok);
+});
+await t('網站固定的店（h1、p）不能隱藏、不能刪除', async () => { for (const id of ['h1', 'p']) { assert(!(await post({ ...A, action: 'adminSaveShop', shopId: id, fields: { 前台顯示: false } })).ok); assert(!(await post({ ...A, action: 'adminDeleteShop', shopId: id })).ok); } });
+await t('隱藏的店前台看不到，也不能預約', async () => {
+  assert((await post({ ...A, action: 'adminSetShopOpen', shopId: newShop, open: true })).ok);
+  assert((await post({ ...A, action: 'adminSaveShop', shopId: newShop, fields: { 前台顯示: false } })).ok);
+  assert(!(await pubIds()).includes(newShop));
+  const av = (await get({ action: 'availability', shopId: newShop, date: D })).data; assert.equal(av.open, false); assert.equal(av.slots.length, 0);
+  assert(!(await post({ ...base, shopId: newShop, phone: '0912555555' })).ok);
+  await post({ ...A, action: 'adminSaveShop', shopId: newShop, fields: { 前台顯示: true } });
+});
+await t('調整順序：只動指定的店，公開資料與後台一致；單店管理員不能調；壞資料被拒', async () => {
+  const before = await pubIds(); const hk = before.filter((x) => x !== 'p');
+  const want = [hk[hk.length - 1]].concat(hk.slice(0, -1)); // 最後一間移到最前面
+  assert((await post({ ...A, action: 'adminShopOrder', ids: want })).ok);
+  assert.deepEqual((await pubIds()).filter((x) => x !== 'p'), want);
+  assert.deepEqual((await post({ ...A, action: 'adminInit' })).data.shops.map((x) => x.id).filter((x) => x !== 'p'), want);
+  assert(!(await post({ ...B, action: 'adminShopOrder', ids: want })).ok);
+  assert(!(await post({ ...A, action: 'adminShopOrder', ids: ['h1', 'h1'] })).ok);
+  assert(!(await post({ ...A, action: 'adminShopOrder', ids: ['nope'] })).ok);
+  assert(!(await post({ ...A, action: 'adminShopOrder', ids: [] })).ok);
+});
+await t('刪除店家：頁面、項目、預約設定一併刪除，訂位紀錄保留；單店管理員不能刪', async () => {
+  await post({ ...A, action: 'adminSaveItem', shopId: newShop, item: { name: '商品', on: true } });
+  await db.prepare("INSERT INTO bookings (booking_no,created_at,shop_id,shop_name,date,slot,party,name,phone) VALUES ('KEEP-1','2026-01-01 00:00:00',?,?,'2026-01-02','11:00',1,'a','0911')").bind(newShop, '新店').run();
+  assert(!(await post({ ...B, action: 'adminDeleteShop', shopId: newShop })).ok);
+  assert((await post({ ...A, action: 'adminDeleteShop', shopId: newShop })).ok);
+  assert(!(await pubIds()).includes(newShop));
+  assert.equal((await q('SELECT COUNT(*) n FROM booking_settings WHERE shop_id=?', newShop))[0].n, 0);
+  assert.equal((await q('SELECT COUNT(*) n FROM service_items WHERE shop_id=?', newShop))[0].n, 0);
+  assert.equal((await q("SELECT COUNT(*) n FROM bookings WHERE booking_no='KEEP-1'"))[0].n, 1);
+  assert(!(await post({ ...A, action: 'adminDeleteShop', shopId: newShop })).ok);
+});
+
 /* ===== 健康餐 ===== */
 const day2 = day;
 await t('頁面未開放：不提供任何品項與價格，官網不顯示選單', async () => { const r = await get({ action: 'healthMenu' }); assert(r.ok); assert.deepEqual(r.data, { open: false }); assert.equal((await get({ action: 'public' })).data.healthOpen, false); });

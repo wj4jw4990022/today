@@ -235,19 +235,23 @@
   /* ---------- 後台預覽模式：接收修改、標示欄位、點選回報 ---------- */
   function editHooks(paint) {
     var st = document.createElement('style');
-    st.textContent = '.z-hl{outline:3px solid #C2461E!important;outline-offset:2px;background-image:linear-gradient(rgba(255,241,184,.5),rgba(255,241,184,.5))}[data-c],[data-ci]{cursor:pointer}';
+    st.textContent = '.z-hl{outline:3px solid #C2461E!important;outline-offset:2px;background-image:linear-gradient(rgba(255,241,184,.5),rgba(255,241,184,.5))}[data-c],[data-ci],[data-r]{cursor:pointer}';
     document.head.appendChild(st);
+    function keyOf(el) { return el.getAttribute('data-c') || el.getAttribute('data-ci') || ('r:' + el.getAttribute('data-r')); }
     document.addEventListener('click', function (e) {
-      var el = e.target.closest && e.target.closest('[data-c],[data-ci]');
+      var el = e.target.closest && e.target.closest('[data-c],[data-ci],[data-r]');
       e.preventDefault(); e.stopPropagation();
-      if (el) window.parent.postMessage({ zedit: 'pick', key: el.getAttribute('data-c') || el.getAttribute('data-ci') }, '*');
+      if (el) window.parent.postMessage({ zedit: 'pick', key: keyOf(el) }, '*');
     }, true);
     window.addEventListener('message', function (e) {
       var m = e.data || {};
       if (m.zedit === 'content') { var d = JSON.parse(JSON.stringify(Z._d)); Object.keys(m.content || {}).forEach(function (k) { d.content[k] = m.content[k]; }); paint(d); }
+      if (m.zedit === 'shop' && m.shop) { /* 後台「店家頁」編輯：用還沒儲存的店家資料取代，立刻重畫 */
+        var d2 = JSON.parse(JSON.stringify(Z._d)); var hit = false; d2.shops = d2.shops.map(function (x) { if (x.id === m.shop.id) { hit = true; return m.shop; } return x; }); if (!hit) d2.shops.push(m.shop); paint(d2);
+      }
       if (m.zedit === 'hl') {
         document.querySelectorAll('.z-hl').forEach(function (x) { x.classList.remove('z-hl'); });
-        var t = Array.prototype.slice.call(document.querySelectorAll('[data-c],[data-ci]')).filter(function (x) { return (x.getAttribute('data-c') || x.getAttribute('data-ci')) === m.key; });
+        var t = Array.prototype.slice.call(document.querySelectorAll('[data-c],[data-ci],[data-r]')).filter(function (x) { return keyOf(x) === m.key; });
         t.forEach(function (x) { x.classList.add('z-hl'); });
         if (t[0]) t[0].scrollIntoView({ behavior: 'smooth', block: 'center' }); else window.parent.postMessage({ zedit: 'missing', key: m.key }, '*');
       }

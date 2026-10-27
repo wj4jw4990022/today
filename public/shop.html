@@ -14,20 +14,20 @@
 <body class="hk">
 <div id="nav"></div>
 <main id="main">
- <div class="sec" style="padding-bottom:0;padding-top:40px"><div class="crumb"><a href="hankou.html" data-c="店家頁|麵包屑">漢口總店</a>　／　<span id="cf"></span></div></div>
+ <div class="sec" style="padding-bottom:0;padding-top:40px"><div class="crumb" data-r="1"><a href="hankou.html" data-c="店家頁|麵包屑">漢口總店</a>　／　<span id="cf"></span></div></div>
  <section class="sec row" style="padding-top:40px">
   <div class="col">
-   <div class="fl" id="fl" style="font-size:96px"></div>
-   <h1 class="h" id="nm" style="font-size:56px;letter-spacing:.12em"></h1>
-   <div id="tags" style="display:flex;flex-wrap:wrap;gap:8px"></div>
-   <p id="intro" style="margin:0;font-size:16px;line-height:2.2;max-width:480px"></p>
-   <div id="cta" style="display:flex;flex-wrap:wrap;gap:14px;margin-top:6px"></div>
+   <div data-r="2"><div class="fl" id="fl" style="font-size:96px"></div>
+   <h1 class="h" id="nm" style="font-size:56px;letter-spacing:.12em"></h1></div>
+   <div id="tags" data-r="3" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+   <p id="intro" data-r="4" style="margin:0;font-size:16px;line-height:2.2;max-width:480px;white-space:pre-line"></p>
+   <div id="cta" data-r="5" style="display:flex;flex-wrap:wrap;gap:14px;margin-top:6px"></div>
   </div>
-  <div class="col" style="max-width:580px"><div id="pic"></div></div>
+  <div class="col" style="max-width:580px"><div id="pic" data-r="6"></div></div>
  </section>
- <section class="sec" id="isec" style="padding-top:0;display:none"><div class="en" data-c="店家頁|項目英文">Menu &amp; Service</div><h2 class="h" id="ititle" style="font-size:30px;margin:4px 0 8px"></h2><div class="ig" id="items"></div></section>
- <section class="sec" id="gsec" style="padding-top:0;display:none"><div class="en" data-c="店家頁|相簿英文">Gallery</div><div class="gal" id="gal"></div></section>
- <section class="sec" style="padding-top:0"><div class="en" data-c="店家頁|同棟英文">Same Building</div><h2 class="h" style="font-size:30px;margin:4px 0 16px" data-c="店家頁|同棟標題">漢口總店的其他店家</h2><div class="more" id="more"></div></section>
+ <section class="sec" id="isec" data-r="7" style="padding-top:0;display:none"><div class="en" data-c="店家頁|項目英文">Menu &amp; Service</div><h2 class="h" id="ititle" style="font-size:30px;margin:4px 0 8px"></h2><div class="ig" id="items"></div></section>
+ <section class="sec" id="gsec" data-r="8" style="padding-top:0;display:none"><div class="en" data-c="店家頁|相簿英文">Gallery</div><div class="gal" id="gal"></div></section>
+ <section class="sec" data-r="9" style="padding-top:0"><div class="en" data-c="店家頁|同棟英文">Same Building</div><h2 class="h" style="font-size:30px;margin:4px 0 16px" data-c="店家頁|同棟標題">漢口總店的其他店家</h2><div class="more" id="more"></div></section>
 </main>
 <div id="foot"></div>
 <script src="assets/config.js"></script>
@@ -38,7 +38,7 @@ var id = new URLSearchParams(location.search).get('id') || '';
 if (id === 'p') location.replace('huangpu.html');
 Z.init('shop', function (d) {
   var shop = d.shops.filter(function (s) { return s.id === id && s.hall === '漢口總店'; })[0];
-  if (!shop) { Z.fail(document.getElementById('main'), '找不到這間店。'); return; }
+  if (!shop) { if (!Z.edit) Z.fail(document.getElementById('main'), '找不到這間店。'); return; } // 後台預覽：新店還沒公開時，等後台傳來資料再畫
   var f = String(shop.floor).split(' '), el = function (x) { return document.getElementById(x); };
   document.title = shop.name + '｜致日子 漢口總店';
   el('cf').textContent = shop.floor + '　' + shop.name;
@@ -57,6 +57,7 @@ Z.init('shop', function (d) {
       }).join('') + '</div>';
     }).join('');
   }
+  var ob = document.querySelector('.sbar'); if (ob) ob.remove(); document.body.classList.remove('hasbar');
   var mb = Z.mainBtn(shop, 'btn sm'); if (mb && shop.contact && shop.contact.btnMode !== 'none' && (shop.open || shop.contact.btnMode === 'tel')) { document.body.classList.add('hasbar'); document.body.insertAdjacentHTML('beforeend', '<div class="sbar"><span class="sn">' + Z.esc(shop.name) + '</span>' + mb.replace('btn sm', 'btn sm" style="background:var(--accent);color:#fff') + '</div>'); }
   el('intro').textContent = Z.isPlaceholder(shop.intro) ? '[店家介紹]' : shop.intro;
   el('cta').innerHTML = Z.mainBtn(shop) + (shop.id === 'h1' ? '<a class="btn line" href="hankou-menu.html">' + Z.ct('店家頁|看餐點按鈕', '看餐點') + '</a>' : '') + '<a class="btn line" href="hankou.html">' + Z.ct('店家頁|回漢口按鈕', '回漢口總店') + '</a>' +
@@ -66,12 +67,12 @@ Z.init('shop', function (d) {
   if (g.length) {
     el('gsec').style.display = 'block';
     el('gal').innerHTML = g.map(function (u) { return '<a href="' + Z.esc(u) + '" data-lb="1"><img src="' + Z.esc(u) + '" alt="' + Z.esc(shop.name) + '" loading="lazy"></a>'; }).join('');
-    el('gal').addEventListener('click', function (e) {
+    if (!el('gal')._b) el('gal')._b = 1, el('gal').addEventListener('click', function (e) {
       var a = e.target.closest('[data-lb]'); if (!a) return; e.preventDefault();
       var o = document.createElement('div'); o.className = 'lb'; o.innerHTML = '<img src="' + Z.esc(a.getAttribute('href')) + '" alt="">';
       o.onclick = function () { o.remove(); }; document.body.appendChild(o);
     });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { var o = document.querySelector('.lb'); if (o) o.remove(); } });
+    if (!window._kb) window._kb = 1, document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { var o = document.querySelector('.lb'); if (o) o.remove(); } });
   }
   el('more').innerHTML = d.shops.filter(function (s) { return s.hall === '漢口總店' && s.id !== shop.id; }).map(function (s) {
     return '<a href="shop.html?id=' + encodeURIComponent(s.id) + '"><span class="en" style="min-width:48px">' + Z.esc(String(s.floor).split(' ')[0]) + '</span><span class="sn" style="font-size:19px">' + Z.esc(s.name) + '</span>' + (s.open ? '' : '<span class="cap" style="margin-left:auto">暫停預約</span>') + '</a>';

@@ -80,7 +80,7 @@ img.broken{background:#f3e0e0;color:#a33;font-size:11px;object-fit:contain}
 .pvw .pg3 img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
 #lb{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:20;display:none;align-items:center;justify-content:center;cursor:zoom-out;padding:24px}
 #lb img{max-width:100%;max-height:100%;object-fit:contain;display:block}
-/* 所見即所得：後台店家資料 */
+/* 店家頁編輯畫面 */
 .vbar{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:20px}
 .seg{display:inline-flex;border:1px solid var(--ink)}
 .seg button{font:inherit;font-size:13px;border:0;background:transparent;color:var(--ink);padding:5px 18px;cursor:pointer;letter-spacing:.08em}
@@ -172,6 +172,28 @@ body.hasbar .pg{padding-bottom:170px}
 .pcdf .bf,.pcdf .af{padding:8px 10px;font-size:13px;border:1px solid var(--line);word-break:break-all}
 .pcdf .bf{background:rgba(0,0,0,.04);color:var(--mute);text-decoration:line-through}.pcdf .af{background:#FFF1B8;border-color:#E0B93A}
 @media(max-width:1100px){.pc{grid-template-columns:1fr}.pcn{position:static;flex-direction:row;flex-wrap:wrap}.pcv{position:static}.pcfw{height:520px}}
+.pcn .pcg{padding:8px 14px 4px;font-size:11px;letter-spacing:.14em;color:var(--mute);border-bottom:1px solid var(--line);background:rgba(0,0,0,.03)}
+.sreg{border:1px solid var(--line);margin-bottom:8px;background:#fff}
+.sreg .hd{display:flex;gap:10px;align-items:center;padding:9px 12px;cursor:pointer;flex-wrap:wrap}
+.sreg .hd .sd{font-size:12px}
+.sreg .hd i{font-style:normal;font-size:11px;color:#8a6a00;margin-left:auto}
+.sreg.on .hd{background:var(--dark);color:var(--darkfg)}
+.sreg.on .hd .sd{color:inherit;opacity:.75}
+.sreg.on .hd i{color:#FFE08A}
+.rn{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;background:var(--accent2);color:#fff;font-size:12px;font-weight:700}
+.sreg .bd9{display:none;padding:14px}
+.sreg.on .bd9{display:block}
+.note9{background:rgba(0,0,0,.04);border:1px solid var(--line);padding:7px 12px;font-size:12px;margin-bottom:10px}
+.note9.on{background:#FFF8DC;border-color:#E0B93A;color:#5b4800}
+.sef.dirty input,.sef.dirty textarea,.sef.dirty select{background:#FFF1B8;border-color:#E0B93A}
+.sef .was{font-size:11px;color:#8a6a00;margin-top:3px}
+.galed{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.galed figure{margin:0;position:relative}
+.galed .thumb{width:100%;height:84px;object-fit:cover}
+.galed .x{position:absolute;top:-7px;right:-7px;cursor:pointer;z-index:3;background:var(--dark);color:#fff;width:20px;height:20px;text-align:center;line-height:20px}
+.galed .gfa{display:flex;position:absolute;left:0;right:0;bottom:0;background:rgba(23,48,42,.78)}
+.galed .gfa button{flex:1;border:0;background:transparent;color:#fff;cursor:pointer;line-height:22px}
+.galed figure.new{outline:2px solid #E0B93A}
 #toast{position:fixed;right:20px;bottom:20px;background:var(--dark);color:var(--darkfg);padding:10px 18px;font-size:13px;display:none;z-index:9}
 </style>
 </head>
@@ -340,7 +362,7 @@ function upBtn(label) { return '<button type="button" class="btn sm" data-up="1"
 
 function call(action, body) {
   return Z.post(Object.assign({ action: action, idToken: tok }, body || {})).then(function (r) {
-    if (/^admin(Save|Set|Delete|Upload|Restore)/.test(action)) if (Z.clearPub) Z.clearPub(); // 後台改過資料，這台瀏覽器的前台快取立刻作廢
+    if (/^admin(Save|Set|Delete|Upload|Restore|Add|ShopOrder)/.test(action)) if (Z.clearPub) Z.clearPub(); // 後台改過資料，這台瀏覽器的前台快取立刻作廢
     return r;
   }).catch(function (e) {
     if (/登入/.test(e.message)) { logout(e.message); }
@@ -373,7 +395,7 @@ function drawTabs() {
   var t = [['home', '店家總覽']];
   if (me.all || me.shops.some(function (x) { return x.id === 'h1'; })) t.push(['health', '健康餐']);
   if (me.all) t.push(['content', '頁面內容'], ['inq', '合作洽談']);
-  $('tabs').innerHTML = t.map(function (x) { return '<button class="chip' + ((x[0] === view || (x[0] === 'home' && view === 'shop' && me.shops.length > 1)) ? ' on' : '') + '" data-view="' + x[0] + '">' + x[1] + '</button>'; }).join('');
+  $('tabs').innerHTML = t.map(function (x) { return '<button class="chip' + ((x[0] === view || (x[0] === 'home' && (view === 'shop' || view === 'shopedit') && me.shops.length > 1)) ? ' on' : '') + '" data-view="' + x[0] + '">' + x[1] + '</button>'; }).join('');
 }
 $('fi').onchange = function () {
   var files = Array.from(this.files || []), p = pend; if (!files.length || !p) return;
@@ -386,34 +408,40 @@ $('fi').onchange = function () {
 function show() {
   clearW();
   $('pg').innerHTML = '<div class="skel">載入中…</div>';
-  ({ home: vHome, shop: vShop, content: vContent, inq: vInq, health: vHealth })[view]();
+  ({ home: vHome, shop: vShop, shopedit: vShopEdit, content: vContent, inq: vInq, health: vHealth })[view]();
 }
 function err(e) { ($('sp') || $('pg')).innerHTML = '<div class="msg err">' + E(e.message) + '</div>'; }
 function getShop(id) { return me.shops.filter(function (x) { return x.id === id; })[0]; }
 function shopName(id) { var s = getShop(id); return s ? (s.hall === '漢口總店' ? s.floor + ' ' : '') + s.name : id; }
 
-/* ---------- 店家總覽 ---------- */
+/* ---------- 店家總覽（排列、前台顯示、開放預約、新增與刪除） ---------- */
 function vHome() {
   reload(function () {
-    var halls = [], by = {};
+    var halls = [], by = {}, adm = me.all;
     me.shops.forEach(function (s) { if (!by[s.hall]) { by[s.hall] = []; halls.push(s.hall); } by[s.hall].push(s); });
     var tot = me.shops.reduce(function (n, s) { return n + s.pendingCount; }, 0);
     $('pg').innerHTML = (tot ? '<div class="msg" style="margin-bottom:20px">目前共有 <b>' + tot + '</b> 筆待確認的訂位。</div>' : '') +
       (me.shops.length > 1 ? '<div style="margin-bottom:24px"><button class="btn sm" data-bulk="1">全部開放預約</button> <button class="btn sm" data-bulk="0">全部暫停預約</button></div>' : '') +
       halls.map(function (h) {
-        return '<div class="en" style="margin-bottom:12px">' + E(h) + '</div><div class="fgrid">' + by[h].map(function (s) {
-          return '<div class="scard' + (s.open ? '' : ' off') + '"><div class="cap">' + E(s.floor) + '</div><div class="sn2">' + E(s.name) + '</div>' +
-            '<div class="sd">' + (s.hoursPreview ? E(s.hoursPreview) : '<span style="color:var(--mute)">營業時間尚未設定</span>') + '</div>' +
-            '<div><span class="badge">今日 ' + s.todayCount + ' 筆</span><span class="badge' + (s.pendingCount ? ' hot' : '') + '">待確認 ' + s.pendingCount + '</span></div>' +
-            '<label class="sw"><input type="checkbox" data-open="' + E(s.id) + '"' + (s.open ? ' checked' : '') + '>開放線上預約</label>' +
-            '<div><button class="btn sm" data-manage="' + E(s.id) + '">管理這間店</button></div></div>';
-        }).join('') + '</div>';
-      }).join('');
+        var rows = by[h], mvOk = adm && rows.length > 1;
+        return '<div class="en" style="margin-bottom:6px">' + E(h) + '</div>' + (adm && h === '漢口總店' ? '<div class="sd" style="margin-bottom:10px">這裡的順序與樓層，就是前台漢口總店頁、導覽列、首頁「今日營業時間」的順序。</div>' : '') +
+          '<div class="tw" style="margin-bottom:24px"><table><tr>' + (mvOk ? '<th>順序</th>' : '') + '<th>樓層</th><th>店名</th><th>類型</th>' + (adm ? '<th>前台顯示</th>' : '') + '<th>開放預約</th><th>今日／待確認</th><th></th></tr>' + rows.map(function (s, i) {
+            var fixed = SE_FIXED.indexOf(s.id) >= 0;
+            return '<tr style="' + (s.visible ? '' : 'opacity:.6') + '">' + (mvOk ? '<td style="white-space:nowrap"><button class="btn sm line" data-shmv="' + E(s.id) + ',-1,' + E(h) + '"' + (i === 0 ? ' disabled' : '') + '>▲</button><button class="btn sm line" data-shmv="' + E(s.id) + ',1,' + E(h) + '"' + (i === rows.length - 1 ? ' disabled' : '') + '>▼</button></td>' : '') +
+              '<td>' + E(s.floor) + '</td><td><b>' + E(s.name) + '</b></td><td>' + E(s.type) + '</td>' +
+              (adm ? '<td><label class="sw"><input type="checkbox" data-shvis="' + E(s.id) + '"' + (s.visible ? ' checked' : '') + (fixed ? ' disabled title="網站固定頁面"' : '') + '>' + (s.visible ? '顯示' : '隱藏') + '</label></td>' : '') +
+              '<td><label class="sw"><input type="checkbox" data-open="' + E(s.id) + '"' + (s.open ? ' checked' : '') + '>' + (s.open ? '開放' : '暫停') + '</label></td>' +
+              '<td>' + s.todayCount + ' ／ <span style="' + (s.pendingCount ? 'color:#C2461E;font-weight:500' : '') + '">' + s.pendingCount + '</span></td>' +
+              '<td style="white-space:nowrap"><button class="btn sm" data-seopen="' + E(s.id) + '">編輯前台頁面</button> <button class="btn sm line" data-manage="' + E(s.id) + '">訂位與設定</button>' + (adm && !fixed ? ' <button class="btn sm line" data-shdel="' + E(s.id) + '">刪除</button>' : '') + '</td></tr>';
+          }).join('') + '</table></div>';
+      }).join('') +
+      (adm ? '<p><button class="btn" id="shAddBtn" style="margin-right:12px">＋ 新增店家</button><span class="sd">新增後前台會自動多出店家頁、導覽列項目與訂位選項（預設先不顯示，補好資料再打開）。</span></p>' +
+        '<div class="card" id="shAddBox" style="display:none;max-width:560px"><div class="h" style="font-size:18px">新增漢口總店的店家</div><div class="g"><div class="field"><label>樓層</label><input id="shaf" placeholder="例如 3F 後段" maxlength="30"></div><div class="field"><label>店名</label><input id="shan" maxlength="40"></div><div class="field"><label>類型（選填）</label><input id="shat" placeholder="例如 美甲" maxlength="30"></div></div><button class="btn" id="shAddOk">建立並開始編輯</button></div>' : '');
   });
 }
 
 /* ---------- 單店管理 ---------- */
-var STABS = [['bookings', '訂位'], ['data', '店家資料'], ['settings', '預約設定'], ['items', '服務項目'], ['menu', '菜單']];
+var STABS = [['bookings', '訂位'], ['settings', '預約設定'], ['items', '服務項目'], ['menu', '菜單']];
 function vShop(skip) {
   clearW();
   (skip ? function (cb) { cb(); } : reload)(function () {
@@ -423,9 +451,9 @@ function vShop(skip) {
       .filter(function (t) { return !((s.id === 'h1' || s.id === 'p') && t[0] === 'items'); });
     if (!tabs.some(function (t) { return t[0] === stab; })) stab = 'bookings';
     $('pg').innerHTML = (me.shops.length > 1 ? '<button class="back" data-view="home">← 回店家總覽</button>' : '') +
-      '<div class="cap">' + E(s.floor) + '</div><div class="h" style="font-size:28px;margin-bottom:16px">' + E(s.name) + (s.open ? '' : '<span class="pill">暫停預約</span>') + '</div>' +
+      '<div class="cap">' + E(s.floor) + '</div><div class="h" style="font-size:28px;margin-bottom:10px">' + E(s.name) + (s.open ? '' : '<span class="pill">暫停預約</span>') + '</div><div style="margin-bottom:16px"><button class="btn sm" data-seopen="' + E(s.id) + '">編輯前台頁面</button> <span class="sd">店名、介紹、照片、按鈕、營業時間、服務項目都在這裡改，邊改邊看前台。</span></div>' +
       '<div class="sub">' + tabs.map(function (t) { return '<button class="chip' + (t[0] === stab ? ' on' : '') + '" data-stab="' + t[0] + '">' + (t[0] === 'items' ? E(s.itemsTitle || '服務項目') : t[1]) + '</button>'; }).join('') + '</div><div id="sp"><div class="skel">載入中…</div></div>';
-    try { ({ bookings: vBookings, data: vData, settings: vSettings, items: vItems, menu: vMenu })[stab](s); } catch (e) { err(e); }
+    try { ({ bookings: vBookings, settings: vSettings, items: vItems, menu: vMenu })[stab](s); } catch (e) { err(e); }
   });
 }
 
@@ -452,132 +480,6 @@ function vBookings(s) {
       x.onchange = function () { call('adminSetBookingStatus', { id: x.getAttribute('data-id'), status: x.value }).then(function () { toast('已更新'); }).catch(function (e) { toast(e.message); vBookings(s); }); };
     });
   }).catch(err);
-}
-
-/* 店家資料 */
-function vData(s) {
-  s.raw = s.raw || { btnText: '預約', btnMode: '預約', phone: '', ig: '', fb: '', line: '' }; // 後端還是舊版時的預設值
-  var sub = s.hall === '漢口總店' && String(s.floor).indexOf(' ') > 0 ? String(s.floor).split(' ')[1] : '';
-  var closedTxt = s.closed.length ? s.closed.map(function (n) { return '週' + Z.wd[n]; }).join('、') + '公休' : '無公休日';
-  var mode = s.raw.btnMode, gal = (s.gallery || []).slice(), gal0 = (s.gallery || []).slice();
-  function opt(v, t) { return '<option value="' + v + '"' + (mode === v ? ' selected' : '') + '>' + t + '</option>'; }
-  $('sp').innerHTML =
-   '<div class="vbar"><div class="seg" id="segm"><button type="button" data-m="edit" class="on">編輯</button><button type="button" data-m="view">預覽</button></div>' +
-   '<div class="seg" id="segd"><button type="button" data-d="pc" class="on">電腦</button><button type="button" data-d="mob">手機</button></div>' +
-   '<span class="sd">畫面就是前台漢口樓層頁的卡片。直接點圖片、文字就能修改；黃色＝已修改、還沒儲存。</span></div>' +
-   '<div class="stg" id="stg"><div class="ed2"><div class="frame">' +
-   '<article class="cx edcard">' +
-     '<div class="field herow"><div class="car"><div class="sl" id="hero" title="點一下更換主圖"><img id="imp" alt=""' + (s.image ? ' src="' + E(s.image) + '"' : ' style="display:none"') + '><div class="nohero" id="nohero" style="' + (s.image ? 'display:none' : '') + '">尚未設定主圖<br><small>點這裡上傳</small></div></div><button type="button" class="chg edit-only" id="chgimg">⟲ 更換主圖</button><span class="cnt" id="cntp"></span></div><input type="hidden" id="im" data-img="1" data-lb="店家主圖" value="' + E(s.image) + '"></div>' +
-     '<div class="field" id="galf"><div class="gtt edit-only">相簿照片　<span id="galn"></span></div><div class="gal-ed" id="gal"></div></div>' +
-     '<div class="bd"><div class="row2"><span class="tag">' + (sub ? E(sub) + '・' : '') + '<input class="ghost" id="ty" data-lb="類型" style="width:7em" value="' + E(s.type) + '" placeholder="類型"></span><span class="stt" id="stt"></span></div>' +
-     '<div class="field"><input class="ghost nm2" id="nm" data-lb="店名" value="' + E(s.name) + '" placeholder="店名"></div>' +
-     '<div class="field"><textarea class="ghost tg2" id="tg" rows="2" maxlength="40" data-lb="一句話介紹" placeholder="點這裡輸入一句話介紹（最多 40 字）">' + E(s.tagline || '') + '</textarea></div>' +
-     '<div class="acts"><span class="field" id="btnw" style="display:inline-block"><input class="ghost btnin" id="bt" maxlength="10" data-lb="按鈕文字" value="' + E(s.raw.btnText || '預約') + '"></span><span class="nobtn" id="nobtn" style="display:none">（目前設為不顯示主按鈕）</span>' + (s.id === 'h1' ? '<span class="btn sm gh">看菜單</span>' : '') + '<span class="btn sm gh">看介紹</span></div></div>' +
-   '</article>' +
-   '<div class="field introf"><label>店家介紹頁的完整介紹（點進「看介紹」後看到的說明）</label><textarea id="in" data-lb="完整介紹">' + E(s.intro) + '</textarea></div>' +
-   '</div>' +
-   '<aside class="side2">' +
-     '<div class="sc"><div class="h">首頁與營業時間</div>' +
-       '<label class="sw"><input type="checkbox" id="sh"' + (s.showHours ? ' checked' : '') + '><b>在首頁與樓層頁顯示營業狀態</b></label>' +
-       '<div class="hrow"><div class="field" style="flex:1 1 110px"><label>開始</label><input id="hs" type="time" value="' + E(s.hoursStart) + '"></div><div class="field" style="flex:1 1 110px"><label>結束</label><input id="he" type="time" value="' + E(s.hoursEnd) + '"></div></div>' +
-       '<div class="sd">公休日在「預約設定」：目前是「' + E(closedTxt) + '」。</div>' +
-       '<div class="field"><label>補充說明（只在沒填開始／結束時顯示）</label><input id="hr" value="' + E(s.hours) + '" placeholder="例如：依預約為主"></div></div>' +
-     '<div class="sc"><div class="h">按鈕與聯絡</div>' +
-       '<div class="field"><label>主按鈕的功能</label><select id="bm">' + opt('預約', '線上預約（到預約頁）') + opt('電話', '撥打電話') + opt('不顯示', '不顯示按鈕') + '</select></div>' +
-       '<div class="field"><label>店家電話</label><input id="ph" value="' + E(s.raw.phone) + '" placeholder="07-0000000"></div>' +
-       '<div class="field"><label>Instagram 連結</label><input id="ig" value="' + E(s.raw.ig) + '" placeholder="https://instagram.com/..."></div>' +
-       '<div class="field"><label>Facebook 連結</label><input id="fb" value="' + E(s.raw.fb) + '" placeholder="https://facebook.com/..."></div>' +
-       '<div class="field"><label>LINE 連結</label><input id="ln2" value="' + E(s.raw.line) + '" placeholder="https://line.me/..."></div>' +
-       '<div class="sd">按鈕文字直接在左邊卡片上改。選「撥打電話」要先填電話。</div></div>' +
-     '<div class="sc"><div class="h">服務項目區</div><div class="field"><label>標題</label><input id="it" maxlength="12" value="' + E(s.itemsTitle) + '" placeholder="服務項目、療程、方案、商品"></div></div>' +
-     '<div class="sc"><div class="h">這次修改</div><div id="chl" class="sd">還沒有修改</div></div>' +
-     '<div><button class="btn" id="saveShop" style="width:100%">儲存店家資料</button></div>' +
-   '</aside></div></div>';
-
-  /* 狀態標籤、按鈕顯示依目前填寫即時更新 */
-  function refresh() {
-    var hs = Z.hoursState({ hoursStart: $('hs').value, hoursEnd: $('he').value, closed: s.closed }), st = $('stt');
-    st.className = 'stt ' + (hs ? hs.state : '') + ($('sh').checked ? '' : ' dim');
-    st.textContent = (hs ? hs.text : (($('hr').value || '營業時間未設定'))) + ($('sh').checked ? '' : '（前台不顯示）');
-    var no = $('bm').value === '不顯示'; $('btnw').style.display = no ? 'none' : ''; $('nobtn').style.display = no ? '' : 'none';
-    var all = [$('im').value].concat(gal).filter(function (u, i, a) { return isHttps(u) && a.indexOf(u) === i; }).length;
-    $('cntp').textContent = all > 1 ? '1 / ' + all : '';
-    document.querySelectorAll('#sp textarea.tg2').forEach(function (t) { t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; });
-    var rows = [];
-    W.root && W.root.querySelectorAll('input,textarea,select').forEach(function (el) {
-      if (el._o === undefined || valOf(el) === el._o) return;
-      var v = valOf(el), o = el._o;
-      if (el.type === 'checkbox') { rows.push('<li><b>' + E(labelOf(el)) + '</b>　' + (v ? '改為開啟' : '改為關閉') + '</li>'); return; }
-      if (el.hasAttribute('data-img')) { rows.push('<li><b>' + E(labelOf(el)) + '</b>　已更換圖片</li>'); return; }
-      if (el.tagName === 'SELECT') { rows.push('<li><b>' + E(labelOf(el)) + '</b>　' + E(el._ot || o) + ' → ' + E(el.options[el.selectedIndex].text) + '</li>'); return; }
-      rows.push('<li><b>' + E(labelOf(el)) + '</b>　' + (o ? E(trunc(o, 18)) : '（空白）') + ' → ' + (v ? E(trunc(v, 18)) : '（清空）') + '</li>');
-    });
-    W.v.forEach(function (x) { if (JSON.stringify(x.get()) !== x.orig) rows.push('<li><b>' + E(x.lb) + '</b>　' + gal0.length + ' 張 → ' + gal.length + ' 張</li>'); });
-    $('chl').innerHTML = rows.length ? '<ul class="chl">' + rows.join('') + '</ul>' : '還沒有修改';
-  }
-
-  /* 相簿：新增、移除、設為主圖、左右移動 */
-  function drawGal() {
-    $('gal').innerHTML = gal.map(function (u, i) {
-      return '<figure' + (gal0.indexOf(u) < 0 ? ' class="new"' : '') + '><img class="thumb" src="' + E(u) + '" alt=""><span class="x" data-rmg="' + i + '" title="移除">×</span>' +
-        '<div class="gfa edit-only"><button type="button" data-mv="' + i + ',-1" title="往前">‹</button><button type="button" data-mainfrom="' + i + '" title="設為主圖">★</button><button type="button" data-mv="' + i + ',1" title="往後">›</button></div></figure>';
-    }).join('') + '<button type="button" class="addp edit-only" id="addg">＋<br>新增照片<small>可一次選多張</small></button>';
-    var add = gal.filter(function (u) { return gal0.indexOf(u) < 0; }).length, del = gal0.filter(function (u) { return gal.indexOf(u) < 0; }).length;
-    $('galn').textContent = '共 ' + gal.length + ' 張' + ((add || del) ? '（新增 ' + add + '、移除 ' + del + '，按儲存才生效）' : '') + '；前台縮圖列只顯示前 5 張，點 ★ 設為主圖';
-    if (W.root) upd();
-  }
-  $('gal').onclick = function (e) {
-    var t = e.target, r = t.getAttribute('data-rmg'), m = t.getAttribute('data-mv'), f = t.getAttribute('data-mainfrom');
-    if (r !== null) { gal.splice(Number(r), 1); drawGal(); }
-    else if (m) { var p = m.split(','), i = Number(p[0]), j = i + Number(p[1]); if (j >= 0 && j < gal.length) { var x = gal[i]; gal[i] = gal[j]; gal[j] = x; drawGal(); } }
-    else if (f !== null) { var k = Number(f), old = $('im').value, nu = gal[k]; if (old && isHttps(old)) gal[k] = old; else gal.splice(k, 1); setVal($('im'), nu); drawGal(); }
-    else if (t.closest('#addg')) pickFiles(true, 'shop:' + s.id, function (u) { gal = gal.concat(u).filter(function (v, i, a) { return a.indexOf(v) === i; }).slice(0, 12); drawGal(); });
-  };
-  drawGal();
-
-  /* 換主圖視窗：預覽、上傳或貼網址 */
-  function imgDlg() {
-    var d = $('imd'), cur = $('im').value;
-    d.innerHTML = '<div class="box"><div class="h" style="font-size:18px">更換主圖</div><div class="pvbox" id="dpv">' + (isHttps(cur) ? '<img src="' + E(cur) + '" alt="">' : '<span class="sd">尚未設定主圖</span>') + '</div>' +
-      '<div class="hrow"><button type="button" class="btn sm" id="dup">上傳新圖</button><span class="sd">JPG、PNG、WebP；系統會自動縮小</span></div>' +
-      '<div class="field"><label>或貼上圖片網址（https）</label><input id="dur" value="' + E(cur) + '"></div>' +
-      '<div class="hrow"><button type="button" class="btn" id="dok">使用這張</button><button type="button" class="btn sm" id="dno">取消</button><button type="button" class="btn sm" id="drm" style="margin-left:auto">移除主圖</button></div></div>';
-    d.style.display = 'flex';
-    function show(u) { $('dur').value = u; $('dpv').innerHTML = isHttps(u) ? '<img src="' + E(u) + '" alt="">' : '<span class="sd">請貼上 https 開頭的圖片網址</span>'; }
-    $('dur').oninput = function () { show(this.value); };
-    $('dup').onclick = function () { pickFiles(false, 'shop:' + s.id, function (u) { if (u[0]) show(u[0]); }); };
-    $('dno').onclick = function () { d.style.display = 'none'; };
-    $('drm').onclick = function () { setVal($('im'), ''); d.style.display = 'none'; };
-    $('dok').onclick = function () { var u = $('dur').value.trim(); if (u && !isHttps(u)) { toast('圖片網址要以 https:// 開頭'); return; } setVal($('im'), u); d.style.display = 'none'; };
-  }
-  $('hero').onclick = $('chgimg').onclick = imgDlg;
-  $('im').addEventListener('input', function () {
-    var ok = isHttps(this.value), im = $('imp'); if (ok) { im.classList.remove('broken'); im.src = this.value; }
-    im.style.display = ok ? 'block' : 'none'; $('nohero').style.display = ok ? 'none' : '';
-  });
-
-  /* 編輯／預覽、電腦／手機 */
-  $('segm').onclick = function (e) {
-    var m = e.target.getAttribute('data-m'); if (!m) return;
-    $('stg').classList.toggle('view', m === 'view');
-    document.querySelectorAll('#sp .ghost').forEach(function (x) { x.readOnly = m === 'view'; });
-    this.querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-m') === m); });
-  };
-  $('segd').onclick = function (e) {
-    var m = e.target.getAttribute('data-d'); if (!m) return;
-    $('stg').classList.toggle('mob', m === 'mob');
-    this.querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-d') === m); });
-  };
-
-  $('saveShop').onclick = save;
-  function save() {
-    var msg = savedMsg('店家資料已儲存'); if (!W.n) { toast('沒有任何修改'); return; }
-    call('adminSaveShop', { shopId: s.id, fields: { '店名': $('nm').value, '類型': $('ty').value, '項目標題': $('it').value, '營業時間': $('hr').value, '營業開始': $('hs').value, '營業結束': $('he').value, '首頁顯示營業時間': $('sh').checked,
-      '介紹': $('in').value, '一句話介紹': $('tg').value, '圖片網址': $('im').value, '相簿圖片': gal,
-      '按鈕模式': $('bm').value, '按鈕文字': $('bt').value, '電話': $('ph').value, 'Instagram': $('ig').value, 'Facebook': $('fb').value, 'LINE': $('ln2').value } })
-      .then(function () { toast(msg); vShop(); }).catch(function (e) { toast(e.message); });
-  }
-  watch($('sp'), { save: save, label: '儲存店家資料', redraw: function () { vData(s); }, onupd: refresh, virt: [{ lb: '相簿照片', get: function () { return gal; }, box: $('galf') }] });
 }
 
 /* 預約設定 */
@@ -620,7 +522,7 @@ function itemCard(r, i) {
 function vItems(s) {
   call('adminItemList', { shopId: s.id }).then(function (rows) {
     cache.items = [{ id: '', cat: '', name: '', desc: '', price: '', image: '', on: true, order: '' }].concat(rows);
-    $('sp').innerHTML = '<p class="sd">這裡填這間店的「' + E(s.itemsTitle) + '」，會顯示在前台店家頁。標題可在「店家資料」修改。價格可以自由輸入文字。排序數字小的在前面。</p>' + cache.items.map(itemCard).join('');
+    $('sp').innerHTML = '<p class="sd">這裡填這間店的「' + E(s.itemsTitle) + '」，會顯示在前台店家頁。標題可在「編輯前台頁面」修改。價格可以自由輸入文字。排序數字小的在前面。</p>' + cache.items.map(itemCard).join('');
     watch($('sp'), { redraw: function () { vItems(s); } });
   }).catch(err);
 }
@@ -725,6 +627,11 @@ document.addEventListener('click', function (e) {
   if ((b = t.closest('[data-view]'))) { view = b.getAttribute('data-view'); drawTabs(); show(); return; }
   if ((b = t.closest('[data-manage]'))) { shopSel = b.getAttribute('data-manage'); view = 'shop'; stab = 'bookings'; drawTabs(); show(); return; }
   if ((b = t.closest('[data-stab]'))) { stab = b.getAttribute('data-stab'); vShop(true); return; }
+  if ((b = t.closest('[data-seopen]'))) { if (!guard()) return; shopSel = b.getAttribute('data-seopen'); view = 'shopedit'; drawTabs(); show(); return; }
+  if ((b = t.closest('[data-shmv]'))) { var mv = b.getAttribute('data-shmv').split(','), hl = me.shops.filter(function (x) { return x.hall === mv[2]; }).map(function (x) { return x.id; }), ix = hl.indexOf(mv[0]), jx = ix + Number(mv[1]); if (jx < 0 || jx >= hl.length) return; var tmp = hl[ix]; hl[ix] = hl[jx]; hl[jx] = tmp; call('adminShopOrder', { ids: hl }).then(function () { toast('已調整順序'); vHome(); }).catch(function (er) { toast(er.message); }); return; }
+  if ((b = t.closest('[data-shdel]'))) { var dn = getShop(b.getAttribute('data-shdel')); if (dn && confirm('確定刪除「' + dn.floor + ' ' + dn.name + '」？\n\n這間店的頁面、服務項目、預約設定會一併刪除（已收到的訂位紀錄會保留）。\n如果只是暫時不想顯示，請改用「前台顯示」關掉。')) call('adminDeleteShop', { shopId: dn.id }).then(function () { toast('已刪除'); vHome(); }).catch(function (er) { toast(er.message); }); return; }
+  if (t.closest('#shAddBtn')) { $('shAddBox').style.display = $('shAddBox').style.display === 'block' ? 'none' : 'block'; return; }
+  if (t.closest('#shAddOk')) { call('adminAddShop', { hall: '漢口總店', floor: $('shaf').value, name: $('shan').value, type: $('shat').value }).then(function (r) { toast('已建立，補上介紹與照片後，再把「前台顯示」打開'); shopSel = r.id; view = 'shopedit'; drawTabs(); show(); }).catch(function (er) { toast(er.message); }); return; }
   if ((b = t.closest('[data-bulk]'))) { var on = b.getAttribute('data-bulk') === '1'; Promise.all(me.shops.map(function (s) { return setOpen(s.id, on); })).then(function () { toast(on ? '已全部開放' : '已全部暫停'); vHome(); }); return; }
   if ((b = t.closest('[data-up-item]'))) {
     var card = b.closest('.icard'), hid = card.querySelector('[data-f=image]'), th = card.querySelector('.thumb');
@@ -737,6 +644,8 @@ document.addEventListener('click', function (e) {
   if ((b = t.closest('[data-del]')) && confirm('確定刪除這個品項？')) call('adminDeleteMenu', { hall: hallSel, id: cache.menu[b.getAttribute('data-del')].id }).then(function () { toast('已刪除'); vMenu(getShop(shopSel)); }).catch(function (er) { toast(er.message); });
 });
 document.addEventListener('change', function (e) {
+  var v = e.target.closest && e.target.closest('[data-shvis]');
+  if (v) { var on2 = v.checked; call('adminSaveShop', { shopId: v.getAttribute('data-shvis'), fields: { '前台顯示': on2 } }).then(function () { toast(on2 ? '前台已顯示' : '前台已隱藏'); vHome(); }).catch(function (er) { toast(er.message); v.checked = !on2; }); return; }
   var c = e.target.closest && e.target.closest('[data-open]'); if (!c) return;
   var on = c.checked; setOpen(c.getAttribute('data-open'), on).then(function () { toast(on ? '已開放預約' : '已暫停預約'); vHome(); }).catch(function () { c.checked = !on; });
 });
@@ -815,7 +724,8 @@ function pcHistory() {
 }
 function vContent(pi, tab) {
   call('adminPageFields').then(function (d) {
-    PC = { pages: d.pages, base: {}, cur: {}, pageOf: {}, fld: {}, history: d.history, pi: pi || 0, tab: tab || 'edit', ready: false, fidx: 0 };
+    var go = window._pcGo; window._pcGo = null; var gi = go ? d.pages.map(function (p) { return p.id; }).indexOf(go) : -1;
+    PC = { pages: d.pages, base: {}, cur: {}, pageOf: {}, fld: {}, history: d.history, pi: gi >= 0 ? gi : (pi || 0), tab: tab || 'edit', ready: false, fidx: 0 };
     d.pages.forEach(function (p, i) { p.sections.forEach(function (s) { s.fields.forEach(function (f) { if (PC.fld[f.key]) return; PC.fld[f.key] = f; PC.pageOf[f.key] = i; var v = d.values[f.key] || { text: '', image: '' }, e = pcEff(f, { text: v.text, image: v.image });
       if (f.type !== 'image' && !f.opt && !v.text) e.text = f.def; PC.base[f.key] = { text: e.text, image: e.image }; PC.cur[f.key] = { text: e.text, image: e.image }; }); }); });
     $('pg').innerHTML = '<div class="pc"><div class="pcn" id="pcNav"></div><div id="pcMain"></div><div class="pcv"><div class="vbar"><div class="seg" id="pcDev"><button type="button" data-dev="pc" class="on">電腦</button><button type="button" data-dev="mob">手機</button></div><a class="sd" id="pcOpen" target="_blank" rel="noopener">在新分頁開啟前台 ↗</a></div><div class="pcfw" id="pcFw"><iframe id="pcFrame" title="前台預覽"></iframe></div><div class="sd">點預覽裡的文字或圖片，左邊會跳到對應欄位；點左邊欄位，預覽會框出位置。</div></div></div>';
@@ -823,7 +733,7 @@ function vContent(pi, tab) {
   }).catch(err);
 }
 function pcNav() {
-  $('pcNav').innerHTML = PC.pages.map(function (p, i) { return '<a data-pcpage="' + i + '" class="' + (PC.tab === 'edit' && i === PC.pi ? 'on' : '') + '">' + E(p.title) + '<i></i></a>'; }).join('') + '<a data-pctab="history" class="hist ' + (PC.tab === 'history' ? 'on' : '') + '">修改紀錄</a>';
+  $('pcNav').innerHTML = PC.pages.map(function (p, i) { return '<a data-pcpage="' + i + '" class="' + (PC.tab === 'edit' && i === PC.pi ? 'on' : '') + '">' + E(p.title) + '<i></i></a>'; }).join('') + '<div class="pcg">各店頁面（店名、介紹、照片…）</div>' + me.shops.filter(function (x) { return x.hall === '漢口總店' || x.id === 'p'; }).map(function (x) { return '<a data-seopen="' + E(x.id) + '">' + E((x.hall === '漢口總店' ? x.floor + '　' : '') + x.name) + '</a>'; }).join('') + '<a data-pctab="history" class="hist ' + (PC.tab === 'history' ? 'on' : '') + '">修改紀錄</a>';
   pcUpdate();
 }
 function pcShow() {
@@ -850,6 +760,222 @@ document.addEventListener('click', function (e) {
   if (t.closest('#pcSave')) { pcConfirm(); return; }
   if (t.closest('#pcReset')) { pcFields().forEach(function (x) { if (x.pi === PC.pi) PC.cur[x.f.key] = { text: PC.base[x.f.key].text, image: PC.base[x.f.key].image }; }); pcDraw(); pcSend(); return; }
   if ((b = t.closest('[data-pcrest]'))) { if (confirm('把這個欄位改回修改前的內容？')) call('adminRestoreContent', { id: b.getAttribute('data-pcrest') }).then(function () { toast('已復原'); vContent(PC.pi, 'history'); }).catch(function (er) { toast(er.message); }); }
+});
+
+/* ---------- 店家頁編輯（左：店家清單，中：欄位，右：前台即時預覽）---------- */
+var SE = null;
+var SE_FIXED = ['h1', 'p'];
+var SE_REG = [
+  [1, '頁首導覽', '店家頁最上方的導覽文字'], [2, '樓層與店名', '左上的大字與店名'], [3, '標籤與營業時間', '店名下面的標籤列'],
+  [4, '介紹', '完整介紹文字'], [5, '按鈕與聯絡', '主按鈕、電話、社群連結'], [6, '主圖', '右邊的大圖'],
+  [7, '服務項目', '標題與項目清單'], [8, '相簿', '更多照片'], [9, '其他店家', '頁面最下方']
+];
+var SE_FIELDS = [['floorA', '樓層（大字）', 2], ['floorB', '樓層位置（小標籤）', 2], ['name', '店名', 2], ['type', '類型', 2], ['hs', '營業開始', 3], ['he', '營業結束', 3], ['hr', '營業時間補充說明', 3], ['sh', '在首頁顯示營業狀態', 3],
+  ['intro', '完整介紹', 4], ['tagline', '一句話介紹', 4], ['btnMode', '主按鈕功能', 5], ['btnText', '按鈕文字', 5], ['phone', '電話', 5], ['ig', 'Instagram 連結', 5], ['fb', 'Facebook 連結', 5], ['line', 'LINE 連結', 5],
+  ['image', '主圖', 6], ['itemsTitle', '服務項目標題', 7], ['items', '服務項目', 7], ['gallery', '相簿', 8]];
+var SE_SHARED_REG = { '店家頁|麵包屑': 1, '店家頁|看餐點按鈕': 5, '店家頁|回漢口按鈕': 5, '店家頁|項目英文': 7, '店家頁|相簿英文': 8, '店家頁|同棟英文': 9, '店家頁|同棟標題': 9 };
+function seRegions(s) { return s.id === 'p' ? [3, 4, 5, 6, 8] : s.id === 'h1' ? [1, 2, 3, 4, 5, 6, 8, 9] : [1, 2, 3, 4, 5, 6, 7, 8, 9]; }
+function seSplit(floor) { floor = String(floor || ''); var i = floor.indexOf(' '); return i > 0 ? [floor.slice(0, i), floor.slice(i + 1).trim()] : [floor, '']; }
+function seBase(s, items) {
+  var f = seSplit(s.floor), r = s.raw || {};
+  return { floorA: f[0], floorB: f[1], name: s.name, type: s.type, hs: s.hoursStart || '', he: s.hoursEnd || '', hr: s.hours || '', sh: !!s.showHours, intro: s.intro || '', tagline: s.tagline || '',
+    btnMode: r.btnMode || '預約', btnText: r.btnText || '預約', phone: r.phone || '', ig: r.ig || '', fb: r.fb || '', line: r.line || '', image: s.image || '', gallery: (s.gallery || []).slice(),
+    itemsTitle: s.itemsTitle || '服務項目', items: items.map(function (i) { return { id: i.id, cat: i.cat, name: i.name, desc: i.desc, price: i.price, image: i.image, on: !!i.on }; }) };
+}
+var SE_HM = /^([01]\d|2[0-3]):[0-5]\d$/, SE_URL = /^https:\/\/[^\s]+$/;
+function seShop() { // 組成前台用的店家資料（含還沒儲存的修改），送進預覽
+  var c = SE.cur, s = SE.s, ok = SE_HM.test(c.hs) && SE_HM.test(c.he);
+  var cl = s.closed.length ? '，' + s.closed.map(function (n) { return '週' + Z.wd[n]; }).join('、') + '公休' : '';
+  return { id: s.id, hall: s.hall, floor: c.floorA + (c.floorB ? ' ' + c.floorB : ''), name: c.name || '（店名）', type: c.type, open: s.open, hours: ok ? c.hs + '–' + c.he + cl : c.hr, note: s.note, intro: c.intro, tagline: c.tagline, image: c.image, gallery: c.gallery.slice(), itemsTitle: c.itemsTitle || '服務項目',
+    items: c.items.filter(function (i) { return i.on && i.name; }).map(function (i) { return { id: i.id, cat: i.cat, name: i.name, desc: i.desc, price: i.price, image: i.image }; }),
+    contact: { btnText: c.btnText || '預約', btnMode: { '預約': 'book', '電話': 'tel', '不顯示': 'none' }[c.btnMode] || 'book', phone: c.phone, ig: SE_URL.test(c.ig) ? c.ig : '', fb: SE_URL.test(c.fb) ? c.fb : '', line: SE_URL.test(c.line) ? c.line : '' },
+    hoursStart: ok ? c.hs : '', hoursEnd: ok ? c.he : '', showHours: ok && c.sh, maxParty: s.maxParty, advanceDays: s.advance, closed: s.closed };
+}
+function seDirty() { return SE_FIELDS.filter(function (f) { return JSON.stringify(SE.cur[f[0]]) !== JSON.stringify(SE.base[f[0]]); }); }
+function sePost() { var fr = $('seFrame'); if (fr && fr.contentWindow && SE.ready) fr.contentWindow.postMessage({ zedit: 'shop', shop: seShop() }, '*'); }
+function seHl() { var fr = $('seFrame'); if (fr && fr.contentWindow && SE.ready) fr.contentWindow.postMessage({ zedit: 'hl', key: 'r:' + SE.region }, '*'); }
+function seScale() {
+  var w = $('seFw'), fr = $('seFrame'); if (!w || !fr) return;
+  var mob = w.classList.contains('mob'), iw = mob ? 390 : 1280, sc = Math.min(1, w.clientWidth / iw);
+  fr.style.width = iw + 'px'; fr.style.height = (w.clientHeight / sc) + 'px'; fr.style.transform = 'scale(' + sc + ')'; fr.style.marginLeft = Math.max(0, (w.clientWidth - iw * sc) / 2) + 'px';
+}
+window.addEventListener('resize', function () { if (SE) seScale(); });
+function seUpdate() {
+  var ds = seDirty(), keys = ds.map(function (f) { return f[0]; }), byReg = {};
+  ds.forEach(function (f) { byReg[f[2]] = (byReg[f[2]] || 0) + 1; });
+  W.n = ds.length; W.ls = ds.map(function (f) { return f[1]; });
+  document.querySelectorAll('.sef').forEach(function (el) {
+    var k = el.getAttribute('data-k'), d = keys.indexOf(k) >= 0; el.classList.toggle('dirty', d);
+    var w = el.querySelector('.was'); if (w) { w.style.display = d ? '' : 'none'; if (d) { var b = SE.base[k]; w.textContent = '原本：' + (typeof b === 'boolean' ? (b ? '開' : '關') : trunc(b, 60) || '（空白）'); } }
+  });
+  document.querySelectorAll('.sreg').forEach(function (el) { var n = Number(el.getAttribute('data-n')), i = el.querySelector('.hd i'); if (i) i.textContent = byReg[n] ? '● ' + byReg[n] + ' 處未儲存' : ''; });
+  var sv = $('seSave'); if (sv) { sv.disabled = !ds.length; sv.textContent = ds.length ? '儲存這間店（' + ds.length + ' 處修改）' : '儲存這間店'; }
+  var nt = $('seNote'); if (nt) nt.innerHTML = ds.length ? '這間店目前有 <b>' + ds.length + ' 處</b>未儲存的修改' : '目前沒有未儲存的修改';
+  if (nt) nt.className = 'note9' + (ds.length ? ' on' : '');
+}
+function seField(k, label, o) {
+  o = o || {}; var v = SE.cur[k], ro = o.ro ? ' readonly' : '';
+  var inner = o.area ? '<textarea data-sek="' + k + '" rows="' + (o.rows || 5) + '" maxlength="' + (o.max || 1000) + '"' + ro + '>' + E(v) + '</textarea>'
+    : o.type === 'select' ? '<select data-sek="' + k + '">' + o.opts.map(function (x) { return '<option' + (x[0] === v ? ' selected' : '') + ' value="' + E(x[0]) + '">' + E(x[1]) + '</option>'; }).join('') + '</select>'
+    : o.type === 'check' ? '<label class="sw"><input type="checkbox" data-sek="' + k + '"' + (v ? ' checked' : '') + '>' + E(o.text) + '</label>'
+    : '<input data-sek="' + k + '"' + (o.type ? ' type="' + o.type + '"' : '') + (o.max ? ' maxlength="' + o.max + '"' : '') + ' value="' + E(v) + '" placeholder="' + E(o.ph || '') + '"' + ro + '>';
+  return '<div class="field sef" data-k="' + k + '" style="' + (o.w ? 'flex:' + o.w : '') + '">' + (o.type === 'check' ? '' : '<label>' + E(label) + '</label>') + inner + (o.hint ? '<div class="sd" style="font-size:12px">' + E(o.hint) + '</div>' : '') + '<div class="was" style="display:none"></div></div>';
+}
+function seSharedBtn() { return me.all ? '<p><button type="button" class="btn sm line" data-seshared="1">到「頁面內容 › 店家頁」修改共用文字 ↗</button></p>' : '<p class="sd">共用文字由總管理員修改。</p>'; }
+function seBody(n) {
+  var s = SE.s, c = SE.cur, t = function (k) { return (SE.content[k] || {}).text || ''; };
+  if (n === 1) return '<p class="sd">目前顯示：<b>' + E(t('店家頁|麵包屑') + '　／　' + c.floorA + (c.floorB ? ' ' + c.floorB : '') + '　' + c.name) + '</b><br>前半段「' + E(t('店家頁|麵包屑')) + '」是<b>全部店共用</b>；後半段是這間店的樓層與店名，到「2 樓層與店名」修改。</p>' + seSharedBtn();
+  if (n === 2) return '<div class="g">' + seField('floorA', '樓層（大字）', { ro: !me.all, ph: '例如 2F', max: 10, hint: me.all ? '' : '樓層由總管理員修改' }) + seField('floorB', '樓層位置（小標籤，選填）', { ro: !me.all, ph: '例如 後段', max: 12 }) + '</div>' +
+    seField('name', '店名', { max: 40, hint: '店名也會出現在導覽列、首頁今日營業時間、漢口總店頁的卡片與訂位頁' }) + seField('type', '類型（第二個標籤）', { max: 30, ph: '例如 選物服飾' });
+  if (n === 3) return '<div class="g">' + seField('hs', '營業開始', { type: 'time' }) + seField('he', '營業結束', { type: 'time' }) + '</div>' + seField('hr', '補充說明（只在沒填開始／結束時顯示）', { max: 100, ph: '例如：依預約為主' }) + seField('sh', '', { type: 'check', text: '在首頁與樓層頁顯示「營業中／已打烊」狀態' }) +
+    '<p class="sd">公休日在「店家總覽 › 訂位與設定 › 預約設定」：目前是「' + (s.closed.length ? s.closed.map(function (x) { return '週' + Z.wd[x]; }).join('、') + '公休' : '無公休日') + '」。</p>';
+  if (n === 4) return seField('intro', '完整介紹（客人點進店家頁看到的說明，可換行）', { area: true, rows: 7 }) + (s.hall === '漢口總店' ? seField('tagline', '一句話介紹（最多 40 字）', { max: 40, hint: '顯示在漢口總店頁的店家卡片上；留白＝改顯示完整介紹的前幾行' }) : '');
+  if (n === 5) return '<div class="g">' + seField('btnMode', '主按鈕功能', { type: 'select', opts: [['預約', '線上預約（到預約頁）'], ['電話', '撥打電話'], ['不顯示', '不顯示按鈕']] }) + seField('btnText', '按鈕文字', { max: 10 }) + seField('phone', '店家電話', { ph: '07-0000000', hint: '選「撥打電話」要先填電話' }) + '</div>' +
+    '<div class="g">' + seField('ig', 'Instagram 連結', { ph: 'https://instagram.com/...' }) + seField('fb', 'Facebook 連結', { ph: 'https://facebook.com/...' }) + seField('line', 'LINE 連結', { ph: 'https://line.me/...' }) + '</div>' +
+    '<p class="sd">連結留白＝前台不顯示。頁面上的「' + E(t('店家頁|回漢口按鈕')) + '」' + (s.id === 'h1' ? '、「' + E(t('店家頁|看餐點按鈕')) + '」' : '') + '按鈕文字是全部店共用。</p>' + (s.id === 'p' ? '' : seSharedBtn());
+  if (n === 6) return '<div class="field sef" data-k="image"><label>主圖</label><div class="upl"><img class="thumb" id="seImg" alt="" ' + (c.image ? 'src="' + E(c.image) + '"' : 'style="visibility:hidden"') + '><button type="button" class="btn sm" data-seimgup="1">上傳圖片</button><button type="button" class="btn sm line" data-seimgclr="1">清除</button></div><div class="was" style="display:none"></div></div>';
+  if (n === 7) return seField('itemsTitle', '這一區的標題', { max: 12, ph: '服務項目、療程、方案、商品' }) + '<div class="field sef" data-k="items"><label>項目（▲▼ 調順序；同「分類」的會排在一起）</label><div id="seItems"></div><div class="was" style="display:none"></div></div><p><button type="button" class="btn sm line" data-seitadd="1">＋ 新增一個項目</button></p><p class="sd">英文小標「' + E(t('店家頁|項目英文')) + '」是全部店共用。價格可自由輸入文字。取消「顯示」的項目前台不會出現。</p>';
+  if (n === 8) return '<div class="field sef" data-k="gallery"><label>相簿照片（最多 12 張）</label><div id="seGal" class="galed"></div><div class="was" style="display:none"></div></div>';
+  if (n === 9) return '<p class="sd">這一區會自動列出漢口總店的其他店家，順序在「店家總覽」用 ▲▼ 調整。標題「' + E(t('店家頁|同棟標題')) + '」是<b>全部店共用</b>。</p>' + seSharedBtn();
+  return '';
+}
+function seDrawItems() {
+  var box = $('seItems'); if (!box) return;
+  var its = SE.cur.items;
+  box.innerHTML = its.length ? its.map(function (r, i) {
+    return '<div class="icard" data-si="' + i + '"><div class="im"><img class="thumb" alt=""' + (r.image ? ' src="' + E(r.image) + '"' : ' style="background:var(--soft)"') + '><button type="button" class="btn sm" data-seitup="' + i + '" style="padding:6px 10px">上傳圖片</button></div>' +
+      '<div class="bd"><div class="g"><div class="field" style="flex:2 1 160px"><label>名稱</label><input data-sei="' + i + '" data-sef="name" value="' + E(r.name) + '"></div><div class="field"><label>分類（選填）</label><input data-sei="' + i + '" data-sef="cat" value="' + E(r.cat) + '"></div><div class="field"><label>價格</label><input data-sei="' + i + '" data-sef="price" value="' + E(r.price) + '" placeholder="NT$1,200 起"></div></div>' +
+      '<div class="field"><label>介紹（沒有就不顯示）</label><textarea data-sei="' + i + '" data-sef="desc" style="min-height:50px">' + E(r.desc) + '</textarea></div>' +
+      '<div class="hrow"><label class="sw"><input type="checkbox" data-sei="' + i + '" data-sef="on"' + (r.on ? ' checked' : '') + '>顯示在前台</label><button type="button" class="btn sm line" data-seitmv="' + i + ',-1">▲</button><button type="button" class="btn sm line" data-seitmv="' + i + ',1">▼</button><button type="button" class="btn sm line" data-seitdel="' + i + '">刪除</button></div></div></div>';
+  }).join('') : '<div class="sd">還沒有項目。</div>';
+}
+function seDrawGal() {
+  var box = $('seGal'); if (!box) return; var g = SE.cur.gallery, g0 = SE.base.gallery;
+  box.innerHTML = g.map(function (u, i) {
+    return '<figure' + (g0.indexOf(u) < 0 ? ' class="new"' : '') + '><img class="thumb" src="' + E(u) + '" alt=""><span class="x" data-segrm="' + i + '" title="移除">×</span><div class="gfa"><button type="button" data-segmv="' + i + ',-1" title="往前">‹</button><button type="button" data-segmain="' + i + '" title="設為主圖">★</button><button type="button" data-segmv="' + i + ',1" title="往後">›</button></div></figure>';
+  }).join('') + (g.length < 12 ? '<button type="button" class="addp" data-segadd="1">＋<br>新增照片<small>可一次選多張</small></button>' : '');
+}
+function seSelect(n, noHl) {
+  SE.region = n;
+  document.querySelectorAll('.sreg').forEach(function (el) { el.classList.toggle('on', Number(el.getAttribute('data-n')) === n); });
+  var on = document.querySelector('.sreg.on'); if (on && !noHl) on.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  seHl();
+}
+function seDraw() {
+  var s = SE.s, regs = seRegions(s), fixedNote = s.id === 'p' ? '<p class="sd">標題與地址在「頁面內容 › 黃埔二店頁」修改。</p>' : '';
+  $('seMain').innerHTML = '<h2 style="font-size:22px;margin:0 0 2px">' + E(s.floor + ' ' + s.name) + '</h2><div class="sd" style="margin-bottom:8px">前台網址：' + E(SE.url.split('?')[0] + (s.id === 'p' ? '' : '?id=' + s.id)) + (s.visible ? '' : '　<span class="pill">目前未對外顯示</span>') + '</div>' + fixedNote +
+    '<div id="seNote" class="note9"></div>' +
+    SE_REG.filter(function (r) { return regs.indexOf(r[0]) >= 0; }).map(function (r) {
+      return '<div class="sreg' + (r[0] === SE.region ? ' on' : '') + '" data-n="' + r[0] + '"><div class="hd" data-sereg="' + r[0] + '"><span class="rn">' + r[0] + '</span><b>' + r[1] + '</b><span class="sd">' + r[2] + '</span><i></i></div><div class="bd9">' + seBody(r[0]) + '</div></div>';
+    }).join('') +
+    '<p style="margin-top:14px"><button class="btn" id="seSave" disabled>儲存這間店</button> <button class="btn line" id="seReset">還原全部修改</button></p>';
+  seDrawItems(); seDrawGal(); seUpdate();
+}
+function seNav() {
+  var list = me.shops.filter(function (x) { return x.hall === '漢口總店'; }), hp = me.shops.filter(function (x) { return x.id === 'p'; })[0];
+  function a(x) { return '<a data-seshop="' + E(x.id) + '" class="' + (x.id === SE.s.id ? 'on' : '') + '">' + E((x.hall === '漢口總店' ? x.floor + '　' : '') + x.name) + (x.visible ? '' : '<i>未顯示</i>') + '</a>'; }
+  $('seNav').innerHTML = (me.all ? '<a data-view="content" class="hist">← 頁面內容</a>' : (me.shops.length > 1 ? '<a data-view="home" class="hist">← 店家總覽</a>' : '')) +
+    (list.length ? '<div class="pcg">漢口各樓層店家</div>' + list.map(a).join('') : '') + (hp ? '<div class="pcg">黃埔二店</div>' + a(hp) : '') + (me.all ? '<a data-view="home" class="hist" style="color:var(--accent2)">＋ 新增店家（到店家總覽）</a>' : '');
+}
+function vShopEdit() {
+  reload(function () {
+    var s = getShop(shopSel); if (!s) { view = 'home'; drawTabs(); return show(); }
+    var needItems = SE_FIXED.indexOf(s.id) < 0;
+    Promise.all([needItems ? call('adminItemList', { shopId: s.id }) : Promise.resolve([]), Z.pub().catch(function () { return { content: {} }; })]).then(function (r) {
+      var base = seBase(s, r[0]);
+      SE = { s: s, base: base, cur: JSON.parse(JSON.stringify(base)), content: (r[1] && r[1].content) || {}, region: s.id === 'p' ? 4 : 2, ready: false, url: s.id === 'p' ? 'huangpu.html' : 'shop.html' };
+      PC = null;
+      $('pg').innerHTML = '<div class="pc"><div class="pcn" id="seNav"></div><div id="seMain"></div><div class="pcv"><div class="vbar"><div class="seg" id="seDev"><button type="button" data-sedev="pc" class="on">電腦</button><button type="button" data-sedev="mob">手機</button></div><a class="sd" id="seOpen" target="_blank" rel="noopener">在新分頁開啟前台 ↗</a></div><div class="pcfw" id="seFw"><iframe id="seFrame" title="前台預覽"></iframe></div><div class="sd">點預覽裡的區塊，左邊會展開對應欄位；改任何欄位，預覽立即同步（儲存前前台不會變）。</div></div></div>';
+      seNav(); seDraw();
+      var fr = $('seFrame'); fr.onload = function () { SE.ready = true; sePost(); seHl(); };
+      var q = s.id === 'p' ? '?zedit=1' : '?id=' + encodeURIComponent(s.id) + '&zedit=1'; fr.src = SE.url + q; $('seOpen').href = SE.url + (s.id === 'p' ? '' : '?id=' + encodeURIComponent(s.id));
+      seScale();
+    }).catch(err);
+  });
+}
+window.addEventListener('message', function (e) {
+  var m = e.data || {}; if (!m.zedit || !SE || view !== 'shopedit' || !$('seFrame') || e.source !== $('seFrame').contentWindow) return;
+  if (m.zedit === 'ready') { SE.ready = true; sePost(); seHl(); }
+  if (m.zedit === 'pick') {
+    var n = String(m.key).indexOf('r:') === 0 ? Number(String(m.key).slice(2)) : SE_SHARED_REG[m.key];
+    if (n && seRegions(SE.s).indexOf(n) >= 0) seSelect(n);
+  }
+});
+document.addEventListener('input', function (e) {
+  var t = e.target; if (!SE || view !== 'shopedit' || !t.getAttribute) return;
+  var k = t.getAttribute('data-sek'), si = t.getAttribute('data-sei');
+  if (k) { SE.cur[k] = t.type === 'checkbox' ? t.checked : t.value; seUpdate(); sePost(); }
+  else if (si !== null) { SE.cur.items[Number(si)][t.getAttribute('data-sef')] = t.type === 'checkbox' ? t.checked : t.value; seUpdate(); sePost(); }
+});
+document.addEventListener('change', function (e) { var t = e.target; if (SE && view === 'shopedit' && t.getAttribute && t.getAttribute('data-sek') && t.tagName === 'SELECT') { SE.cur[t.getAttribute('data-sek')] = t.value; seUpdate(); sePost(); } });
+document.addEventListener('focusin', function (e) { var t = e.target, r = t.closest && t.closest('.sreg'); if (SE && view === 'shopedit' && r && Number(r.getAttribute('data-n')) !== SE.region) seSelect(Number(r.getAttribute('data-n')), true); });
+function seChanged() { seUpdate(); sePost(); }
+function seConfirm() {
+  var ds = seDirty(); if (!ds.length) return;
+  var rows = ds.map(function (f) {
+    var k = f[0], b = SE.base[k], c = SE.cur[k], was, now;
+    if (k === 'image') { was = b ? '<img class="thumb s" src="' + E(b) + '">' : '（沒有圖片）'; now = c ? '<img class="thumb s" src="' + E(c) + '">' : '（清除圖片）'; }
+    else if (k === 'gallery') { was = b.length + ' 張'; now = c.length + ' 張（新增 ' + c.filter(function (u) { return b.indexOf(u) < 0; }).length + '、移除 ' + b.filter(function (u) { return c.indexOf(u) < 0; }).length + '）'; }
+    else if (k === 'items') { was = b.length + ' 個項目'; now = c.length + ' 個項目（' + seItemDiff() + '）'; }
+    else if (typeof b === 'boolean') { was = b ? '開' : '關'; now = c ? '開' : '關'; }
+    else { was = E(trunc(b, 140) || '（空白）'); now = E(trunc(c, 140) || '（空白）'); }
+    var reg = SE_REG.filter(function (r) { return r[0] === f[2]; })[0];
+    return '<div class="pcit"><div class="sd">前台店家頁 <b>' + f[2] + ' ' + E(reg[1]) + ' › ' + E(f[1]) + '</b></div><div class="pcdf"><div class="bf">' + was + '</div><div class="af">' + now + '</div></div></div>';
+  }).join('');
+  var m = document.createElement('div'); m.id = 'pcm';
+  m.innerHTML = '<div class="pcbox"><div class="pch">確認儲存「' + E(SE.s.name) + '」　' + ds.length + ' 處修改</div><div class="pcbd">' + rows + '</div><div class="pcft"><button class="btn" id="seOk">確認儲存</button> <button class="btn line" id="seNo">回去繼續改</button></div></div>';
+  document.body.appendChild(m);
+  $('seNo').onclick = function () { m.remove(); };
+  $('seOk').onclick = function () { $('seOk').disabled = true; seSave().then(function () { m.remove(); toast('已儲存「' + SE.s.name + '」'); clearW(); vShopEdit(); }).catch(function (er) { toast(er.message); $('seOk').disabled = false; }); };
+}
+function seItemDiff() {
+  var b = SE.base.items, c = SE.cur.items, add = c.filter(function (i) { return !i.id; }).length, del = b.filter(function (i) { return !c.some(function (x) { return x.id === i.id; }); }).length;
+  var chg = c.filter(function (i, idx) { return i.id && JSON.stringify(i) !== JSON.stringify(b.filter(function (x) { return x.id === i.id; })[0]) || (i.id && b.map(function (x) { return x.id; }).indexOf(i.id) !== idx); }).length;
+  return '新增 ' + add + '、修改 ' + chg + '、刪除 ' + del;
+}
+function seSave() {
+  var s = SE.s, c = SE.cur, b = SE.base, ds = seDirty().map(function (f) { return f[0]; }), has = function (a) { return a.some(function (k) { return ds.indexOf(k) >= 0; }); }, f = {};
+  if (has(['name'])) f['店名'] = c.name; if (has(['type'])) f['類型'] = c.type;
+  if (has(['floorA', 'floorB'])) f['樓層'] = c.floorA + (c.floorB ? ' ' + c.floorB : '');
+  if (has(['hs', 'he'])) { f['營業開始'] = c.hs; f['營業結束'] = c.he; }
+  if (has(['hr'])) f['營業時間'] = c.hr; if (has(['sh'])) f['首頁顯示營業時間'] = c.sh;
+  if (has(['intro'])) f['介紹'] = c.intro; if (has(['tagline'])) f['一句話介紹'] = c.tagline;
+  if (has(['btnMode'])) f['按鈕模式'] = c.btnMode; if (has(['btnText'])) f['按鈕文字'] = c.btnText; if (has(['phone'])) f['電話'] = c.phone;
+  if (has(['ig'])) f['Instagram'] = c.ig; if (has(['fb'])) f['Facebook'] = c.fb; if (has(['line'])) f['LINE'] = c.line;
+  if (has(['image'])) f['圖片網址'] = c.image; if (has(['gallery'])) f['相簿圖片'] = c.gallery; if (has(['itemsTitle'])) f['項目標題'] = c.itemsTitle;
+  var p = Object.keys(f).length ? call('adminSaveShop', { shopId: s.id, fields: f }) : Promise.resolve();
+  if (has(['items'])) p = p.then(function () {
+    var ops = [];
+    b.items.forEach(function (i) { if (!c.items.some(function (x) { return x.id === i.id; })) ops.push(function () { return call('adminDeleteItem', { shopId: s.id, id: i.id }); }); });
+    c.items.forEach(function (i, idx) {
+      var old = i.id ? b.items.filter(function (x) { return x.id === i.id; })[0] : null, oldIdx = old ? b.items.indexOf(old) : -1;
+      if (old && oldIdx === idx && JSON.stringify(old) === JSON.stringify(i)) return;
+      if (!i.name.trim()) throw new Error('第 ' + (idx + 1) + ' 個項目沒有名稱');
+      ops.push(function () { return call('adminSaveItem', { shopId: s.id, item: { id: i.id, cat: i.cat, name: i.name, desc: i.desc, price: i.price, image: i.image, on: i.on, order: idx + 1 } }); });
+    });
+    return ops.reduce(function (ch, fn) { return ch.then(fn); }, Promise.resolve());
+  });
+  return p;
+}
+document.addEventListener('click', function (e) {
+  var t = e.target, b; if (!SE || view !== 'shopedit') return;
+  if ((b = t.closest('[data-sereg]'))) { seSelect(Number(b.getAttribute('data-sereg')), true); return; }
+  if ((b = t.closest('[data-seshop]'))) { if (b.getAttribute('data-seshop') === SE.s.id || !guard()) return; shopSel = b.getAttribute('data-seshop'); vShopEdit(); return; }
+  if ((b = t.closest('[data-sedev]'))) { var mob = b.getAttribute('data-sedev') === 'mob'; $('seFw').classList.toggle('mob', mob); document.querySelectorAll('#seDev button').forEach(function (x) { x.classList.toggle('on', x === b); }); seScale(); return; }
+  if (t.closest('[data-seshared]')) { if (!guard()) return; window._pcGo = 'shop'; view = 'content'; drawTabs(); show(); return; }
+  if (t.closest('#seSave')) { seConfirm(); return; }
+  if (t.closest('#seReset')) { if (!SE.cur || !seDirty().length || confirm('放棄所有未儲存的修改？')) { SE.cur = JSON.parse(JSON.stringify(SE.base)); seDraw(); sePost(); } return; }
+  if (t.closest('[data-seimgup]')) { pickFiles(false, 'shop:' + SE.s.id, function (u) { if (u[0]) { SE.cur.image = u[0]; var im = $('seImg'); im.src = u[0]; im.style.visibility = 'visible'; seChanged(); } }); return; }
+  if (t.closest('[data-seimgclr]')) { SE.cur.image = ''; $('seImg').style.visibility = 'hidden'; seChanged(); return; }
+  if ((b = t.closest('[data-seitadd]'))) { SE.cur.items.push({ id: '', cat: '', name: '', desc: '', price: '', image: '', on: true }); seDrawItems(); seChanged(); var ins = document.querySelectorAll('#seItems .icard input[data-sef=name]'); if (ins.length) ins[ins.length - 1].focus(); return; }
+  if ((b = t.closest('[data-seitup]'))) { var ii = Number(b.getAttribute('data-seitup')); pickFiles(false, 'shop:' + SE.s.id, function (u) { if (u[0]) { SE.cur.items[ii].image = u[0]; seDrawItems(); seChanged(); } }); return; }
+  if ((b = t.closest('[data-seitmv]'))) { var p = b.getAttribute('data-seitmv').split(','), i = Number(p[0]), j = i + Number(p[1]), its = SE.cur.items; if (j >= 0 && j < its.length) { var x = its[i]; its[i] = its[j]; its[j] = x; seDrawItems(); seChanged(); } return; }
+  if ((b = t.closest('[data-seitdel]'))) { var di = Number(b.getAttribute('data-seitdel')); if (!SE.cur.items[di].id || confirm('刪除「' + (SE.cur.items[di].name || '這個項目') + '」？按「儲存」後才會真的刪除。')) { SE.cur.items.splice(di, 1); seDrawItems(); seChanged(); } return; }
+  var g = SE.cur.gallery;
+  if ((b = t.closest('[data-segrm]'))) { g.splice(Number(b.getAttribute('data-segrm')), 1); seDrawGal(); seChanged(); return; }
+  if ((b = t.closest('[data-segmv]'))) { var q = b.getAttribute('data-segmv').split(','), a1 = Number(q[0]), a2 = a1 + Number(q[1]); if (a2 >= 0 && a2 < g.length) { var y = g[a1]; g[a1] = g[a2]; g[a2] = y; seDrawGal(); seChanged(); } return; }
+  if ((b = t.closest('[data-segmain]'))) { var k = Number(b.getAttribute('data-segmain')), old = SE.cur.image, nu = g[k]; if (old && isHttps(old)) g[k] = old; else g.splice(k, 1); SE.cur.image = nu; var im2 = $('seImg'); if (im2) { im2.src = nu; im2.style.visibility = 'visible'; } seDrawGal(); seChanged(); return; }
+  if (t.closest('[data-segadd]')) { pickFiles(true, 'shop:' + SE.s.id, function (u) { SE.cur.gallery = SE.cur.gallery.concat(u).filter(function (v, i2, a) { return a.indexOf(v) === i2; }).slice(0, 12); seDrawGal(); seChanged(); }); return; }
 });
 
 /* ---------- 合作洽談 ---------- */

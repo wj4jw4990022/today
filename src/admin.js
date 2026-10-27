@@ -1,9 +1,10 @@
-import { UserError, clean, todayStr, nowStamp, isHm, parseClosed, parseSlots, parseGallery, hoursText, shopContact, httpsOnly, imgUrl, BTN_MODES, isTrue, byOrder } from './util.js';
+import { UserError, clean, todayStr, nowStamp, isHm, parseClosed, parseSlots, parseGallery, hoursText, shopContact, httpsOnly, imgUrl, BTN_MODES, isTrue, byOrder, shopOrder } from './util.js';
 import { PAGES, FIELD_BY_KEY } from './pagefields.js';
 import { shopById, settingsMap, needShop, needAll, throttle } from './service.js';
 
 const STATUS = ['待確認', '已確認', '已取消', '已到店'];
 const HALL_SHOP = { 漢口總店: 'h1', 黃埔二店: 'p' };
+const FIXED_SHOPS = ['h1', 'p']; // 有專屬頁面（餐點、首頁卡片）的店，不能刪除或隱藏
 
 export const adminOps = {
   async adminInit(c, p, a) {
@@ -14,13 +15,13 @@ export const adminOps = {
       if (b['日期'] === today) o.today++;
       if (b['狀態'] === '待確認' && b['日期'] >= today) o.pending++;
     });
-    const shops = (await c.db.all('店家')).filter((s) => a.can(s['店家ID'])).map((s) => {
+    const shops = (await c.db.all('店家')).filter((s) => a.can(s['店家ID'])).sort(shopOrder).map((s) => {
       const st = sm[s['店家ID']] || {}, cl = parseClosed(st['公休日']);
       return {
         hoursStart: String(s['營業開始'] || ''), hoursEnd: String(s['營業結束'] || ''), showHours: isTrue(s['首頁顯示營業時間']), itemsTitle: s['項目標題'] || '服務項目',
         hoursPreview: hoursText(s, cl), contact: shopContact(s), raw: { btnText: s['按鈕文字'] || '', btnMode: String(s['按鈕模式'] || '預約'), phone: s['電話'] || '', ig: s['Instagram'] || '', fb: s['Facebook'] || '', line: s['LINE'] || '' },
         todayCount: (stat[s['店家ID']] || {}).today || 0, pendingCount: (stat[s['店家ID']] || {}).pending || 0,
-        id: s['店家ID'], hall: s['館別'], floor: s['樓層'], name: s['店名'], type: s['類型'], open: isTrue(s['開放預約']),
+        visible: s['前台顯示'], id: s['店家ID'], hall: s['館別'], floor: s['樓層'], name: s['店名'], type: s['類型'], open: isTrue(s['開放預約']),
         hours: s['營業時間'], intro: s['介紹'], tagline: s['一句話介紹'] || '', image: s['圖片網址'], gallery: parseGallery(s['相簿圖片']), note: s['備註'],
         slots: parseSlots(st['可預約時段']), cap: Number(st['每時段名額']) || 1, maxParty: Number(st['單筆人數上限']) || 1,
         closed: parseClosed(st['公休日']), advance: Number(st['可提前預約天數']) || 30, email: st['通知Email'] || '', line: st['通知LINE'] || ''
@@ -68,9 +69,46 @@ export const adminOps = {
     });
     if (f['首頁顯示營業時間'] !== undefined) patch['首頁顯示營業時間'] = !!f['首頁顯示營業時間'];
     if (f['項目標題'] !== undefined) patch['項目標題'] = clean(f['項目標題'], 12) || '服務項目';
+    if (f['樓層'] !== undefined) { needAll(a); patch['樓層'] = clean(f['樓層'], 30); if (!patch['樓層']) throw new UserError('樓層不能空白'); }
+    if (f['前台顯示'] !== undefined) { needAll(a); if (!f['前台顯示'] && FIXED_SHOPS.indexOf(s['店家ID']) >= 0) throw new UserError('這間店是網站固定頁面，不能隱藏'); patch['前台顯示'] = !!f['前台顯示']; }
     if (patch['店名'] !== undefined && !patch['店名']) throw new UserError('店名不能空白');
     await c.db.update('店家', s._row, patch);
     return { ok: true };
+  },
+  /* ---------- 店家排列、新增、刪除（總管理員） ---------- */
+  async adminShopOrder(c, p, a) {
+    needAll(a);
+    const ids = Array.isArray(p.ids) ? p.ids.map((x) => String(x)) : [];
+    if (!ids.length || new Set(ids).size !== ids.length) throw new UserError('順序資料不正確');
+    const rows = (await c.db.all('店家')).sort(shopOrder), by = {}; rows.forEach((r) => { by[r['店家ID']] = r; });
+    ids.forEach((id) => { if (!by[id]) throw new UserError('找不到店家：' + clean(id, 20)); });
+    let k = 0; // 這些店原本佔的位置依新順序重排，其他店不動，最後整份重新編號
+    const out = rows.map((r) => (ids.indexOf(r['店家ID']) >= 0 ? by[ids[k++]] : r));
+    for (let i = 0; i < out.length; i++) if (Number(out[i]['排序']) !== i + 1) await c.db.update('店家', out[i]._row, { 排序: i + 1 });
+    return { ok: true };
+  },
+  async adminAddShop(c, p, a) {
+    needAll(a);
+    const hall = clean(p.hall, 20) || '漢口總店', floor = clean(p.floor, 30), name = clean(p.name, 40), type = clean(p.type, 30);
+    if (hall !== '漢口總店') throw new UserError('目前只能在漢口總店新增店家');
+    if (!floor) throw new UserError('請填寫樓層，例如 3F 或 3F 後段');
+    if (!name) throw new UserError('請填寫店名');
+    const rows = await c.db.all('店家'), id = 's' + Date.now().toString(36), max = rows.reduce((m, r) => Math.max(m, Number(r['排序']) || 0, r._row), 0);
+    await c.db.insert('店家', { 店家ID: id, 館別: hall, 樓層: floor, 店名: name, 類型: type, 開放預約: false, 營業時間: '', 備註: '', 介紹: '', 圖片網址: '', 相簿圖片: '', 營業開始: '', 營業結束: '', 首頁顯示營業時間: false, 項目標題: '服務項目', 按鈕文字: '預約', 按鈕模式: '預約', 電話: '', Instagram: '', Facebook: '', LINE: '', 一句話介紹: '', 前台顯示: false, 排序: max + 1 });
+    await c.db.insert('訂位設定', { 店家ID: id, 店名: name, 可預約時段: '', 每時段名額: 1, 單筆人數上限: 4, 公休日: '無', 可提前預約天數: 30, 通知Email: '', 通知LINE: '', 備註: '' });
+    return { id };
+  },
+  async adminDeleteShop(c, p, a) {
+    needAll(a);
+    const id = String(p.shopId || '');
+    if (FIXED_SHOPS.indexOf(id) >= 0) throw new UserError('這間店是網站固定頁面，不能刪除');
+    const s = await shopById(c, id);
+    await c.env.DB.batch([
+      c.env.DB.prepare('DELETE FROM service_items WHERE shop_id = ?').bind(id),
+      c.env.DB.prepare('DELETE FROM booking_settings WHERE shop_id = ?').bind(id),
+      c.env.DB.prepare('DELETE FROM shops WHERE id = ?').bind(s._row)
+    ]);
+    return { ok: true }; // 訂位紀錄保留
   },
   async adminSaveSettings(c, p, a) {
     needShop(a, p.shopId);

@@ -51,4 +51,5 @@ export function shopContact(s) {
 export const isTrue = (v) => v === true || v === 1 || String(v).toUpperCase() === 'TRUE';
 export const escapeHtml = (s) => String(s === undefined || s === null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export const byOrder = (a, b) => (Number(a['排序']) || 999) - (Number(b['排序']) || 999);
-export const rid = (n) => Math.random().toString(36).slice(2, 2 + n).toUpperCase();
+export const shopOrder = (a, b) => (Number(a['排序']) || 0) - (Number(b['排序']) || 0) || a._row - b._row;
+export const rid =(n) => Math.random().toString(36).slice(2, 2 + n).toUpperCase();

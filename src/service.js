@@ -1,5 +1,5 @@
 import { FIELD_BY_KEY } from './pagefields.js';
-import { UserError, clean, todayStr, nowHm, nowStamp, isDate, isHm, dayDiff, weekday, parseClosed, parseSlots, parseGallery, hoursText, shopContact, isTrue, byOrder, rid, tpe } from './util.js';
+import { UserError, clean, todayStr, nowHm, nowStamp, isDate, isHm, dayDiff, weekday, parseClosed, parseSlots, parseGallery, hoursText, shopContact, isTrue, byOrder, shopOrder, rid, tpe } from './util.js';
 import { MailTemplate, sendMail, linePush } from './mail.js';
 
 /* ---------- 限流：每個 key 在 ttl 秒內最多 limit 次 ---------- */
@@ -30,7 +30,7 @@ export async function publicData(c) {
   const itemsBy = {};
   (await c.db.all('服務項目')).filter((r) => isTrue(r['顯示'])).sort(byOrder)
     .forEach((r) => { (itemsBy[r['店家ID']] = itemsBy[r['店家ID']] || []).push({ id: r['項目ID'], cat: r['分類'], name: r['名稱'], desc: r['介紹'], price: r['價格'], image: r['圖片網址'] }); });
-  const shops = (await c.db.all('店家')).map((s) => {
+  const shops = (await c.db.all('店家')).filter((s) => s['前台顯示']).sort(shopOrder).map((s) => {
     const st = sm[s['店家ID']] || {}, cl = parseClosed(st['公休日']);
     const hs = isHm(String(s['營業開始'] || '')) && isHm(String(s['營業結束'] || ''));
     return {
@@ -66,6 +66,7 @@ export async function availability(c, shopId, date) {
   if (!isDate(date)) throw new UserError('日期格式不正確');
   const shop = await shopById(c, shopId), st = (await settingsMap(c))[shopId] || {};
   const res = { shopId, date, open: isTrue(shop['開放預約']), slots: [], reason: '' };
+  if (!shop['前台顯示']) { res.open = false; res.reason = '這間店目前暫停線上預約'; return res; }
   if (!res.open) { res.reason = '這間店目前暫停線上預約'; return res; }
   const diff = dayDiff(todayStr(), date), adv = Number(st['可提前預約天數']) || 30;
   if (diff < 0) { res.reason = '不能預約過去的日期'; return res; }
