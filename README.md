@@ -9,3 +9,5 @@
 1. Cloudflare → Workers & Pages → `aged-surf-919d` → Settings → Builds → 連接此 GitHub repo，Deploy command：`npx wrangler deploy`
 2. Settings → Variables and Secrets 新增（Secret）：`LINE_TOKEN`、`LINE_TO`、`MAIL_RELAY_URL`、`MAIL_RELAY_KEY`、`CONTACT_EMAIL`（皆可先空）
 3. 之後 `git push` 即自動部署；新增資料表時另執行 migrations。
+
+> 部署由 Cloudflare Workers Builds 在每次推送 main 時自動執行。
