@@ -1,4 +1,5 @@
 import { UserError, clean, todayStr, nowStamp, isHm, parseClosed, parseSlots, parseGallery, hoursText, shopContact, httpsOnly, imgUrl, BTN_MODES, isTrue, byOrder } from './util.js';
+import { PAGES, FIELD_BY_KEY } from './pagefields.js';
 import { shopById, settingsMap, needShop, needAll, throttle } from './service.js';
 
 const STATUS = ['待確認', '已確認', '已取消', '已到店'];
@@ -86,22 +87,53 @@ export const adminOps = {
     await c.db.update('訂位設定', row._row, patch);
     return { ok: true };
   },
-  async adminContentList(c, p, a) {
+  /* ---------- 頁面內容（前台各頁的標題、說明、按鈕文字、圖片） ---------- */
+  async adminPageFields(c, p, a) {
     needAll(a);
-    return (await c.db.all('內容')).map((r) => ({ page: r['頁面'], block: r['區塊'], field: r['欄位'], text: r['內容'], image: r['圖片網址'], note: r['備註'] }));
+    const rows = (await c.env.DB.prepare('SELECT page, field, text, image_url FROM site_content').all()).results || [];
+    const values = {}; rows.forEach((r) => { values[r.page + '|' + r.field] = { text: r.text, image: r.image_url }; });
+    const hist = (await c.env.DB.prepare('SELECT id, batch, key, label, old_text, new_text, old_image, new_image, changed_by, changed_at, restored FROM content_history ORDER BY id DESC LIMIT 60').all()).results || [];
+    return { pages: PAGES, values, history: hist };
   },
-  async adminSaveContent(c, p, a) {
+  async adminSavePageContent(c, p, a) {
     needAll(a);
-    const existing = await c.db.all('內容');
-    for (const r of (p.rows || []).slice(0, 100)) {
-      const page = clean(r.page, 40), field = clean(r.field, 40);
-      if (!page || !field) continue;
-      const image = clean(r.image, 500); if (image && !imgUrl(image)) throw new UserError('圖片網址必須是 https 開頭');
-      const hit = existing.filter((e) => e['頁面'] === page && e['欄位'] === field)[0];
-      const vals = { 頁面: page, 區塊: clean(r.block, 40), 欄位: field, 內容: clean(r.text, 3000), 圖片網址: image };
-      if (hit) await c.db.update('內容', hit._row, { 內容: vals['內容'], 圖片網址: vals['圖片網址'] });
-      else existing.push({ ...vals, _row: await c.db.insert('內容', vals) });
+    const list = Array.isArray(p.changes) ? p.changes.slice(0, 120) : [];
+    if (!list.length) throw new UserError('沒有任何修改');
+    const batch = Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at = nowStamp(), cur = {};
+    ((await c.env.DB.prepare('SELECT page, field, text, image_url FROM site_content').all()).results || []).forEach((r) => { cur[r.page + '|' + r.field] = r; });
+    const stmts = [];
+    for (const ch of list) {
+      const f = FIELD_BY_KEY[String(ch.key)];
+      if (!f) throw new UserError('不認得的欄位：' + clean(ch.key, 40));
+      const [pg, fd] = f.key.split('|'), old = cur[f.key] || { text: '', image_url: '' };
+      let text = old.text, image = old.image_url;
+      if (f.type === 'image') {
+        image = clean(ch.image, 500); if (image && !imgUrl(image)) throw new UserError('「' + f.label + '」的圖片網址必須是 https 開頭或本站上傳的圖片');
+      } else {
+        text = f.type === 'long' || f.type === 'list' ? String(ch.text === undefined || ch.text === null ? '' : ch.text).replace(/\r/g, '').trim().slice(0, 3000) : clean(ch.text, 200);
+        if (f.type === 'url' && text && !httpsOnly(text)) throw new UserError('「' + f.label + '」必須是 https 開頭的網址');
+        if (!f.opt && !text) text = ''; // 非選填欄位清空＝回到預設文字
+      }
+      const effOld = f.type !== 'image' && !f.opt ? (old.text || f.def) : old.text, effNew = f.type !== 'image' && !f.opt ? (text || f.def) : text;
+      if (effNew === effOld && image === old.image_url) continue; // 與目前前台顯示的一樣就不算修改
+      stmts.push(c.env.DB.prepare('INSERT INTO site_content (page, block, field, text, image_url) VALUES (?,?,?,?,?) ON CONFLICT(page, field) DO UPDATE SET text=excluded.text, image_url=excluded.image_url').bind(pg, '', fd, text, image));
+      stmts.push(c.env.DB.prepare('INSERT INTO content_history (batch, key, label, old_text, new_text, old_image, new_image, changed_by, changed_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(batch, f.key, f.label, old.text, text, old.image_url, image, a.email, at));
     }
+    if (!stmts.length) throw new UserError('沒有任何變更');
+    await c.env.DB.batch(stmts);
+    return { saved: stmts.length / 2 };
+  },
+  async adminRestoreContent(c, p, a) {
+    needAll(a);
+    const h = await c.env.DB.prepare('SELECT * FROM content_history WHERE id = ?').bind(Number(p.id) || 0).first();
+    if (!h) throw new UserError('找不到這筆紀錄');
+    const f = FIELD_BY_KEY[h.key]; if (!f) throw new UserError('這個欄位已不存在');
+    const [pg, fd] = h.key.split('|');
+    const cur = (await c.env.DB.prepare('SELECT text, image_url FROM site_content WHERE page=? AND field=?').bind(pg, fd).first()) || { text: '', image_url: '' };
+    await c.env.DB.batch([
+      c.env.DB.prepare('INSERT INTO site_content (page, block, field, text, image_url) VALUES (?,?,?,?,?) ON CONFLICT(page, field) DO UPDATE SET text=excluded.text, image_url=excluded.image_url').bind(pg, '', fd, h.old_text, h.old_image),
+      c.env.DB.prepare('INSERT INTO content_history (batch, key, label, old_text, new_text, old_image, new_image, changed_by, changed_at, restored) VALUES (?,?,?,?,?,?,?,?,?,1)').bind('r' + Date.now().toString(36), h.key, h.label, cur.text, h.old_text, cur.image_url, h.old_image, a.email, nowStamp())
+    ]);
     return { ok: true };
   },
   async adminMenuList(c, p, a) {

@@ -17,21 +17,21 @@
 <main id="main">
 <section class="sec row" style="padding-top:80px">
  <div class="col">
-  <div class="en">Huangpu Second Store</div>
-  <h1 class="h" style="font-size:76px;letter-spacing:.14em">黃埔二店</h1>
-  <p data-c="黃埔二店|簡介" style="margin:0;font-size:16px;line-height:2.2;max-width:480px">[黃埔二店介紹文字]</p>
-  <div style="display:flex;flex-wrap:wrap;gap:8px"><span class="tag" data-c="黃埔二店|營業時間">[營業時間]</span><span class="tag" data-c="黃埔二店|電話">07-7193820</span></div>
+  <div class="en" data-c="黃埔二店|英文">Huangpu Second Store</div>
+  <h1 class="h" style="font-size:76px;letter-spacing:.14em" data-c="黃埔二店|標題">黃埔二店</h1>
+  <p id="hp-intro" style="margin:0;font-size:16px;line-height:2.2;max-width:480px;white-space:pre-line"></p>
+  <div id="hp-tags" style="display:flex;flex-wrap:wrap;gap:8px"></div>
   <div class="cap" data-c="黃埔二店|地址">高雄市鳳山區黃埔新村西四巷 37 號</div>
-  <div id="cta" style="display:flex;flex-wrap:wrap;gap:14px;margin-top:6px"><a class="btn" href="booking.html?shop=p">黃埔訂位</a><a class="btn line" href="huangpu-menu.html">黃埔餐點</a></div>
+  <div id="cta" style="display:flex;flex-wrap:wrap;gap:14px;margin-top:6px"><a class="btn line" href="huangpu-menu.html" data-c="黃埔二店|餐點按鈕">黃埔餐點</a></div>
  </div>
- <div class="col" style="max-width:580px"><div class="ph" data-ci="黃埔二店|封面" style="height:500px">[照片：黃埔二店外觀]</div></div>
+ <div class="col" style="max-width:580px"><div class="ph" id="hp-pic" style="height:500px">[照片：黃埔二店外觀]</div></div>
 </section>
-<section class="sec row" style="border-top:1px solid var(--line)">
- <div class="col" style="flex-basis:300px"><div class="en">Space</div><h2 class="h" style="font-size:34px">空間與氛圍</h2></div>
- <div class="col" style="flex-basis:460px"><p data-c="黃埔二店|空間介紹" style="margin:0;font-size:15px;line-height:2.3">[空間介紹文字]</p></div>
+<section class="sec row" style="border-top:1px solid var(--line)" data-opt="黃埔二店|空間介紹">
+ <div class="col" style="flex-basis:300px"><div class="en" data-c="黃埔二店|空間英文">Space</div><h2 class="h" style="font-size:34px" data-c="黃埔二店|空間標題">空間與氛圍</h2></div>
+ <div class="col" style="flex-basis:460px"><p data-c="黃埔二店|空間介紹" style="margin:0;font-size:15px;line-height:2.3;white-space:pre-line">[空間介紹文字]</p></div>
 </section>
-<section class="sec" style="padding-top:0"><div class="row" style="align-items:stretch"><div class="col"><div class="ph" data-ci="黃埔二店|相片1" style="height:260px">[照片]</div></div><div class="col"><div class="ph" data-ci="黃埔二店|相片2" style="height:260px">[照片]</div></div><div class="col"><div class="ph" data-ci="黃埔二店|相片3" style="height:260px">[照片]</div></div></div></section>
-<section class="band"><div><div class="en" style="color:#EAD9BF">Access</div><div class="h" style="font-size:28px;margin:4px 0 10px">交通與停車</div><div style="font-size:14px;line-height:2.1" data-c="黃埔二店|交通">[交通與停車資訊]</div></div></section>
+<section class="sec" id="hp-gal" style="padding-top:0;display:none"><div class="row" style="align-items:stretch" id="hp-gal-in"></div></section>
+<section class="band" data-opt="黃埔二店|交通"><div><div class="en" style="color:#EAD9BF" data-c="黃埔二店|交通英文">Access</div><div class="h" style="font-size:28px;margin:4px 0 10px" data-c="黃埔二店|交通標題">交通與停車</div><div style="font-size:14px;line-height:2.1;white-space:pre-line" data-c="黃埔二店|交通">[交通與停車資訊]</div></div></section>
 </main><div id="foot"></div>
 <script src="assets/config.js"></script>
 <script src="assets/demo-data.js"></script>
@@ -39,8 +39,19 @@
 <script>
 
 Z.init('huangpu', function (d) {
-  var s = d.shops.filter(function (x) { return x.id === 'p'; })[0];
-  if (s && !s.open) document.querySelector('#cta .btn').outerHTML = '<span class="btn off" style="opacity:.5;pointer-events:none">暫停預約</span>';
+  var s = d.shops.filter(function (x) { return x.id === 'p'; })[0], el = function (x) { return document.getElementById(x); };
+  if (!s) return;
+  /* 簡介、營業時間、電話、封面、相簿、社群、訂位按鈕：以後台「店家資料」為準 */
+  el('hp-intro').textContent = Z.isPlaceholder(s.intro) ? '' : s.intro; el('hp-intro').style.display = el('hp-intro').textContent ? '' : 'none';
+  var tags = []; if (!Z.isPlaceholder(s.hours)) tags.push(s.hours); if (s.contact && s.contact.phone) tags.push(s.contact.phone);
+  el('hp-tags').innerHTML = tags.map(function (x) { return '<span class="tag">' + Z.esc(x) + '</span>'; }).join('');
+  var u = Z.safeUrl(s.image); if (u) { el('hp-pic').classList.add('has'); el('hp-pic').innerHTML = '<img src="' + Z.esc(u) + '" alt="黃埔二店">'; }
+  var g = (s.gallery || []).filter(Z.safeUrl).slice(0, 6);
+  el('hp-gal').style.display = g.length ? 'block' : 'none';
+  el('hp-gal-in').innerHTML = g.map(function (x) { return '<div class="col"><div class="ph has" style="height:260px"><img src="' + Z.esc(x) + '" alt="黃埔二店" loading="lazy"></div></div>'; }).join('');
+  var c = el('cta'), old = c.querySelector('.mb'); if (old) old.remove();
+  var mb = Z.mainBtn(s); if (mb) c.insertAdjacentHTML('afterbegin', mb.replace('class="', 'class="mb '));
+  var so = c.querySelector('.soc'); if (so) so.remove(); c.insertAdjacentHTML('beforeend', Z.social(s));
 });
 </script>
 </body>

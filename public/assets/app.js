@@ -58,14 +58,14 @@
   /* ---------- 版面 ---------- */
   var HOME = 'index.html';
   var GROUPS = [
-    { key: 'hankou', label: '漢口店', hall: '漢口總店', home: 'hankou.html', menu: 'hankou-menu.html', book: 'booking.html' },
-    { key: 'huangpu', label: '黃埔店', hall: '黃埔二店', home: 'huangpu.html', menu: 'huangpu-menu.html', book: 'booking.html?shop=p' }
+    { key: 'hankou', label: '漢口店', lk: '全站|導覽漢口', hall: '漢口總店', home: 'hankou.html', menu: 'hankou-menu.html', book: 'booking.html' },
+    { key: 'huangpu', label: '黃埔店', lk: '全站|導覽黃埔', hall: '黃埔二店', home: 'huangpu.html', menu: 'huangpu-menu.html', book: 'booking.html?shop=p' }
   ];
   function groupOf(active) { return /^(hankou|shop)/.test(active || '') ? 'hankou' : /^huangpu/.test(active || '') ? 'huangpu' : ''; }
 
   /* 下拉選單內容：先放固定項目，資料載入後再補上各店家 */
   function panelHtml(g, shops) {
-    var h = '<a href="' + g.home + '">' + g.hall + ' 介紹</a><a href="' + g.menu + '">餐點介紹</a>';
+    var h = '<a href="' + g.home + '">' + g.hall + ' 介紹</a><a href="' + g.menu + '"><span data-c="全站|導覽餐點">餐點介紹</span></a>';
     if (shops && g.key === 'hankou') {
       var list = shops.filter(function (s) { return s.hall === g.hall; }), order = [], by = {};
       list.forEach(function (s) { var f = String(s.floor).split(' ')[0]; if (!by[f]) { by[f] = []; order.push(f); } by[f].push(s); });
@@ -77,12 +77,12 @@
         }).join('');
       }).join('');
     }
-    return h + '<div class="sep"></div><a class="bk" href="' + g.book + '">線上預約 →</a>';
+    return h + '<div class="sep"></div><a class="bk" href="' + g.book + '"><span data-c="全站|導覽預約">線上預約 →</span></a>';
   }
   Z.fillNav = function (d) {
     GROUPS.forEach(function (g) { var el = document.querySelector('.dd[data-g="' + g.key + '"] .ddp'); if (el) el.innerHTML = panelHtml(g, d.shops); });
     var ln = document.querySelector('.links');
-    if (d.healthOpen && ln && !ln.querySelector('.hl')) ln.insertAdjacentHTML('beforeend', '<a class="hl ddb' + (/healthy/.test(location.pathname) ? ' on' : '') + '" href="healthy.html" style="display:inline-flex;align-items:center">健康餐</a>');
+    if (d.healthOpen && ln && !ln.querySelector('.hl')) ln.insertAdjacentHTML('beforeend', '<a class="hl ddb' + (/healthy/.test(location.pathname) ? ' on' : '') + '" href="healthy.html" style="display:inline-flex;align-items:center"><span data-c="全站|導覽健康餐">健康餐</span></a>');
   };
   function closeAll() { document.querySelectorAll('.dd').forEach(function (d) { d.classList.remove('open'); d.querySelector('.ddb').setAttribute('aria-expanded', 'false'); }); }
 
@@ -91,7 +91,7 @@
     document.getElementById('nav').outerHTML =
       '<div class="nav"><a class="logo" href="' + HOME + '" aria-label="致日子"><img class="l1" src="assets/logo.png" alt="致日子"><img class="l2" src="assets/logo-brown.png" alt="致日子"></a><div class="links">' +
       GROUPS.map(function (g) {
-        return '<div class="dd" data-g="' + g.key + '"><button type="button" class="ddb' + (g.key === cur ? ' on' : '') + '" aria-haspopup="true" aria-expanded="false">' + g.label + '<span class="car">▾</span></button>' +
+        return '<div class="dd" data-g="' + g.key + '"><button type="button" class="ddb' + (g.key === cur ? ' on' : '') + '" aria-haspopup="true" aria-expanded="false"><span data-c="' + g.lk + '">' + g.label + '</span><span class="car">▾</span></button>' +
           '<div class="ddp">' + panelHtml(g, null) + '</div></div>';
       }).join('') + '</div></div>';
     document.querySelectorAll('.ddb').forEach(function (b) {
@@ -106,24 +106,36 @@
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAll(); });
     var f = document.getElementById('foot');
     if (f) f.outerHTML =
-      '<div class="foot"><div style="flex:1 1 220px"><div class="logo" style="color:var(--ink)">致日子</div><div>TO DAY Coffee</div></div>' +
-      '<div style="flex:1 1 260px"><b>漢口總店</b><br><span data-c="漢口總店|地址">高雄市三民區漢口街 200 號</span><br><span data-c="漢口總店|電話">[電話]</span></div>' +
-      '<div style="flex:1 1 260px"><b>黃埔二店</b><br><span data-c="黃埔二店|地址">高雄市鳳山區黃埔新村西四巷 37 號</span><br><span data-c="黃埔二店|電話">07-7193820</span></div>' +
-      '<div style="flex:1 1 200px"><b>更多</b><br><a href="booking.html">線上預約</a><br><a href="contact.html">合作洽談</a><br><a data-c="全站|Facebook" data-link="1">Facebook</a><br><a data-c="全站|Instagram" data-link="1">Instagram</a></div></div>';
+      '<div class="foot"><div style="flex:1 1 220px"><div class="logo" style="color:var(--ink)" data-c="全站|頁尾品牌">致日子</div><div data-c="全站|頁尾英文">TO DAY Coffee</div></div>' +
+      '<div style="flex:1 1 260px"><b>漢口總店</b><br><span data-c="漢口總店|地址">高雄市三民區漢口街 200 號</span><br><span data-opt="漢口總店|電話"><span data-c="漢口總店|電話">[電話]</span></span></div>' +
+      '<div style="flex:1 1 260px"><b>黃埔二店</b><br><span data-c="黃埔二店|地址">高雄市鳳山區黃埔新村西四巷 37 號</span><br><span data-opt="黃埔二店|電話"><span data-c="黃埔二店|電話">07-7193820</span></span></div>' +
+      '<div style="flex:1 1 200px"><b data-c="全站|頁尾更多">更多</b><br><a href="booking.html" data-c="全站|頁尾預約">線上預約</a><br><a href="contact.html" data-c="全站|頁尾洽談">合作洽談</a><br><a data-c="全站|Facebook" data-link="1">Facebook</a><br><a data-c="全站|Instagram" data-link="1">Instagram</a></div></div>';
   };
 
-  /* 把「內容」分頁的文字、圖片填進有 data-c / data-ci 的元素；沒填或「待補」就保留頁面上的預設字 */
+  /* ---------- 後台「頁面內容」：文字與圖片 ----------
+     資料鍵是「頁面|欄位」。後端已把預設值與後台填寫的內容合併好；找不到就用頁面上寫的預設字。 */
+  Z.C = {};
+  Z.t = function (key, def) { var v = Z.C[key]; return v === undefined ? def : v.text; };
+  Z.tl = function (key, def) { var v = Z.C[key]; var t = v === undefined ? def : v.text; return Array.isArray(t) ? t : String(t || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); };
+  /* 在用字串組出來的 HTML 裡放可由後台修改的文字（包一層 span，後台預覽才找得到它） */
+  Z.ct = function (key, def) { return '<span data-c="' + Z.esc(key) + '">' + Z.esc(Z.t(key, def)) + '</span>'; };
+
+  /* 把內容填進有 data-c（文字）、data-ci（圖片）的元素；data-opt="鍵" 的區塊在該欄位留白時整塊隱藏 */
   Z.bind = function (d) {
     var c = d.content || {};
+    document.querySelectorAll('[data-opt]').forEach(function (el) { var v = c[el.getAttribute('data-opt')]; el.style.display = v && !String(v.text || '').trim() ? 'none' : ''; });
     document.querySelectorAll('[data-c]').forEach(function (el) {
       var v = c[el.getAttribute('data-c')];
-      if (!v || Z.isPlaceholder(v.text)) { if (el.hasAttribute('data-link')) el.style.display = 'none'; return; }
-      if (el.hasAttribute('data-link')) { var u = Z.safeUrl(v.text); if (u) { el.href = u; el.target = '_blank'; el.rel = 'noopener'; } else el.style.display = 'none'; }
-      else el.textContent = v.text;
+      if (!v) { if (el.hasAttribute('data-link')) el.style.display = 'none'; return; }
+      if (el.hasAttribute('data-link')) {
+        var u = Z.safeUrl(v.text), lb = c[el.getAttribute('data-label')];
+        if (u) { el.href = u; el.target = '_blank'; el.rel = 'noopener'; el.style.display = ''; if (lb && lb.text) el.textContent = lb.text; } else el.style.display = 'none';
+      } else if (!Z.isPlaceholder(v.text)) el.textContent = v.text;
     });
     document.querySelectorAll('[data-ci]').forEach(function (el) {
+      if (!el.hasAttribute('data-ph')) el.setAttribute('data-ph', el.innerHTML);
       var v = c[el.getAttribute('data-ci')], u = v && Z.safeUrl(v.image);
-      if (u) { el.classList.add('has'); el.innerHTML = '<img src="' + Z.esc(u) + '" alt="">'; }
+      if (u) { el.classList.add('has'); el.innerHTML = '<img src="' + Z.esc(u) + '" alt="">'; } else { el.classList.remove('has'); el.innerHTML = el.getAttribute('data-ph'); }
     });
   };
 
@@ -136,7 +148,9 @@
 
   Z.init = function (active, fn) {
     Z.layout(active);
-    Z.pub().then(function (d) { Z.fillNav(d); Z.bind(d); if (fn) fn(d); }).catch(function (e) {
+    Z.edit = /[?&]zedit=1\b/.test(location.search) && window.parent !== window; // 後台「頁面內容」的即時預覽
+    function paint(d) { Z.C = d.content || {}; Z.fillNav(d); Z.bind(d); if (fn) fn(d); Z.bind(d); }
+    Z.pub().then(function (d) { Z._d = d; paint(d); if (Z.edit) editHooks(paint); }).catch(function (e) {
       var m = document.getElementById('main'); if (m) Z.fail(m, e.message);
     });
     if (Z.demo) {
@@ -194,10 +208,10 @@
     }
     var line = Z.isPlaceholder(s.tagline) ? '' : (s.tagline || '');
     var intro = line ? '<div class="sd tg">' + Z.esc(line) + '</div>' : (Z.isPlaceholder(s.intro) || !s.intro ? '' : '<div class="sd clamp">' + Z.esc(s.intro) + '</div>');
-    var extra = s.id === 'h1' ? '<a class="btn sm" href="hankou-menu.html">看菜單</a>' : '';
+    var extra = s.id === 'h1' ? '<a class="btn sm" href="hankou-menu.html">' + Z.ct('漢口總店|卡片看菜單', '看菜單') + '</a>' : '';
     return '<article class="cx" data-href="' + href + '">' + media + '<div class="bd"><div class="row2">' + (tag ? '<span class="tag">' + Z.esc(tag) + '</span>' : '') + (hs ? '<span class="stt ' + hs.state + '">' + Z.esc(hs.text) + '</span>' : '') + '</div>' +
       '<a class="nm" href="' + href + '">' + Z.esc(s.name) + '</a>' + intro +
-      '<div class="acts">' + Z.mainBtn(s) + extra + '<a class="btn sm" href="' + href + '">看介紹</a></div>' + Z.social(s) + '</div></article>';
+      '<div class="acts">' + Z.mainBtn(s) + extra + '<a class="btn sm" href="' + href + '">' + Z.ct('漢口總店|卡片看介紹', '看介紹') + '</a></div>' + Z.social(s) + '</div></article>';
   };
   /* 輪播操作：用瀏覽器原生橫向捲動（手機可直接滑），按鈕與縮圖只是控制捲動位置 */
   (function () {
@@ -217,6 +231,29 @@
     });
     document.addEventListener('scroll', function (e) { var t = e.target; if (t && t.classList && t.classList.contains('trk')) sync(t.parentNode); }, true);
   })();
+
+  /* ---------- 後台預覽模式：接收修改、標示欄位、點選回報 ---------- */
+  function editHooks(paint) {
+    var st = document.createElement('style');
+    st.textContent = '.z-hl{outline:3px solid #C2461E!important;outline-offset:2px;background-image:linear-gradient(rgba(255,241,184,.5),rgba(255,241,184,.5))}[data-c],[data-ci]{cursor:pointer}';
+    document.head.appendChild(st);
+    document.addEventListener('click', function (e) {
+      var el = e.target.closest && e.target.closest('[data-c],[data-ci]');
+      e.preventDefault(); e.stopPropagation();
+      if (el) window.parent.postMessage({ zedit: 'pick', key: el.getAttribute('data-c') || el.getAttribute('data-ci') }, '*');
+    }, true);
+    window.addEventListener('message', function (e) {
+      var m = e.data || {};
+      if (m.zedit === 'content') { var d = JSON.parse(JSON.stringify(Z._d)); Object.keys(m.content || {}).forEach(function (k) { d.content[k] = m.content[k]; }); paint(d); }
+      if (m.zedit === 'hl') {
+        document.querySelectorAll('.z-hl').forEach(function (x) { x.classList.remove('z-hl'); });
+        var t = Array.prototype.slice.call(document.querySelectorAll('[data-c],[data-ci]')).filter(function (x) { return (x.getAttribute('data-c') || x.getAttribute('data-ci')) === m.key; });
+        t.forEach(function (x) { x.classList.add('z-hl'); });
+        if (t[0]) t[0].scrollIntoView({ behavior: 'smooth', block: 'center' }); else window.parent.postMessage({ zedit: 'missing', key: m.key }, '*');
+      }
+    });
+    window.parent.postMessage({ zedit: 'ready' }, '*');
+  }
 
   /* 日期工具 */
   Z.ymd = function (d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };

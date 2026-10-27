@@ -16,13 +16,13 @@
 
 <main id="main">
 <section class="sec" style="padding-bottom:16px;padding-top:72px;display:flex;flex-wrap:wrap;gap:24px;align-items:flex-end;justify-content:space-between">
- <div style="display:flex;flex-direction:column;gap:12px"><div class="en">Huangpu Menu</div><h1 class="h" style="font-size:54px;letter-spacing:.12em">黃埔二店 餐點</h1>
- <div class="sd">價格與供應品項以現場為準，由店家於後台更新。</div></div>
+ <div style="display:flex;flex-direction:column;gap:12px"><div class="en" data-c="黃埔餐點|英文">Huangpu Menu</div><h1 class="h" style="font-size:54px;letter-spacing:.12em" data-c="黃埔餐點|標題">黃埔二店 餐點</h1>
+ <div class="sd" data-c="黃埔餐點|說明">價格與供應品項以現場為準。</div></div>
  <div><a class="chip " href="hankou-menu.html">漢口總店</a><a class="chip on" href="huangpu-menu.html" style="border-left:0">黃埔二店</a></div>
 </section>
 <div id="cats" style="padding:8px 56px 0;display:flex;flex-wrap:wrap;gap:10px"></div>
 <section class="sec" style="padding-top:40px"><div id="menu"><div class="skel">載入中…</div></div></section>
-<section class="band"><div class="h" style="font-size:26px">想直接入座？</div><a class="btn" href="booking.html?shop=p">預約黃埔二店</a></section>
+<section class="band"><div class="h" style="font-size:26px" data-c="黃埔餐點|橫幅標題">想直接入座？</div><a class="btn" href="booking.html?shop=p" data-c="黃埔餐點|橫幅按鈕">預約黃埔二店</a></section>
 </main><div id="foot"></div>
 <script src="assets/config.js"></script>
 <script src="assets/demo-data.js"></script>
@@ -35,7 +35,7 @@ function draw() {
   document.getElementById('cats').innerHTML = cats.length > 1 ? ['全部'].concat(cats).map(function (c) {
     return '<button class="chip' + (c === cur ? ' on' : '') + '" data-c2="' + Z.esc(c) + '">' + Z.esc(c) + '</button>'; }).join('') : '';
   var show = cats.filter(function (c) { return cur === '全部' || c === cur; });
-  document.getElementById('menu').innerHTML = !items.length ? '<div class="skel">餐點即將更新，敬請期待。</div>' : show.map(function (c) {
+  document.getElementById('menu').innerHTML = !items.length ? '<div class="skel">' + Z.ct('黃埔餐點|空白提示', '餐點即將更新，敬請期待。') + '</div>' : show.map(function (c) {
     return '<div style="margin-bottom:56px"><div class="h" style="font-size:28px;margin-bottom:8px">' + Z.esc(c) + '</div><div class="list">' +
       items.filter(function (i) { return i.cat === c; }).map(function (i) {
         var p = Z.isPlaceholder(i.price) ? '' : '<div class="pr">$' + Z.esc(String(i.price).replace(/^\$/, '')) + '</div>';

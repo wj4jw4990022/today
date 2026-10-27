@@ -1,3 +1,4 @@
+import { FIELD_BY_KEY } from './pagefields.js';
 import { UserError, clean, todayStr, nowHm, nowStamp, isDate, isHm, dayDiff, weekday, parseClosed, parseSlots, parseGallery, hoursText, shopContact, isTrue, byOrder, rid, tpe } from './util.js';
 import { MailTemplate, sendMail, linePush } from './mail.js';
 
@@ -40,8 +41,14 @@ export async function publicData(c) {
       maxParty: Number(st['單筆人數上限']) || 8, advanceDays: Number(st['可提前預約天數']) || 30, closed: parseClosed(st['公休日'])
     };
   });
-  const content = {};
-  (await c.db.all('內容')).forEach((r) => { content[r['頁面'] + '|' + r['欄位']] = { text: r['內容'], image: r['圖片網址'] }; });
+  const content = {}, rows = {};
+  (await c.db.all('內容')).forEach((r) => { rows[r['頁面'] + '|' + r['欄位']] = r; });
+  Object.keys(FIELD_BY_KEY).forEach((k) => { // 預設值 + 後台填寫的內容；留白的選填欄位保持空白（前台不顯示）
+    const f = FIELD_BY_KEY[k], r = rows[k], txt = r ? String(r['內容'] || '') : '';
+    content[k] = f.type === 'image' ? { text: '', image: r ? String(r['圖片網址'] || '') : '' } : { text: f.opt ? txt : (txt || f.def), image: '' };
+  });
+  const sp = shops.filter((x) => x.id === 'p')[0]; // 黃埔頁的電話、營業時間以店家資料為準
+  if (sp) { content['黃埔二店|電話'] = { text: sp.contact.phone || '', image: '' }; content['黃埔二店|營業時間'] = { text: Z_hoursOrEmpty(sp), image: '' }; }
   const menu = (await c.db.all('餐點')).filter((r) => isTrue(r['供應中'])).sort(byOrder)
     .map((r) => ({ id: r['餐點ID'], hall: r['館別'], cat: r['分類'], name: r['品名'], desc: r['介紹'], price: r['價格'], image: r['圖片網址'] }));
   let healthOpen = false;
@@ -151,3 +158,5 @@ export async function adminOf(c, idToken) {
 }
 export const needShop = (a, shopId) => { if (!a.can(shopId)) throw new UserError('你沒有這間店的權限'); };
 export const needAll = (a) => { if (!a.all) throw new UserError('只有總管理員可以做這個操作'); };
+
+function Z_hoursOrEmpty(s) { return /^(待補|)$/.test(String(s.hours || '').trim()) ? '' : s.hours; }

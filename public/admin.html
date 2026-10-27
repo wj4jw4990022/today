@@ -148,6 +148,30 @@ img.broken{background:#f3e0e0;color:#a33;font-size:11px;object-fit:contain}
 body.hasbar .pg{padding-bottom:170px}
 @media(max-width:980px){.ed{grid-template-columns:1fr}.pvw{position:static}#dbar{padding:12px 16px}}
 @media(max-width:640px){.top,.tabs,.pg{padding-left:16px;padding-right:16px}}
+
+.pc{display:grid;grid-template-columns:190px minmax(340px,1fr) minmax(340px,.9fr);gap:0 22px;align-items:start}
+.pc.nopv{grid-template-columns:190px 1fr}.pc.nopv .pcv{display:none}
+.pcn{display:flex;flex-direction:column;border:1px solid var(--line);position:sticky;top:10px}
+.pcn a{padding:9px 14px;font-size:14px;cursor:pointer;border-left:3px solid transparent;border-bottom:1px solid var(--line);display:flex;flex-direction:column}
+.pcn a.on{border-left-color:var(--accent2);background:rgba(0,0,0,.04);font-weight:500}
+.pcn a i{font-style:normal;font-size:11px;color:#8a6a00}
+.pcn a.hist{color:var(--mute)}
+.pcs .field{flex:1 1 260px;position:relative}
+.pcs textarea,.pcs input:not([type=checkbox]){width:100%}
+.pcf.flash{box-shadow:0 0 0 3px #C2461E}
+.pcv{position:sticky;top:10px}
+.pcfw{border:1px solid var(--line);height:calc(100vh - 150px);min-height:480px;background:#fff;overflow:hidden}
+.pcfw iframe{border:0;transform-origin:top left;display:block}
+.vbar{display:flex;gap:12px;align-items:center;margin-bottom:8px}
+#pcm{position:fixed;inset:0;background:rgba(23,48,42,.55);z-index:20;display:flex;align-items:center;justify-content:center;padding:20px}
+.pcbox{background:#fff;max-width:760px;width:100%;max-height:88vh;display:flex;flex-direction:column;border:1px solid var(--line)}
+.pch{padding:14px 20px;background:var(--dark);color:var(--darkfg);font-size:16px}
+.pcbd{padding:6px 20px;overflow:auto}.pcft{padding:14px 20px;border-top:1px solid var(--line)}
+.pcit{padding:12px 0;border-bottom:1px solid var(--line)}
+.pcdf{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.pcdf .bf,.pcdf .af{padding:8px 10px;font-size:13px;border:1px solid var(--line);word-break:break-all}
+.pcdf .bf{background:rgba(0,0,0,.04);color:var(--mute);text-decoration:line-through}.pcdf .af{background:#FFF1B8;border-color:#E0B93A}
+@media(max-width:1100px){.pc{grid-template-columns:1fr}.pcn{position:static;flex-direction:row;flex-wrap:wrap}.pcv{position:static}.pcfw{height:520px}}
 #toast{position:fixed;right:20px;bottom:20px;background:var(--dark);color:var(--darkfg);padding:10px 18px;font-size:13px;display:none;z-index:9}
 </style>
 </head>
@@ -316,7 +340,7 @@ function upBtn(label) { return '<button type="button" class="btn sm" data-up="1"
 
 function call(action, body) {
   return Z.post(Object.assign({ action: action, idToken: tok }, body || {})).then(function (r) {
-    if (/^admin(Save|Set|Delete|Upload)/.test(action)) if (Z.clearPub) Z.clearPub(); // 後台改過資料，這台瀏覽器的前台快取立刻作廢
+    if (/^admin(Save|Set|Delete|Upload|Restore)/.test(action)) if (Z.clearPub) Z.clearPub(); // 後台改過資料，這台瀏覽器的前台快取立刻作廢
     return r;
   }).catch(function (e) {
     if (/登入/.test(e.message)) { logout(e.message); }
@@ -348,7 +372,7 @@ function start() {
 function drawTabs() {
   var t = [['home', '店家總覽']];
   if (me.all || me.shops.some(function (x) { return x.id === 'h1'; })) t.push(['health', '健康餐']);
-  if (me.all) t.push(['content', '網站內容'], ['inq', '合作洽談']);
+  if (me.all) t.push(['content', '頁面內容'], ['inq', '合作洽談']);
   $('tabs').innerHTML = t.map(function (x) { return '<button class="chip' + ((x[0] === view || (x[0] === 'home' && view === 'shop' && me.shops.length > 1)) ? ' on' : '') + '" data-view="' + x[0] + '">' + x[1] + '</button>'; }).join('');
 }
 $('fi').onchange = function () {
@@ -708,7 +732,6 @@ document.addEventListener('click', function (e) {
   }
   if ((b = t.closest('[data-isave]'))) { var ii = b.getAttribute('data-isave'), ib = labelsIn(b.closest('.icard')); if (!ib.length) { toast('這個項目沒有修改'); return; } var iname = itemOf(ii).name; call('adminSaveItem', { shopId: shopSel, item: itemOf(ii) }).then(function () { toast('已儲存「' + iname + '」：' + ib.join('、')); clearW(); vItems(getShop(shopSel)); }).catch(function (er) { toast(er.message); }); return; }
   if ((b = t.closest('[data-idel]'))) { var di = b.getAttribute('data-idel'); if (confirm('確定刪除這個項目？')) call('adminDeleteItem', { shopId: shopSel, id: cache.items[di].id }).then(function () { toast('已刪除'); vItems(getShop(shopSel)); }).catch(function (er) { toast(er.message); }); return; }
-  if ((b = t.closest('[data-up-c]'))) { var ci = b.parentNode.querySelector('input'); pickFiles(false, 'content', function (u) { if (u[0]) setVal(ci, u[0]); }); return; }
   if ((b = t.closest('[data-up-row]'))) { var inp = b.parentNode.querySelector('input'); pickFiles(false, 'menu:' + hallSel, function (u) { if (u[0]) setVal(inp, u[0]); }); return; }
   if ((b = t.closest('[data-save]'))) { var mb = labelsIn(b.closest('tr')); if (!mb.length) { toast('這一列沒有修改'); return; } var mn = rowItem(b.getAttribute('data-save')).name; call('adminSaveMenu', { hall: hallSel, item: rowItem(b.getAttribute('data-save')) }).then(function () { toast('已儲存「' + mn + '」：' + mb.join('、')); clearW(); vMenu(getShop(shopSel)); }).catch(function (er) { toast(er.message); }); return; }
   if ((b = t.closest('[data-del]')) && confirm('確定刪除這個品項？')) call('adminDeleteMenu', { hall: hallSel, id: cache.menu[b.getAttribute('data-del')].id }).then(function () { toast('已刪除'); vMenu(getShop(shopSel)); }).catch(function (er) { toast(er.message); });
@@ -718,33 +741,116 @@ document.addEventListener('change', function (e) {
   var on = c.checked; setOpen(c.getAttribute('data-open'), on).then(function () { toast(on ? '已開放預約' : '已暫停預約'); vHome(); }).catch(function () { c.checked = !on; });
 });
 
-/* ---------- 網站內容 ---------- */
-var SUGGEST = [['首頁', '品牌', '標語'], ['首頁', '品牌', '品牌故事'], ['首頁', '圖片', '主圖'], ['漢口總店', '基本資料', '簡介'], ['漢口總店', '基本資料', '營業時間'], ['漢口總店', '基本資料', '電話'], ['漢口總店', '基本資料', '地址'], ['漢口總店', '基本資料', '交通'], ['漢口總店', '圖片', '封面'],
-  ['黃埔二店', '基本資料', '簡介'], ['黃埔二店', '基本資料', '空間介紹'], ['黃埔二店', '基本資料', '營業時間'], ['黃埔二店', '基本資料', '電話'], ['黃埔二店', '基本資料', '地址'], ['黃埔二店', '基本資料', '交通'], ['黃埔二店', '圖片', '封面'], ['黃埔二店', '圖片', '相片1'], ['黃埔二店', '圖片', '相片2'], ['黃埔二店', '圖片', '相片3'],
-  ['全站', '社群', 'Facebook'], ['全站', '社群', 'Instagram'], ['全站', '合作', '合作說明']];
-function vContent() {
-  call('adminContentList').then(function (rows) {
-    var have = {}; rows.forEach(function (r) { have[r.page + '|' + r.field] = 1; });
-    SUGGEST.forEach(function (s) { if (!have[s[0] + '|' + s[2]]) rows.push({ page: s[0], block: s[1], field: s[2], text: '', image: '' }); });
-    cache.content = rows;
-    $('pg').innerHTML = '<p class="sd">留白或填「待補」的欄位，前台會顯示預設字樣。圖片請貼公開的 https 網址（例如 Google 雲端硬碟、Imgur 或自家圖床）。</p><div class="tw"><table><tr><th>頁面</th><th>欄位</th><th>文字</th><th>圖片網址</th></tr>' +
-      rows.map(function (r, i) { return '<tr data-i="' + i + '"><td>' + E(r.page) + '</td><td>' + E(r.field) + '</td><td><textarea class="mini" style="width:340px;min-height:44px;font:inherit;font-size:13px" data-f="text" data-lb="' + E(r.page + '・' + r.field) + '">' + E(r.text) + '</textarea></td><td><img class="thumb s pvs" alt="" style="display:none"><input class="mini" style="width:170px" data-f="image" data-img="1" data-lb="' + E(r.page + '・' + r.field + '（圖片）') + '" value="' + E(r.image) + '"> <button type="button" class="btn sm" data-up-c="1" style="padding:4px 10px">上傳</button></td></tr>'; }).join('') +
-      '</table></div><p><button class="btn" id="saveC">儲存全部</button></p>';
-    $('saveC').onclick = saveC;
-    function saveC() {
-      if (!W.n) { toast('沒有任何修改'); return; }
-      var cmsg = W.n + ' 處修改已儲存';
-      var out = cache.content.map(function (r, i) {
-        var tr = document.querySelector('tr[data-i="' + i + '"]');
-        return { page: r.page, block: r.block, field: r.field, text: tr.querySelector('[data-f=text]').value, image: tr.querySelector('[data-f=image]').value, _changed: tr.querySelector('[data-f=text]').value !== (r.text || '') || tr.querySelector('[data-f=image]').value !== (r.image || '') };
-      }).filter(function (r) { return r._changed; });
-      if (!out.length) { toast('沒有變更'); return; }
-      var names = out.map(function (r) { return r.page + '・' + r.field; });
-      call('adminSaveContent', { rows: out }).then(function () { toast('已儲存 ' + out.length + ' 筆：' + trunc(names.join('、'), 60)); clearW(); vContent(); }).catch(function (er) { toast(er.message); });
-    }
-    watch($('pg'), { save: saveC, label: '儲存全部', redraw: vContent });
+/* ---------- 頁面內容（前台各頁的標題、說明、按鈕文字、圖片；右邊是前台即時預覽） ---------- */
+var PC = null;
+function pcEff(f, v) { return f.type === 'image' ? { text: '', image: v.image || '' } : { text: f.opt ? (v.text || '') : (v.text || f.def), image: '' }; }
+function pcFields() { var o = []; PC.pages.forEach(function (p, pi) { p.sections.forEach(function (s, si) { s.fields.forEach(function (f) { o.push({ f: f, p: p, s: s, pi: pi }); }); }); }); return o; }
+function pcDirtyKeys() { return Object.keys(PC.cur).filter(function (k) { var b = PC.base[k], c = PC.cur[k]; return b.text !== c.text || b.image !== c.image; }); }
+function pcUpdate() {
+  var ks = pcDirtyKeys(), by = {}; ks.forEach(function (k) { by[PC.pageOf[k]] = (by[PC.pageOf[k]] || 0) + 1; });
+  W.n = ks.length; W.ls = ks.map(function (k) { return PC.fld[k].label; });
+  document.querySelectorAll('[data-pcpage]').forEach(function (a) { var n = by[a.getAttribute('data-pcpage')] || 0; a.querySelector('i').textContent = n ? n + ' 處未儲存' : ''; });
+  var sb = $('pcSave'); if (sb) { sb.disabled = !ks.length; sb.textContent = ks.length ? '儲存全部修改（' + ks.length + ' 處）' : '儲存'; }
+  document.querySelectorAll('.pcf').forEach(function (el) {
+    var k = el.getAttribute('data-k'), d = ks.indexOf(k) >= 0; el.classList.toggle('dirty', d);
+    var w = el.querySelector('.was'); if (w) { var f = PC.fld[k], b = PC.base[k]; w.style.display = d ? '' : 'none'; w.textContent = d ? '原本：' + (f.type === 'image' ? (b.image ? '已有圖片' : '沒有圖片') : trunc(b.text, 60) || '（空白）') : ''; }
+  });
+}
+function pcScale() {
+  var w = $('pcFw'), fr = $('pcFrame'); if (!w || !fr) return;
+  var mob = w.classList.contains('mob'), iw = mob ? 390 : 1280, sc = Math.min(1, w.clientWidth / iw);
+  fr.style.width = iw + 'px'; fr.style.height = (w.clientHeight / sc) + 'px'; fr.style.transform = 'scale(' + sc + ')'; fr.style.marginLeft = Math.max(0, (w.clientWidth - iw * sc) / 2) + 'px';
+}
+window.addEventListener('resize', function () { if (PC) pcScale(); });
+function pcSend() {
+  var fr = $('pcFrame'); if (!fr || !fr.contentWindow || !PC.ready) return;
+  var o = {}; pcFields().forEach(function (x) { if (x.pi === PC.pi) o[x.f.key] = pcEff(x.f, PC.cur[x.f.key]); });
+  fr.contentWindow.postMessage({ zedit: 'content', content: o }, '*');
+}
+function pcLoadFrame() {
+  var p = PC.pages[PC.pi], fr = $('pcFrame'); PC.ready = false;
+  fr.src = p.url + (p.url.indexOf('?') >= 0 ? '&' : '?') + 'zedit=1';
+}
+function pcField(f) {
+  var k = f.key, v = PC.cur[k], id = 'pc_' + PC.fidx++, inner;
+  if (f.type === 'image') inner = '<div class="upl"><img class="thumb" alt="" ' + (v.image ? 'src="' + E(v.image) + '"' : 'style="visibility:hidden"') + '><button type="button" class="btn sm" data-pcup="' + E(k) + '">上傳圖片</button><button type="button" class="btn sm line" data-pcclr="' + E(k) + '">清除</button></div>';
+  else if (f.type === 'long' || f.type === 'list') inner = '<textarea id="' + id + '" rows="' + (f.type === 'list' ? 5 : 3) + '" data-pck="' + E(k) + '" placeholder="' + (f.opt ? '留白＝前台不顯示' : '') + '">' + E(v.text) + '</textarea>';
+  else inner = '<input id="' + id + '" data-pck="' + E(k) + '" value="' + E(v.text) + '" placeholder="' + (f.opt ? '留白＝前台不顯示' : '') + '"' + (f.type === 'url' ? ' inputmode="url"' : '') + '>';
+  return '<div class="field pcf" data-k="' + E(k) + '"><label>' + E(f.label) + (f.opt ? '<span class="pill">選填</span>' : '') + '</label>' + inner + '<div class="was" style="display:none"></div></div>';
+}
+function pcDraw() {
+  var p = PC.pages[PC.pi]; PC.fidx = 0;
+  $('pcMain').innerHTML = '<h2 style="font-size:22px;margin:0 0 4px">' + E(p.title) + '</h2><div class="sd" style="margin-bottom:14px">前台網址：' + E(p.url.split('?')[0]) + (p.note ? '<br>' + E(p.note) : '') + '</div>' +
+    p.sections.map(function (s) { return '<div class="card pcs"><div class="h" style="font-size:18px">' + E(s.title) + (s.hint ? ' <span class="sd" style="font-size:12px">' + E(s.hint) + '</span>' : '') + '</div><div class="g">' + s.fields.map(pcField).join('') + '</div></div>'; }).join('') +
+    '<p><button class="btn" id="pcSave" disabled>儲存</button> <button class="btn line" id="pcReset">還原這頁的修改</button></p>';
+  pcUpdate();
+}
+function pcSetVal(k, text, image) { var c = PC.cur[k]; if (text !== undefined) c.text = text; if (image !== undefined) c.image = image; pcUpdate(); pcSend(); }
+function pcConfirm() {
+  var ks = pcDirtyKeys(); if (!ks.length) return;
+  var rows = ks.map(function (k) {
+    var f = PC.fld[k], b = PC.base[k], c = PC.cur[k], pg = PC.pages[PC.pageOf[k]];
+    var was = f.type === 'image' ? (b.image ? '<img class="thumb s" src="' + E(b.image) + '">' : '（沒有圖片）') : E(trunc(b.text, 140) || '（空白）');
+    var now = f.type === 'image' ? (c.image ? '<img class="thumb s" src="' + E(c.image) + '">' : '（清除圖片）') : E(trunc(c.text, 140) || '（空白）');
+    return '<div class="pcit"><div class="sd">前台 <b>' + E(pg.title) + ' › ' + E(f.label) + '</b></div><div class="pcdf"><div class="bf">' + was + '</div><div class="af">' + now + '</div></div></div>';
+  }).join('');
+  var m = document.createElement('div'); m.id = 'pcm';
+  m.innerHTML = '<div class="pcbox"><div class="pch">確認儲存　' + ks.length + ' 處修改（影響 ' + Object.keys(ks.reduce(function (o, k) { o[PC.pageOf[k]] = 1; return o; }, {})).length + ' 個前台頁面）</div><div class="pcbd">' + rows + '</div><div class="pcft"><button class="btn" id="pcOk">確認儲存</button> <button class="btn line" id="pcNo">回去繼續改</button></div></div>';
+  document.body.appendChild(m);
+  $('pcNo').onclick = function () { m.remove(); };
+  $('pcOk').onclick = function () {
+    $('pcOk').disabled = true;
+    var ch = ks.map(function (k) { return { key: k, text: PC.cur[k].text, image: PC.cur[k].image }; });
+    call('adminSavePageContent', { changes: ch }).then(function (r) { m.remove(); toast('已儲存 ' + r.saved + ' 處'); clearW(); vContent(PC.pi, PC.tab); })
+      .catch(function (e) { toast(e.message); $('pcOk').disabled = false; });
+  };
+}
+function pcHistory() {
+  var h = PC.history;
+  $('pcMain').innerHTML = '<h2 style="font-size:22px;margin:0 0 4px">修改紀錄</h2><div class="sd" style="margin-bottom:14px">最近 60 筆。按「復原」會把這個欄位改回修改前的內容（復原本身也會留下紀錄）。</div>' +
+    (h.length ? '<div class="tw"><table><tr><th>時間</th><th>誰</th><th>欄位</th><th>改了什麼</th><th></th></tr>' + h.map(function (r) {
+      var f = PC.fld[r.key], img = f && f.type === 'image';
+      return '<tr><td>' + E(r.changed_at) + '</td><td>' + E(r.changed_by) + '</td><td>' + E(r.label) + (r.restored ? ' <span class="pill">復原</span>' : '') + '</td><td>' + (img ? '圖片已更換' : E(trunc(r.old_text, 40) || '（空白）') + ' → ' + E(trunc(r.new_text, 40) || '（空白）')) + '</td><td>' + (f ? '<button class="btn sm line" data-pcrest="' + r.id + '">復原</button>' : '') + '</td></tr>';
+    }).join('') + '</table></div>' : '<div class="skel">還沒有任何修改紀錄。</div>');
+}
+function vContent(pi, tab) {
+  call('adminPageFields').then(function (d) {
+    PC = { pages: d.pages, base: {}, cur: {}, pageOf: {}, fld: {}, history: d.history, pi: pi || 0, tab: tab || 'edit', ready: false, fidx: 0 };
+    d.pages.forEach(function (p, i) { p.sections.forEach(function (s) { s.fields.forEach(function (f) { if (PC.fld[f.key]) return; PC.fld[f.key] = f; PC.pageOf[f.key] = i; var v = d.values[f.key] || { text: '', image: '' }, e = pcEff(f, { text: v.text, image: v.image });
+      if (f.type !== 'image' && !f.opt && !v.text) e.text = f.def; PC.base[f.key] = { text: e.text, image: e.image }; PC.cur[f.key] = { text: e.text, image: e.image }; }); }); });
+    $('pg').innerHTML = '<div class="pc"><div class="pcn" id="pcNav"></div><div id="pcMain"></div><div class="pcv"><div class="vbar"><div class="seg" id="pcDev"><button type="button" data-dev="pc" class="on">電腦</button><button type="button" data-dev="mob">手機</button></div><a class="sd" id="pcOpen" target="_blank" rel="noopener">在新分頁開啟前台 ↗</a></div><div class="pcfw" id="pcFw"><iframe id="pcFrame" title="前台預覽"></iframe></div><div class="sd">點預覽裡的文字或圖片，左邊會跳到對應欄位；點左邊欄位，預覽會框出位置。</div></div></div>';
+    pcNav(); $('pcFrame').onload = function () { PC.ready = true; pcSend(); }; pcShow(); pcScale();
   }).catch(err);
 }
+function pcNav() {
+  $('pcNav').innerHTML = PC.pages.map(function (p, i) { return '<a data-pcpage="' + i + '" class="' + (PC.tab === 'edit' && i === PC.pi ? 'on' : '') + '">' + E(p.title) + '<i></i></a>'; }).join('') + '<a data-pctab="history" class="hist ' + (PC.tab === 'history' ? 'on' : '') + '">修改紀錄</a>';
+  pcUpdate();
+}
+function pcShow() {
+  pcNav();
+  if (PC.tab === 'history') { document.querySelector('.pc').classList.add('nopv'); pcHistory(); return; }
+  document.querySelector('.pc').classList.remove('nopv');
+  pcDraw(); pcLoadFrame(); $('pcOpen').href = PC.pages[PC.pi].url;
+}
+window.addEventListener('message', function (e) {
+  var m = e.data || {}; if (!m.zedit || !PC || !$('pcFrame') || e.source !== $('pcFrame').contentWindow) return;
+  if (m.zedit === 'ready') { PC.ready = true; pcSend(); }
+  if (m.zedit === 'pick') { var el = document.querySelector('.pcf[data-k="' + (window.CSS && CSS.escape ? CSS.escape(m.key) : m.key) + '"]'); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); var i = el.querySelector('input,textarea'); if (i) i.focus(); el.classList.add('flash'); setTimeout(function () { el.classList.remove('flash'); }, 1200); } }
+});
+document.addEventListener('input', function (e) { var t = e.target; if (t.hasAttribute && t.hasAttribute('data-pck') && PC) pcSetVal(t.getAttribute('data-pck'), t.value); });
+document.addEventListener('focusin', function (e) { var t = e.target; if (t.hasAttribute && t.hasAttribute('data-pck') && PC && $('pcFrame') && $('pcFrame').contentWindow) $('pcFrame').contentWindow.postMessage({ zedit: 'hl', key: t.getAttribute('data-pck') }, '*'); });
+document.addEventListener('click', function (e) {
+  if (!PC || view !== 'content') return;
+  var t = e.target, b;
+  if ((b = t.closest('[data-pcpage]'))) { PC.pi = Number(b.getAttribute('data-pcpage')); PC.tab = 'edit'; pcShow(); return; }
+  if ((b = t.closest('[data-pctab]'))) { PC.tab = 'history'; pcShow(); return; }
+  if ((b = t.closest('[data-dev]'))) { var mob = b.getAttribute('data-dev') === 'mob'; $('pcFw').classList.toggle('mob', mob); document.querySelectorAll('#pcDev button').forEach(function (x) { x.classList.toggle('on', x === b); }); pcScale(); return; }
+  if ((b = t.closest('[data-pcup]'))) { var k = b.getAttribute('data-pcup'); pickFiles(false, 'content', function (u) { if (u[0]) { pcSetVal(k, undefined, u[0]); var th = b.parentNode.querySelector('.thumb'); th.src = u[0]; th.style.visibility = 'visible'; } }); return; }
+  if ((b = t.closest('[data-pcclr]'))) { var k2 = b.getAttribute('data-pcclr'); pcSetVal(k2, undefined, ''); b.parentNode.querySelector('.thumb').style.visibility = 'hidden'; return; }
+  if (t.closest('#pcSave')) { pcConfirm(); return; }
+  if (t.closest('#pcReset')) { pcFields().forEach(function (x) { if (x.pi === PC.pi) PC.cur[x.f.key] = { text: PC.base[x.f.key].text, image: PC.base[x.f.key].image }; }); pcDraw(); pcSend(); return; }
+  if ((b = t.closest('[data-pcrest]'))) { if (confirm('把這個欄位改回修改前的內容？')) call('adminRestoreContent', { id: b.getAttribute('data-pcrest') }).then(function () { toast('已復原'); vContent(PC.pi, 'history'); }).catch(function (er) { toast(er.message); }); }
+});
 
 /* ---------- 合作洽談 ---------- */
 function vInq() {

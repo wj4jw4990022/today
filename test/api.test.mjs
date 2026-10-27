@@ -42,7 +42,36 @@ await t('儲存時段與公休', async () => { assert((await post({ ...A, action
 await t('時段數量可自由增加（10 個）', async () => { const s = Array.from({ length: 10 }, (_, i) => `${10 + i}:00`); await post({ ...A, action: 'adminSaveSettings', shopId: 'h1', fields: { slots: s } }); assert.equal((await q("SELECT slots FROM booking_settings WHERE shop_id='h1'"))[0].slots.split(',').length, 10); });
 await t('設定數字範圍檢查', async () => { assert(!(await post({ ...A, action: 'adminSaveSettings', shopId: 'h1', fields: { cap: 0 } })).ok); assert(!(await post({ ...A, action: 'adminSaveSettings', shopId: 'h1', fields: { advance: 999 } })).ok); });
 await t('餐點新增/編輯/刪除', async () => { assert((await post({ ...A, action: 'adminSaveMenu', hall: '漢口總店', item: { name: '牛肉麵', cat: '麵', price: '180', on: true } })).ok); const l = (await post({ ...A, action: 'adminMenuList', hall: '漢口總店' })).data; assert.equal(l.length, 1); assert.equal(l[0].on, true); assert((await post({ ...A, action: 'adminSaveMenu', hall: '漢口總店', item: { ...l[0], price: '200' } })).ok); assert.equal((await post({ ...A, action: 'adminMenuList', hall: '漢口總店' })).data[0].price, '200'); assert((await post({ ...A, action: 'adminDeleteMenu', hall: '漢口總店', id: l[0].id })).ok); assert.equal((await q('SELECT * FROM menu_items')).length, 0); });
-await t('內容 upsert', async () => { assert((await post({ ...A, action: 'adminSaveContent', rows: [{ page: '漢口總店', field: '地址', text: '新地址' }, { page: '首頁', block: '品牌', field: '標語', text: 'hi' }, { page: '首頁', block: '品牌', field: '標語', text: 'hi2' }] })).ok); const r = await q('SELECT * FROM site_content ORDER BY id'); assert.equal(r.length, 2); assert.equal(r[0].text, '新地址'); assert.equal(r[1].text, 'hi2'); });
+await t('頁面內容：欄位清單只含登錄過的欄位；前台資料＝預設值＋後台填寫', async () => {
+  const r = (await post({ ...A, action: 'adminPageFields' })).data; assert(r.pages.length >= 9);
+  const pub = (await get({ action: 'public' })).data.content; assert.equal(pub['首頁|標語上句'].text, '兩個據點，兩種日子。'); assert.equal(pub['首頁|品牌故事'].text, '');
+  assert((await post({ ...A, action: 'adminSavePageContent', changes: [{ key: '首頁|標語上句', text: '新的標語' }, { key: '首頁|品牌故事', text: '故事內文' }, { key: '首頁|漢口卡片封面', image: 'https://x.com/a.jpg' }] })).ok);
+  const c2 = (await get({ action: 'public' })).data.content; assert.equal(c2['首頁|標語上句'].text, '新的標語'); assert.equal(c2['首頁|品牌故事'].text, '故事內文'); assert.equal(c2['首頁|漢口卡片封面'].image, 'https://x.com/a.jpg'); assert.equal(c2['首頁|標語下句'].text, '請選擇你要前往的地方');
+  assert.equal((await q('SELECT COUNT(*) n FROM content_history'))[0].n, 3);
+});
+await t('頁面內容：清空必填欄位＝回到預設；清空選填欄位＝前台不顯示；沒變更被拒', async () => {
+  assert((await post({ ...A, action: 'adminSavePageContent', changes: [{ key: '首頁|標語上句', text: '' }, { key: '首頁|品牌故事', text: '' }] })).ok);
+  const c = (await get({ action: 'public' })).data.content; assert.equal(c['首頁|標語上句'].text, '兩個據點，兩種日子。'); assert.equal(c['首頁|品牌故事'].text, '');
+  assert(!(await post({ ...A, action: 'adminSavePageContent', changes: [{ key: '首頁|標語下句', text: '請選擇你要前往的地方' }] })).ok);
+});
+await t('頁面內容：不認得的欄位、壞網址、壞圖片被拒；多行與清單欄位保留換行', async () => {
+  assert(!(await post({ ...A, action: 'adminSavePageContent', changes: [{ key: '亂寫|欄位', text: 'x' }] })).ok);
+  assert(!(await post({ ...A, action: 'adminSavePageContent', changes: [{ key: '漢口總店|地圖連結', text: 'javascript:1' }] })).ok);
+  assert(!(await post({ ...A, action: 'adminSavePageContent', changes: [{ key: '首頁|黃埔卡片封面', image: 'javascript:1' }] })).ok);
+  assert((await post({ ...A, action: 'adminSavePageContent', changes: [{ key: '合作洽談|合作類型', text: '甲\n乙\n丙' }] })).ok);
+  assert.equal((await get({ action: 'public' })).data.content['合作洽談|合作類型'].text, '甲\n乙\n丙');
+});
+await t('頁面內容：黃埔頁的電話、營業時間來自店家資料', async () => {
+  const c = (await get({ action: 'public' })).data.content; const p = (await get({ action: 'public' })).data.shops.find((x) => x.id === 'p');
+  assert.equal(c['黃埔二店|電話'].text, p.contact.phone || ''); assert.equal(c['黃埔二店|營業時間'].text, /^(待補|)$/.test(p.hours) ? '' : p.hours);
+});
+await t('頁面內容：修改紀錄與復原', async () => {
+  const h = (await post({ ...A, action: 'adminPageFields' })).data.history; const row = h.find((x) => x.key === '首頁|標語上句' && x.new_text === '新的標語');
+  assert(row && row.changed_by === 'boss@x.com'); assert((await post({ ...A, action: 'adminRestoreContent', id: row.id })).ok);
+  assert.equal((await get({ action: 'public' })).data.content['首頁|標語上句'].text, row.old_text || '兩個據點，兩種日子。');
+  assert((await post({ ...A, action: 'adminPageFields' })).data.history[0].restored === 1);
+  assert(!(await post({ ...A, action: 'adminRestoreContent', id: 99999 })).ok);
+});
 await t('合作洽談寫入並通知', async () => { const n = mails.length; assert((await post({ action: 'contact', type: '活動合作', name: 'A', phone: '0988000000', message: 'hello' })).ok); assert.equal((await q('SELECT * FROM inquiries')).length, 1); assert.equal(mails.length, n + 1); const l = (await post({ ...A, action: 'adminInquiries' })).data; assert.equal(l[0].status, '新'); assert((await post({ ...A, action: 'adminSetInquiryStatus', row: l[0].row, status: '已回覆' })).ok); assert.equal((await q('SELECT status FROM inquiries'))[0].status, '已回覆'); });
 await t('合作洽談必填欄位', async () => { assert(!(await post({ action: 'contact', name: 'A', message: 'x' })).ok); assert(!(await post({ action: 'contact', phone: '0988', message: 'x' })).ok); });
 const jpg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(50, 7)]).toString('base64');
@@ -71,7 +100,7 @@ await t('預設按鈕為預約', async () => { const c = (await get({ action: 'p
 await t('一句話介紹存取並限制 40 字', async () => { assert((await post({ ...A, action: 'adminSaveShop', shopId: 'h1', fields: { 一句話介紹: '字'.repeat(60) } })).ok); assert.equal((await get({ action: 'public' })).data.shops.find((x) => x.id === 'h1').tagline.length, 40); });
 await t('單店管理員看不到別店、不能開關別店', async () => { const l = (await post({ ...B, action: 'adminInit' })).data; assert.equal(l.shops.length, 1); const r = await post({ ...B, action: 'adminSetShopOpen', shopId: 'p', open: false }); assert(!r.ok && r.error.includes('權限')); });
 await t('單店管理員不能動別店項目', async () => { const r = await post({ ...B, action: 'adminSaveItem', shopId: 'p', item: { name: 'x', on: true } }); assert(!r.ok && r.error.includes('權限')); });
-await t('單店管理員不能改網站內容', async () => assert(!(await post({ ...B, action: 'adminContentList' })).ok));
+await t('單店管理員不能改頁面內容', async () => { assert(!(await post({ ...B, action: 'adminPageFields' })).ok); assert(!(await post({ ...B, action: 'adminSavePageContent', changes: [{ key: '首頁|標語上句', text: 'x' }] })).ok); assert(!(await post({ ...B, action: 'adminRestoreContent', id: 1 })).ok); });
 await t('沒有後台權限的帳號被拒', async () => { const r = await post({ ...N, action: 'adminInit' }); assert(!r.ok && r.error.includes('沒有後台權限')); });
 await t('未登入被拒；亂填 token 被拒', async () => { assert(!(await post({ action: 'adminInit' })).ok); const real = globalThis.fetch; globalThis.fetch = async (u, o) => String(u).includes('googleapis.com') ? new Response('{}', { status: 400 }) : real(u, o); const r = await post({ action: 'adminInit', idToken: 'garbage' }); globalThis.fetch = real; assert(!r.ok && r.error.includes('登入')); });
 await t('未知操作被拒；GET 預設回應', async () => { assert(!(await post({ action: 'hack' })).ok); assert(!(await post({ ...A, action: 'adminNope' })).ok); assert((await get({ action: 'zzz' })).ok); });

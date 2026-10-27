@@ -16,10 +16,10 @@
 
 <main id="main" class="sec row" style="padding-top:72px;align-items:flex-start">
  <div class="col" style="flex-basis:340px">
-  <div class="en">Collaboration</div>
-  <h1 class="h" style="font-size:52px">合作洽談</h1>
+  <div class="en" data-c="合作洽談|英文">Collaboration</div>
+  <h1 class="h" style="font-size:52px" data-c="合作洽談|標題">合作洽談</h1>
   <p data-c="全站|合作說明" style="margin:0;font-size:15px;line-height:2.2">[合作說明：活動、聯名、場地、攝影拍攝等，歡迎留下資料，我們會盡快與你聯絡。]</p>
-  <div style="background:var(--dark);color:var(--darkfg);padding:28px;font-size:14px;line-height:2.1"><div class="en" style="color:#D2AE86">Contact</div>漢口總店　<span data-c="漢口總店|電話">[電話]</span><br>黃埔二店　<span data-c="黃埔二店|電話">07-7193820</span></div>
+  <div style="background:var(--dark);color:var(--darkfg);padding:28px;font-size:14px;line-height:2.1"><div class="en" style="color:#D2AE86" data-c="合作洽談|聯絡卡標題">Contact</div><span data-opt="漢口總店|電話">漢口總店　<span data-c="漢口總店|電話">[電話]</span><br></span><span data-opt="黃埔二店|電話">黃埔二店　<span data-c="黃埔二店|電話">07-7193820</span></span></div>
  </div>
  <div class="col" style="flex-basis:520px">
   <div id="done" style="display:none"></div>
@@ -30,7 +30,7 @@
    <div class="field"><label for="message">合作內容</label><textarea id="message" required maxlength="2000"></textarea></div>
    <input class="hide" id="website" tabindex="-1" autocomplete="off" aria-hidden="true">
    <div id="err"></div>
-   <div><button class="btn" id="go" type="submit">送出</button></div>
+   <div><button class="btn" id="go" type="submit" data-c="合作洽談|送出按鈕">送出</button></div>
   </form>
  </div>
 </main><div id="foot"></div>
@@ -39,7 +39,7 @@
 <script src="assets/app.js"></script>
 <script>
 
-var types = ['活動合作', '品牌聯名', '場地租借', '攝影拍攝', '其他'], type = types[0];
+var DT = ['活動合作', '品牌聯名', '場地租借', '攝影拍攝', '其他'], types = DT.slice(), type = types[0];
 function $(id) { return document.getElementById(id); }
 function drawTypes() { $('types').innerHTML = types.map(function (t) { return '<button type="button" class="chip' + (t === type ? ' on' : '') + '" data-t="' + t + '">' + t + '</button>'; }).join(''); }
 drawTypes();
@@ -47,10 +47,10 @@ $('types').addEventListener('click', function (e) { var b = e.target.closest('[d
 $('f').addEventListener('submit', function (e) {
   e.preventDefault(); $('err').innerHTML = ''; $('go').disabled = true; $('go').textContent = '送出中…';
   Z.post({ action: 'contact', type: type, org: $('org').value, name: $('name').value, phone: $('phone').value, email: $('email').value, message: $('message').value, website: $('website').value })
-    .then(function () { $('f').style.display = 'none'; $('done').style.display = 'block'; $('done').innerHTML = '<div class="msg ok"><div class="h" style="font-size:24px;margin-bottom:8px">已收到你的訊息</div>我們會盡快與你聯絡。</div>'; })
-    .catch(function (er) { $('err').innerHTML = '<div class="msg err">' + Z.esc(er.message) + '</div>'; $('go').disabled = false; $('go').textContent = '送出'; });
+    .then(function () { $('f').style.display = 'none'; $('done').style.display = 'block'; $('done').innerHTML = '<div class="msg ok"><div class="h" style="font-size:24px;margin-bottom:8px">' + Z.ct('合作洽談|成功標題', '已收到你的訊息') + '</div>' + Z.ct('合作洽談|成功說明', '我們會盡快與你聯絡。') + '</div>'; })
+    .catch(function (er) { $('err').innerHTML = '<div class="msg err">' + Z.esc(er.message) + '</div>'; $('go').disabled = false; $('go').textContent = Z.t('合作洽談|送出按鈕', '送出'); });
 });
-Z.init('contact');
+Z.init('contact', function () { var l = Z.tl('合作洽談|合作類型', DT); types = l.length ? l : DT.slice(); if (types.indexOf(type) < 0) type = types[0]; drawTypes(); });
 </script>
 </body>
 </html>

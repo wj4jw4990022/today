@@ -49,6 +49,22 @@ async function handleImage(request, c, id) {
   return new Response(bin, { headers: { 'content-type': row.mime, 'cache-control': 'public, max-age=31536000, immutable', 'x-content-type-options': 'nosniff' } });
 }
 
+/** 首頁的網頁標題、說明、分享預覽圖：由後台「首頁 › 搜尋與分享預覽」決定（搜尋引擎與 LINE 分享只讀原始 HTML，所以在伺服器端換） */
+async function seoRewrite(res, c, url) {
+  try {
+    const rows = (await c.env.DB.prepare("SELECT field, text, image_url FROM site_content WHERE page='首頁' AND field IN ('網頁標題','網頁說明','分享圖片')").all()).results || [];
+    const v = {}; rows.forEach((r) => { v[r.field] = r; });
+    const title = v['網頁標題'] && v['網頁標題'].text, desc = v['網頁說明'] && v['網頁說明'].text, img = v['分享圖片'] && v['分享圖片'].image_url;
+    if (!title && !desc && !img) return res;
+    const abs = (u) => (u.startsWith('/') ? url.origin + u : u);
+    let r = new HTMLRewriter();
+    if (title) r = r.on('title', { element: (e) => e.setInnerContent(title) }).on('meta[property="og:title"]', { element: (e) => e.setAttribute('content', title) });
+    if (desc) r = r.on('meta[name="description"]', { element: (e) => e.setAttribute('content', desc) }).on('meta[property="og:description"]', { element: (e) => e.setAttribute('content', desc) });
+    if (img) r = r.on('meta[property="og:image"]', { element: (e) => e.setAttribute('content', abs(img)) });
+    return r.transform(res);
+  } catch (e) { console.error(e); return res; }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -56,6 +72,8 @@ export default {
     if (url.pathname === '/api') return handleApi(request, c);
     const m = /^\/img\/([\w-]+)$/.exec(url.pathname);
     if (m) return handleImage(request, c, m[1]);
-    return env.ASSETS.fetch(request);
+    const res = await env.ASSETS.fetch(request);
+    if ((url.pathname === '/' || url.pathname === '/index.html') && typeof HTMLRewriter !== 'undefined' && (res.headers.get('content-type') || '').includes('text/html')) return seoRewrite(res, c, url);
+    return res;
   }
 };

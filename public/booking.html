@@ -15,9 +15,9 @@
 <div id="nav"></div>
 
 <main id="main" class="sec" style="max-width:920px;margin:0 auto;padding-top:64px">
- <div class="en">Reservation</div>
- <h1 class="h" style="font-size:52px;margin:4px 0 8px">線上訂位</h1>
- <div class="sd" style="margin-bottom:36px">每間店各自接受預約。標示「暫停預約」的店目前不接受線上預約。</div>
+ <div class="en" data-c="線上訂位|英文">Reservation</div>
+ <h1 class="h" style="font-size:52px;margin:4px 0 8px" data-c="線上訂位|標題">線上訂位</h1>
+ <div class="sd" style="margin-bottom:36px" data-c="線上訂位|說明">每間店各自接受預約。標示「暫停預約」的店目前不接受線上預約。</div>
  <div id="done" style="display:none"></div>
  <form id="f" autocomplete="on" style="display:flex;flex-direction:column;gap:34px">
   <div class="field"><label for="shop">01　選擇店家</label><select id="shop"></select></div>
@@ -32,7 +32,7 @@
   <div class="field"><label for="note">備註（選填）</label><textarea id="note" maxlength="300"></textarea></div>
   <input class="hide" id="website" tabindex="-1" autocomplete="off" aria-hidden="true">
   <div id="err"></div>
-  <div><button class="btn" id="go" type="submit" disabled>送出訂位</button></div>
+  <div><button class="btn" id="go" type="submit" disabled data-c="線上訂位|送出按鈕">送出訂位</button></div>
  </form>
 </main><div id="foot"></div>
 <script src="assets/config.js"></script>
@@ -80,11 +80,11 @@ $('f').addEventListener('submit', function (e) {
   Z.post({ action: 'book', shopId: shop.id, date: date, slot: slot, party: $('party').value, name: $('name').value, phone: $('phone').value, email: $('email').value, note: $('note').value, website: $('website').value })
     .then(function (r) {
       $('f').style.display = 'none'; var dn = $('done'); dn.style.display = 'block';
-      dn.innerHTML = '<div class="msg ok"><div class="h" style="font-size:24px;margin-bottom:10px">訂位已送出</div>' + Z.esc(shop.name) + '<br>' + Z.esc(date) + '　' + Z.esc(slot) + '　' + Z.esc($('party').value) + ' 位<br>訂位編號：' + Z.esc(r.id) +
-        '<br><br>店家確認後會與你聯絡。' + ($('email').value ? '確認信已寄到你的信箱。' : '') + '</div><p><a class="btn line" href="index.html">回首頁</a></p>';
+      dn.innerHTML = '<div class="msg ok"><div class="h" style="font-size:24px;margin-bottom:10px">' + Z.ct('線上訂位|成功標題', '訂位已送出') + '</div>' + Z.esc(shop.name) + '<br>' + Z.esc(date) + '　' + Z.esc(slot) + '　' + Z.esc($('party').value) + ' 位<br>訂位編號：' + Z.esc(r.id) +
+        '<br><br>' + Z.ct('線上訂位|成功說明', '店家確認後會與你聯絡。') + ($('email').value ? '確認信已寄到你的信箱。' : '') + '</div><p><a class="btn line" href="index.html">' + Z.ct('線上訂位|成功按鈕', '回首頁') + '</a></p>';
       window.scrollTo(0, 0);
     }).catch(function (er) {
-      $('err').innerHTML = '<div class="msg err">' + Z.esc(er.message) + '</div>'; $('go').textContent = '送出訂位'; if (date) loadSlots();
+      $('err').innerHTML = '<div class="msg err">' + Z.esc(er.message) + '</div>'; $('go').textContent = Z.t('線上訂位|送出按鈕', '送出訂位'); if (date) loadSlots();
     });
 });
 Z.init('', function (d) {

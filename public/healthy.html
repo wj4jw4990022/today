@@ -38,12 +38,12 @@ function sizeCards() {
       '<div style="font-size:13px;color:var(--mute);line-height:1.9">' + E(i.mainDesc || i.main) + '・黑米五穀飯 ' + E(i.rice) + 'g・溏心蛋 1 顆・蔬菜 ' + E(i.vegG) + 'g</div>' +
       (i.desc ? '<div style="font-size:13px;line-height:1.9">' + E(i.desc) + '</div>' : '') +
       '<div class="x-pr"><b>' + money(i.price) + '</b><span>元／盒</span></div>' +
-      '<div class="x-acts" style="margin-top:6px"><span class="btn sm off">線上單點即將開放</span></div></div></div>';
+      '<div class="x-acts" style="margin-top:6px"><span class="btn sm off">' + Z.ct('健康餐|單點按鈕', '線上單點即將開放') + '</span></div></div></div>';
   }).join('') + '</div>';
 }
 function draw(d) {
   M = d; var h = document.getElementById('hx');
-  if (!d || !d.open || !d.items.length) { h.innerHTML = '<section class="x-hero"><div class="x-in"><div><div class="en">Healthy Box</div><h1 class="h">致日子健康餐</h1><p>健康餐即將推出，敬請期待。</p></div></div></section>'; return; }
+  if (!d || !d.open || !d.items.length) { h.innerHTML = '<section class="x-hero"><div class="x-in"><div><div class="en">' + Z.ct('健康餐|英文', 'Healthy Box') + '</div><h1 class="h">' + Z.ct('健康餐|標題', '致日子健康餐') + '</h1><p>' + Z.ct('健康餐|未開放提示', '健康餐即將推出，敬請期待。') + '</p></div></div></section>'; return; }
   var mains = [], sizes = [];
   d.items.forEach(function (i) { if (mains.indexOf(i.main) < 0) mains.push(i.main); if (sizes.indexOf(i.size) < 0) sizes.push(i.size); });
   sizes.sort(function (a, b) { return so(a) - so(b); });
@@ -57,33 +57,33 @@ function draw(d) {
   var up = []; sizes.forEach(function (s) { if (d.upgrade.size[s]) up.push(s + ' +' + d.upgrade.size[s]); });
   mains.forEach(function (m) { if (d.upgrade.main[m]) up.push('換' + m + ' +' + d.upgrade.main[m]); });
 
-  var html = '<header class="x-hero"><div class="x-in"><div><div class="en">Healthy Box</div><h1 class="h">致日子健康餐</h1><p>一套配方，' + sizes.length + ' 種份量。主菜可選' + E(mains.join('、')) + '，搭配黑米五穀飯、溏心蛋與蔬菜。每一份都標示熱量、蛋白質、碳水與脂肪。</p></div>' +
+  var html = '<header class="x-hero"><div class="x-in"><div><div class="en">' + Z.ct('健康餐|英文', 'Healthy Box') + '</div><h1 class="h">' + Z.ct('健康餐|標題', '致日子健康餐') + '</h1><p>' + (Z.t('健康餐|介紹', '') ? Z.ct('健康餐|介紹', '') : '一套配方，' + sizes.length + ' 種份量。主菜可選' + E(mains.join('、')) + '，搭配黑米五穀飯、溏心蛋與蔬菜。每一份都標示熱量、蛋白質、碳水與脂肪。') + '</p></div>' +
     '<div class="x-stat"><div><b>' + mains.length + '</b><span>種主菜</span></div><div><b>' + sizes.length + '</b><span>種份量</span></div><div><b>' + E(vegG) + 'g</b><span>每盒蔬菜</span></div></div></div></header><div class="x-mx">';
-  html += '<section class="x-sec2"><div class="x-sh"><div><div class="en">Menu</div><h2 class="h">選擇主菜與份量</h2></div><div class="x-chips2" id="mains">' +
+  html += '<section class="x-sec2"><div class="x-sh"><div><div class="en">Menu</div><h2 class="h">' + Z.ct('健康餐|菜單標題', '選擇主菜與份量') + '</h2></div><div class="x-chips2" id="mains">' +
     mains.map(function (m) { return '<button type="button" class="chip' + (m === sel ? ' on' : '') + '" data-m="' + E(m) + '">' + E(m) + '</button>'; }).join('') + '</div></div><div id="sizes">' + sizeCards() + '</div>' +
     '<div class="x-note">營養標示不含醬汁與加購飲品。' + (v && v.rotating.length ? '輪替蔬菜每週不同，營養數字為平均估算值。' : '') + '過敏原：' + E(allergen.join('；')) + '。完整過敏原資訊請洽店員。</div></section>';
 
-  html += '<section class="x-sec2" style="padding-top:0"><div class="x-sh"><div><div class="en">Every Box</div><h2 class="h">每盒都有</h2></div></div><div class="x-inc">' +
+  html += '<section class="x-sec2" style="padding-top:0"><div class="x-sh"><div><div class="en">Every Box</div><h2 class="h">' + Z.ct('健康餐|每盒標題', '每盒都有') + '</h2></div></div><div class="x-inc">' +
     '<div><div class="x-t">主食</div><div class="x-v">黑米五穀飯</div><p>' + sizes.map(function (s) { return E(s) + ' ' + E(riceBy[s]) + 'g'; }).join('<br>') + '</p></div>' +
     '<div><div class="x-t">蛋</div><div class="x-v">溏心蛋 1 顆</div><p>每盒固定附一顆。</p></div>' +
     '<div><div class="x-t">蔬菜</div><div class="x-v">' + (vn ? vn + ' 種・' : '') + E(vegG) + 'g</div><p>' + (v ? '固定：' + E(v.fixed.map(function (x) { return x.name; }).join('、')) + (v.rotating.length ? '；每週輪替 ' + v.rotating.length + ' 種' : '') : '依當週市場採購') + '。</p></div>' +
     '<div><div class="x-t">醬汁</div><div class="x-v">' + (freeS.length ? '免費' + (freeS.length > 1 ? ' ' + freeS.length + ' 選 1' : '附贈') : '另附醬汁') + '</div><p>' + (freeS.length ? E(freeS.map(function (a) { return a.name; }).join('、')) + '。' : '') + paidS.map(function (a) { return E(a.name) + '另加 ' + a.price + ' 元'; }).join('；') + (paidS.length ? '。' : '') + '</p></div></div></section>';
 
-  if (v) html += '<section class="x-sec2" style="padding-top:0"><div class="x-sh"><div><div class="en">This Week</div><h2 class="h">本週蔬菜</h2></div><span class="cap">' + weekRange(v.weekStart) + ' 本週</span></div><div class="x-veg">' +
+  if (v) html += '<section class="x-sec2" style="padding-top:0"><div class="x-sh"><div><div class="en">This Week</div><h2 class="h">' + Z.ct('健康餐|蔬菜標題', '本週蔬菜') + '</h2></div><span class="cap">' + weekRange(v.weekStart) + ' 本週</span></div><div class="x-veg">' +
     v.fixed.map(function (x) { return vegCell(x, '固定' + (x.grams ? ' ' + x.grams + 'g' : '')); }).join('') + v.rotating.map(function (x) { return vegCell(x, '本週輪替' + (x.grams ? ' ' + x.grams + 'g' : '')); }).join('') + '</div></section>';
 
-  if (drinks.length) html += '<section class="x-sec2" style="padding-top:0"><div class="x-sh"><div><div class="en">Add-ons</div><h2 class="h">加購飲品</h2></div></div><div class="x-two" style="--n:' + Math.min(drinks.length, 2) + '">' +
+  if (drinks.length) html += '<section class="x-sec2" style="padding-top:0"><div class="x-sh"><div><div class="en">Add-ons</div><h2 class="h">' + Z.ct('健康餐|飲品標題', '加購飲品') + '</h2></div></div><div class="x-two" style="--n:' + Math.min(drinks.length, 2) + '">' +
     drinks.map(function (a) { return '<div>' + pic(a.image, a.name, 180).replace('餐點照片', '飲品照片') + '<div style="height:16px"></div><div class="h" style="font-size:20px">' + E(a.name) + '</div>' + (a.protein ? '<div class="cap" style="margin:4px 0 8px">蛋白質約 ' + a.protein + 'g</div>' : '') + (a.desc ? '<div style="font-size:13px;color:var(--mute);line-height:1.9">' + E(a.desc) + '</div>' : '') + '<div class="x-pr"><b>' + (a.price === null ? '—' : money(a.price)) + '</b><span>元（加購）</span></div></div>'; }).join('') + '</div></section>';
 
-  if (d.plans.length) html += '<section class="x-sec2" style="padding-top:0"><div class="x-sh"><div><div class="en">Subscription</div><h2 class="h">月訂閱方案</h2></div><span class="cap">以 ' + d.days + ' 天為一期・預約制</span></div><div class="x-plans" style="--n:' + d.plans.length + '">' +
+  if (d.plans.length) html += '<section class="x-sec2" style="padding-top:0"><div class="x-sh"><div><div class="en">Subscription</div><h2 class="h">' + Z.ct('健康餐|方案標題', '月訂閱方案') + '</h2></div><span class="cap">以 ' + d.days + ' 天為一期・預約制</span></div><div class="x-plans" style="--n:' + d.plans.length + '">' +
     d.plans.map(function (p) {
       var low = p.per === minPer && d.plans.length > 1;
       return '<div' + (low ? ' class="x-hot"' : '') + '>' + (low ? '<div class="x-flag">每餐最低</div>' : '') + '<div class="x-n">' + p.meals + '<small>餐</small></div><div class="x-big">' + money(p.total) + '<small> 元</small></div><div class="cap">每餐 ' + money(p.per) + ' 元</div>' +
-        '<ul><li>中午、晚上皆可預約</li><li>門市自取或固定配送點</li><li>每期可暫停 ' + d.pause.times + ' 次、最多 ' + d.pause.days + ' 天</li></ul><span class="btn line sm off">即將開放</span></div>';
+        '<ul><li>中午、晚上皆可預約</li><li>門市自取或固定配送點</li><li>每期可暫停 ' + d.pause.times + ' 次、最多 ' + d.pause.days + ' 天</li></ul><span class="btn line sm off">' + Z.ct('健康餐|訂閱按鈕', '即將開放') + '</span></div>';
     }).join('') + '</div>' + (up.length ? '<div class="x-upg"><b>方案以 ' + E(d.items.filter(function (i) { return !i.upg; }).map(function (i) { return i.size + ' ' + i.main; })[0] || '基本餐') + ' 為基本價，升級另加：</b>' + up.map(function (u) { return '<span>' + E(u) + '</span>'; }).join('') + '</div>' : '') +
-    '<div class="x-note">訂閱與線上單點即將開放，屆時需以 LINE 登入。</div></section>';
+    '<div class="x-note">' + Z.ct('健康餐|訂閱備註', '訂閱與線上單點即將開放，屆時需以 LINE 登入。') + '</div></section>';
 
-  html += '</div><section class="x-band2"><div class="en" style="color:#D2AE86">Contact</div><div class="h" style="font-size:28px;margin:6px 0 20px">想了解月訂閱或團體訂購？</div><a class="btn" href="contact.html">聯絡我們</a></section>';
+  html += '</div><section class="x-band2"><div class="en" style="color:#D2AE86">' + Z.ct('健康餐|橫幅英文', 'Contact') + '</div><div class="h" style="font-size:28px;margin:6px 0 20px">' + Z.ct('健康餐|橫幅標題', '想了解月訂閱或團體訂購？') + '</div><a class="btn" href="contact.html">' + Z.ct('健康餐|橫幅按鈕', '聯絡我們') + '</a></section>';
   h.innerHTML = html;
 }
 function vegCell(x, sub) { return '<div><i style="background:' + (COL[x.color] || '#9AA58F') + '"></i>' + E(x.name) + '<small>' + E(sub) + '</small></div>'; }
