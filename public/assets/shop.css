@@ -1,0 +1,97 @@
+/* 漢口各樓層店家頁：電梯到站版（搭配 hankou.css 的深色配色與電梯門） */
+.sp-arr{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 56px;background:rgba(15,23,24,.95);border-top:1px solid rgba(217,180,119,.4);border-bottom:1px solid rgba(217,180,119,.4)}
+.sp-arr .crumb{font-size:12px;letter-spacing:.2em;color:var(--mute);flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sp-arr .crumb a{color:var(--gold)}
+.sp-arr .mid{display:flex;align-items:center;gap:12px}
+.sp-arr .ev-lv{font-size:34px}
+.sp-arr .mid .t{font-size:12px;letter-spacing:.16em;color:var(--mute);line-height:1.6;white-space:nowrap}
+.sp-arr .mid .t b{display:block;font-family:'Noto Serif TC',serif;font-weight:400;font-size:14px;color:var(--ink)}
+.sp-arr .sp-fm{display:flex;gap:8px;flex:1 1 0;justify-content:flex-end}
+.sp-arr .ev-b{width:34px;height:34px;font-size:16px}
+
+.sp-hero{display:grid;grid-template-columns:1.3fr 1fr;gap:64px;padding:70px 100px 80px;align-items:center}
+.sp-hero .ev-door{aspect-ratio:3/2}
+.sp-hero .ev-door.op .ev-dl{transform:translateX(-86%)}.sp-hero .ev-door.op .ev-dr{transform:translateX(86%)}
+.sp-hero .ev-pic img,.sp-nb .ev-pic img{width:100%;height:100%;object-fit:cover;display:block}
+.sp-nm{font-family:'Noto Serif TC',serif;font-weight:500;font-size:46px;letter-spacing:.12em;line-height:1.35;margin:10px 0 16px}
+.sp-tg{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.sp-tg span{border:1px solid var(--line);padding:3px 12px;font-size:12px;letter-spacing:.14em;color:var(--mute)}
+.sp-now{display:flex;align-items:center;flex-wrap:wrap;gap:10px;font-size:14px;letter-spacing:.1em;margin-bottom:22px}
+.sp-now .ev-dot{width:8px;height:8px}
+.sp-now .off{color:var(--mute)}
+.sp-line{font-family:'Noto Serif TC',serif;font-size:17px;letter-spacing:.1em;margin:0 0 12px;color:var(--gold)}
+.sp-intro{font-size:15px;line-height:2.2;color:rgba(239,232,218,.82);margin:0 0 28px;max-width:480px;white-space:pre-line}
+.sp-cta{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.sp-g{display:inline-block;padding:14px 34px;background:var(--gold);color:#141F21;letter-spacing:.36em;font-size:13px;border:1px solid var(--gold)}
+.sp-g:hover{background:#E8C68C}
+.sp-g.off{background:transparent;color:var(--mute);border-color:var(--line);pointer-events:none}
+.sp-cta .ev-ghost{padding:13px 26px}
+.sp-soc{display:flex;flex-wrap:wrap;gap:16px;margin-top:22px;font-size:12px;letter-spacing:.2em;color:var(--mute)}
+.sp-soc a{border-bottom:1px solid var(--line)}.sp-soc a:hover{color:var(--gold)}
+.sp-soc .soc{display:contents}.sp-soc .soc a{color:var(--mute)}
+
+.sp-info{display:grid;grid-template-columns:var(--cols,1.6fr 1fr 1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.sp-info>div{padding:30px 40px;border-right:1px solid var(--line)}.sp-info>div:last-child{border-right:0}
+.sp-info .ev-caps{display:block;margin-bottom:12px}
+.sp-wk{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;font-size:12px}
+.sp-wk div{border:1px solid var(--line);padding:8px 0;line-height:1.6}
+.sp-wk div b{display:block;font-weight:400;font-family:'Noto Serif TC',serif;font-size:14px}
+.sp-wk .td{border-color:var(--gold);color:var(--gold);box-shadow:0 0 10px rgba(255,214,150,.25)}
+.sp-wk .off{color:rgba(239,232,218,.35)}
+.sp-info p{margin:0;font-size:14px;line-height:2}
+.sp-info a.go{font-family:'Cormorant Garamond',serif;font-style:italic;color:var(--gold);font-size:16px}
+
+.sp-sec{padding:80px 100px;border-bottom:1px solid var(--line)}
+.sp-sh{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-bottom:30px;flex-wrap:wrap}
+.sp-sh .en{color:var(--gold)}
+.sp-sh h2{font-family:'Noto Serif TC',serif;font-weight:500;font-size:28px;letter-spacing:.2em;margin:4px 0 0}
+.sp-cats{display:flex;gap:8px;flex-wrap:wrap}
+.sp-cats button{font:inherit;background:none;cursor:pointer;padding:6px 16px;border:1px solid var(--line);font-size:12px;letter-spacing:.14em;color:var(--mute)}
+.sp-cats button.on{border-color:var(--gold);color:var(--gold)}
+.sp-mn{display:grid;grid-template-columns:1fr 1fr;gap:0 64px}
+.sp-mi{display:flex;gap:18px;align-items:center;padding:18px 0;border-bottom:1px solid var(--line);min-width:0}
+.sp-mi .th{width:84px;aspect-ratio:1;flex:none;background:#24383A;outline:1px solid rgba(217,180,119,.35);outline-offset:3px;overflow:hidden}
+.sp-mi .th img{width:100%;height:100%;object-fit:cover;display:block}
+.sp-mi .x{flex:1;min-width:0}
+.sp-mi .x b{font-family:'Noto Serif TC',serif;font-weight:500;font-size:17px;letter-spacing:.08em;display:flex;align-items:baseline;gap:10px}
+.sp-mi .x b:after{content:'';flex:1;min-width:16px;border-bottom:1px dotted rgba(217,180,119,.4);transform:translateY(-4px)}
+.sp-mi .x span{display:block;font-size:12.5px;color:var(--mute);margin-top:4px;line-height:1.8}
+.sp-mi .pr{font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--gold);white-space:nowrap}
+.sp-mi[hidden]{display:none}
+.sp-gal{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.sp-gal a{display:block;aspect-ratio:4/3;outline:1px solid rgba(217,180,119,.3);outline-offset:4px;overflow:hidden}
+.sp-gal img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s}
+.sp-gal a:hover img{transform:scale(1.03)}
+
+.sp-nb{display:grid;grid-template-columns:1fr 1.6fr;gap:64px}
+.sp-nb.solo{grid-template-columns:1fr}
+.sp-nb .same{display:grid;gap:24px}
+.sp-nb .ev-door{aspect-ratio:3/2;display:block}
+.sp-nb .ev-shop{border-top:0}
+.sp-nb h3{font-family:'Noto Serif TC',serif;font-weight:500;font-size:20px;letter-spacing:.2em;margin:4px 0 18px}
+.sp-lift a.sp-fl{display:flex;align-items:center;gap:18px;padding:14px 0;border-bottom:1px solid var(--line)}
+.sp-lift .ev-b{width:42px;height:42px;font-size:18px}
+.sp-lift .t{flex:1;font-size:14px;line-height:1.7}
+.sp-lift .t small{display:block;font-size:11px;letter-spacing:.2em;color:var(--mute)}
+.sp-lift a.sp-fl:hover .t{color:var(--gold)}
+.sp-lift .go{font-family:'Cormorant Garamond',serif;font-style:italic;color:var(--gold)}
+.sp-back{display:inline-block;margin-top:22px}
+.sp-end{text-align:center;padding:70px 22px 80px}
+.sp-end .h{font-size:24px;letter-spacing:.3em;margin:10px 0 26px}
+
+/* 手機底部預約列（沿用 .sbar） */
+.hkx .sbar{background:rgba(15,23,24,.96);border-top:1px solid rgba(217,180,119,.4)}
+.hkx .sbar .sn{font-family:'Noto Serif TC',serif}
+.hkx .sbar .btn{background:var(--gold)!important;border-color:var(--gold);color:#141F21!important}
+
+@media (max-width:900px){
+ .sp-arr{padding:8px 14px}.sp-arr .crumb{display:none}.sp-arr .mid{flex:1}.sp-arr .ev-lv{font-size:26px}.sp-arr .ev-b{width:28px;height:28px;font-size:13px}.sp-arr .sp-fm{gap:6px;flex:none}
+ .sp-hero{grid-template-columns:1fr;padding:22px 18px 34px;gap:22px}
+ .sp-nm{font-size:30px}
+ .sp-cta .sp-g{flex:1;text-align:center}
+ .sp-info{grid-template-columns:1fr}.sp-info>div{padding:22px 18px;border-right:0;border-bottom:1px solid var(--line)}.sp-info>div:last-child{border-bottom:0}
+ .sp-sec{padding:44px 18px}
+ .sp-mn{grid-template-columns:1fr}.sp-mi .th{width:68px}
+ .sp-gal{grid-template-columns:1fr 1fr;gap:10px}
+ .sp-nb{grid-template-columns:1fr;gap:34px}
+}

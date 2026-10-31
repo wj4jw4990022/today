@@ -106,6 +106,9 @@
     cur = ''; if (floors[0]) setFloor(floors[0].f);
     watch();
     if (window.EVPlants) { EVPlants(); if (document.fonts && document.fonts.ready) document.fonts.ready.then(EVPlants); }
+    /* 從店家頁的樓層按鈕過來（hankou.html#fl-2F）：直接到那一層 */
+    var hm = /^#fl-(\d+F)$/i.exec(location.hash || '');
+    if (hm && !Z.edit && document.getElementById('fl-' + hm[1]) && !render.jumped) { render.jumped = 1; setTimeout(function () { var t = document.getElementById('fl-' + hm[1]); t.scrollIntoView({ block: 'start' }); setFloor(hm[1]); }, 60); }
   }
 
   /* 捲動：目前樓層＝畫面中段那一層；門在進到畫面中段時打開 */
