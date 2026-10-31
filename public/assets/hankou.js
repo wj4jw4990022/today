@@ -83,7 +83,7 @@
     document.getElementById('dial').innerHTML = dial();
     document.getElementById('panel').innerHTML = floors.map(function (f) { return btn(f, 'button'); }).join('');
     document.getElementById('fbarbtn').innerHTML = floors.map(function (f) { return btn(f, 'button'); }).join('');
-    document.getElementById('lift').innerHTML = floors.slice().reverse().map(function (f) {
+    document.getElementById('lift').innerHTML = floors.map(function (f) {
       return '<a href="#fl-' + E(f.f) + '" data-go="' + E(f.f) + '"><span class="ev-b">' + E(num(f.f)) + '</span><span class="t"><b>' + E(Z.t('漢口總店|' + f.f + '標題', (DEF[f.f] || [])[1] || f.f)) + '</b>' + f.shops.length + ' 間</span></a>';
     }).join('');
     document.getElementById('floors').innerHTML = floors.map(floorHtml).join('');
