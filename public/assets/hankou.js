@@ -2,7 +2,7 @@
    樓層由 floor 欄位第一段推導（「1F 後段」→「1F」），依數字排序；店家順序沿用後端（sort_order）；
    每層的英文小標、標題、介紹、門內照片可在後台「頁面內容 › 漢口總店頁 › 各樓層」修改，照片留白時用該層第一間店的主圖。 */
 (function () {
-  var C = { line: '#E6DCC0', num: '#F1EFE6', on: '#E6DCC0', needle: '#FBF6E8' }; // 樓層指針的顏色（配合 hankou.css 的配色）
+  var C = { line: '#D9B477', num: '#EFE8DA', on: '#D9B477', needle: '#FBE3B2' }; // 樓層指針的顏色（配合 hankou.css 的配色）
   var DEF = {
     '1F': ['Café & Select', '咖啡與選物', '一進門的那一層。咖啡、早午餐與選物，從這裡開始一天。'],
     '2F': ['Hair & Ink', '髮型與刺青', '整理頭髮，或留下一個圖案。'],

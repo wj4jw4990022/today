@@ -1,15 +1,15 @@
-/* 漢口總店頁與店家頁：電梯大樓版。配色＝首頁同色系的森林綠牆＋奶油色字與線條；無圓角（電梯按鈕除外）。
+/* 漢口總店頁與店家頁：電梯大樓版。配色＝深綠牆（比最初的深綠淺一階）＋銅金色線條與按鈕；無圓角（電梯按鈕除外）。
    要調整色調只改這一段變數（漢口頁 hankou.js、植物 hankou-plants.js 的 SVG 顏色也在檔案開頭）。 */
 .hkx{
- --wall-hi:#638575;--wall:#4A6A5D;--wall-lo:#3B5A4E;--bg:#456457;
- --deep:#1D3D34;--deep-rgb:29,61,52;
- --ink:#F1EFE6;--mute:rgba(241,239,230,.72);--line:rgba(241,239,230,.18);
- --gold:#E6DCC0;--gold2:#CFC5A6;--gold-rgb:230,220,192;
- --lit1:#FBF6E8;--lit2:#DCD2B6;--lit-ink:#17302A;--glow-rgb:255,248,225;
- --beam-rgb:255,250,232;
- --open:#A8E0B9;--open-rgb:168,224,185;--closed:#2C463C;--soonc:#B9D3C4;
- --panel1:#2F4F44;--panel2:#3F6255;--pic1:#4A6A5D;--pic2:#1D3D34;
- --accent:var(--gold);--accent2:var(--gold);--soft:#3E5C50;--dark:var(--deep);--darkfg:var(--ink);--ph:#3E5C50}
+ --wall-hi:#33504A;--wall:#233A36;--wall-lo:#1B2E2B;--bg:#1E332F;
+ --deep:#13231F;--deep-rgb:19,35,31;
+ --ink:#EFE8DA;--mute:rgba(239,232,218,.64);--line:rgba(239,232,218,.15);
+ --gold:#D9B477;--gold2:#B8925A;--gold-rgb:217,180,119;
+ --lit1:#FBE3B2;--lit2:#C99F5F;--lit-ink:#1A1712;--glow-rgb:255,214,150;
+ --beam-rgb:255,214,160;
+ --open:#D9B477;--open-rgb:255,214,150;--closed:#56605D;--soonc:#86A39A;
+ --panel1:#22383A;--panel2:#30494B;--pic1:#33504A;--pic2:#13231F;
+ --accent:var(--gold);--accent2:var(--gold);--soft:#203632;--dark:var(--deep);--darkfg:var(--ink);--ph:#203632}
 body.hkx{background:var(--bg)}
 .hkx .btn{color:var(--lit-ink)}
 .hkx .btn.sm{color:var(--gold)}

@@ -20,7 +20,7 @@
 .sp-now .ev-dot{width:8px;height:8px}
 .sp-now .off{color:var(--mute)}
 .sp-line{font-family:'Noto Serif TC',serif;font-size:17px;letter-spacing:.1em;margin:0 0 12px;color:var(--gold)}
-.sp-intro{font-size:15px;line-height:2.2;color:rgba(241,239,230,.86);margin:0 0 28px;max-width:480px;white-space:pre-line}
+.sp-intro{font-size:15px;line-height:2.2;color:rgba(239,232,218,.84);margin:0 0 28px;max-width:480px;white-space:pre-line}
 .sp-cta{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
 .sp-g{display:inline-block;padding:14px 34px;background:var(--gold);color:var(--lit-ink);letter-spacing:.36em;font-size:13px;border:1px solid var(--gold)}
 .sp-g:hover{background:var(--lit1)}
@@ -37,7 +37,7 @@
 .sp-wk div{border:1px solid var(--line);padding:8px 0;line-height:1.6}
 .sp-wk div b{display:block;font-weight:400;font-family:'Noto Serif TC',serif;font-size:14px}
 .sp-wk .td{border-color:var(--gold);color:var(--gold);box-shadow:0 0 10px rgba(var(--glow-rgb),.25)}
-.sp-wk .off{color:rgba(241,239,230,.4)}
+.sp-wk .off{color:rgba(239,232,218,.35)}
 .sp-info p{margin:0;font-size:14px;line-height:2}
 .sp-info a.go{font-family:'Cormorant Garamond',serif;font-style:italic;color:var(--gold);font-size:16px}
 
