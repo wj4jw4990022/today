@@ -37,7 +37,7 @@
 .ev-b.on{background:radial-gradient(circle at 35% 30%,#FBE3B2,#C99F5F);color:#1a1712;box-shadow:0 0 18px rgba(255,214,150,.55)}
 
 /* 主體：左側電梯欄＋樓層 */
-.ev-body{display:grid;grid-template-columns:250px 1fr;border-top:1px solid var(--line)}
+.ev-body{display:grid;grid-template-columns:250px minmax(0,1fr);border-top:1px solid var(--line)}
 .ev-side{border-right:1px solid var(--line)}
 .ev-stick{position:sticky;top:0;padding:52px 32px}
 .ev-now{border:1px solid rgba(217,180,119,.45);padding:14px 18px;margin-bottom:28px;background:#0F1718}
@@ -78,6 +78,10 @@
 a.ev-door{display:block}
 .ev-door.has>img{position:absolute;inset:6px;width:calc(100% - 12px);height:calc(100% - 12px);object-fit:cover}
 
+.ev-lead{margin:30px 0 22px;max-width:640px}
+.ev-lobby{display:grid;grid-template-columns:repeat(var(--n,2),minmax(0,1fr));gap:30px 28px}
+.ev-cell .ev-shop{border-top:0}
+.ev-cell .ev-door{display:block}
 .ev-shop{display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line)}
 .ev-shop:first-child{border-top:1px solid var(--line)}
 .ev-dot{width:7px;height:7px;border-radius:50%!important;flex:none;border:1px solid var(--mute)}
@@ -116,7 +120,7 @@ a.ev-door{display:block}
  .ev-panel .ev-b{width:44px;height:44px;font-size:20px}
  .ev-rt .hint{display:none}
  .ev-meta{max-width:none;text-align:left}
- .ev-body{grid-template-columns:1fr}
+ .ev-body{grid-template-columns:minmax(0,1fr)}
  .ev-side{display:none}
  .ev-fbar{display:flex;position:sticky;top:0;z-index:20;align-items:center;justify-content:space-between;gap:10px;padding:9px 18px;background:rgba(15,23,24,.95);border-top:1px solid rgba(217,180,119,.4);border-bottom:1px solid rgba(217,180,119,.4)}
  .ev-fbar .ev-lv{font-size:28px;white-space:nowrap}
@@ -128,6 +132,10 @@ a.ev-door{display:block}
  .ev-fh .n{font-size:66px}
  .ev-grid,.ev-fl.rev .ev-grid{grid-template-columns:1fr;gap:18px;margin-top:28px}
  .ev-fl.rev .ev-door{order:0}
+ .ev-lead{margin:22px 0 16px}
+ .ev-lobby{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:82%;gap:14px;overflow-x:auto;padding-top:14px;margin-top:-14px;scroll-snap-type:x mandatory;margin-right:-18px;padding-right:18px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+ .ev-lobby::-webkit-scrollbar{display:none}
+ .ev-cell{scroll-snap-align:start}
  .ev-desc{margin-bottom:14px}
  .ev-acc{grid-template-columns:1fr;padding:44px 22px;text-align:center}
  .ev-acc .h{font-size:22px}

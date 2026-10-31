@@ -51,8 +51,20 @@
     var pic = img ? '<img src="' + E(img) + '" alt="' + E(first.name) + '" loading="lazy">' : '<div class="ev-beam"></div>';
     return '<section class="ev-wall ev-fl' + (i % 2 ? ' rev' : '') + '" id="fl-' + E(f.f) + '" data-f="' + E(f.f) + '"><div class="ev-beam' + (i % 2 ? '' : ' b2') + '"></div>' +
       '<div class="ev-fh"><div class="n">' + E(num(f.f)) + '<sup>F</sup></div><div><span class="ev-caps">' + Z.ct(k + '英文', d[0]) + '</span><span class="zh">' + Z.ct(k + '標題', d[1]) + '</span></div></div>' +
-      '<div class="ev-grid"><a class="ev-door' + (reduce || Z.edit ? ' op' : '') + '" href="shop.html?id=' + encodeURIComponent(first.id) + '" aria-label="' + E(first.name) + '"><span class="ev-arch">' + arch + '</span><div class="ev-in"><div class="ev-pic" data-ci="' + E(k + '照片') + '">' + pic + '</div><div class="ev-dl"></div><div class="ev-dr"></div></div></a>' +
-      '<div><p class="ev-desc">' + Z.ct(k + '介紹', d[2]) + '</p>' + f.shops.map(shopRow).join('') + '</div></div></section>';
+      (f.shops.length > 1 ? lobby(f, k, d) :
+      '<div class="ev-grid">' + door(first, arch, pic, k + '照片') +
+      '<div><p class="ev-desc">' + Z.ct(k + '介紹', d[2]) + '</p>' + f.shops.map(shopRow).join('') + '</div></div>') + '</section>';
+  }
+  function door(s, arch, pic, ci) {
+    return '<a class="ev-door' + (reduce || Z.edit ? ' op' : '') + '" href="shop.html?id=' + encodeURIComponent(s.id) + '" aria-label="' + E(s.name) + '"><span class="ev-arch">' + arch + '</span><div class="ev-in"><div class="ev-pic"' + (ci ? ' data-ci="' + E(ci) + '"' : '') + '>' + pic + '</div><div class="ev-dl"></div><div class="ev-dr"></div></div></a>';
+  }
+  /* 同一層多間店：電梯廳，一間店一扇門（店家自己的主圖，3:2），門下是店名與連結；手機版左右滑 */
+  function lobby(f, k, d) {
+    var n = f.shops.length;
+    return '<p class="ev-desc ev-lead">' + Z.ct(k + '介紹', d[2]) + '</p><div class="ev-lobby" style="--n:' + Math.min(n, 3) + '">' + f.shops.map(function (s, j) {
+      var u = Z.safeUrl(s.image), pic = u ? '<img src="' + E(u) + '" alt="' + E(s.name) + '" loading="lazy">' : '<div class="ev-beam"></div>';
+      return '<div class="ev-cell">' + door(s, '<b>' + E(f.f) + '</b><span>·</span><span>' + (j < 9 ? '0' : '') + (j + 1) + '</span>', pic, '') + shopRow(s) + '</div>';
+    }).join('') + '</div>';
   }
 
   function setFloor(f) {
@@ -112,10 +124,10 @@
     e.preventDefault();
     var f = b.getAttribute('data-go'), sec = document.getElementById('fl-' + f); if (!sec) return;
     setFloor(f);
-    var door = sec.querySelector('.ev-door');
-    if (door && !reduce) door.classList.remove('op');
+    var doors = sec.querySelectorAll('.ev-door');
+    if (!reduce) doors.forEach(function (x) { x.classList.remove('op'); });
     sec.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
-    if (door) setTimeout(function () { door.classList.add('op'); }, reduce ? 0 : 700);
+    setTimeout(function () { doors.forEach(function (x) { x.classList.add('op'); }); }, reduce ? 0 : 700);
   });
 
   Z.init('hankou', render);
