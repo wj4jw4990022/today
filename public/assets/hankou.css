@@ -11,6 +11,7 @@
 .ev-beam{position:absolute;inset:0;pointer-events:none;background:linear-gradient(118deg,transparent 34%,rgba(255,214,160,.05) 42%,rgba(255,214,160,.16) 49%,rgba(255,214,160,.06) 56%,transparent 64%)}
 .ev-beam.b2{background:linear-gradient(118deg,transparent 56%,rgba(255,214,160,.05) 60%,rgba(255,214,160,.11) 63%,transparent 68%)}
 :where(.ev-wall>*:not(.ev-beam)){position:relative}
+.ev-plant{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
 .ev-caps{font-size:10px;letter-spacing:.38em;text-transform:uppercase;color:var(--gold)}
 .ev-it{font-family:'Cormorant Garamond',serif;font-style:italic}
 
