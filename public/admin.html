@@ -189,7 +189,8 @@ body.hasbar .pg{padding-bottom:170px}
 .sef .was{font-size:11px;color:#8a6a00;margin-top:3px}
 .galed{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
 .galed figure{margin:0;position:relative}
-.galed .thumb{width:100%;height:84px;object-fit:cover}
+.galed .thumb{width:100%;height:auto;aspect-ratio:4/3;object-fit:cover}
+.thumb.r32{width:108px;height:72px}.thumb.rog{width:137px;height:72px}
 .galed .x{position:absolute;top:-7px;right:-7px;cursor:pointer;z-index:3;background:var(--dark);color:#fff;width:20px;height:20px;text-align:center;line-height:20px}
 .galed .gfa{display:flex;position:absolute;left:0;right:0;bottom:0;background:rgba(23,48,42,.78)}
 .galed .gfa button{flex:1;border:0;background:transparent;color:#fff;cursor:pointer;line-height:22px}
@@ -215,6 +216,7 @@ body.hasbar .pg{padding-bottom:170px}
 <div id="lb"><img alt=""></div>
 <script src="assets/config.js"></script>
 <script src="assets/app.js"></script>
+<script src="assets/cropper.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 var E = Z.esc, tok = '', me = null, view = 'home', stab = 'bookings', shopSel = '', hallSel = '漢口總店', cache = {};
@@ -336,12 +338,12 @@ function shrink(file) {
   return new Promise(function (res, rej) {
     var url = URL.createObjectURL(file), img = new Image();
     img.onload = function () {
-      var w = img.naturalWidth, h = img.naturalHeight, k = Math.min(1, 1600 / Math.max(w, h));
+      var w = img.naturalWidth, h = img.naturalHeight, k = Math.min(1, 2400 / Math.max(w, h)); // 原圖保存：長邊最多 2400
       w = Math.round(w * k); h = Math.round(h * k);
       var c = document.createElement('canvas'); c.width = w; c.height = h;
       var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, w, h); x.drawImage(img, 0, 0, w, h);
       URL.revokeObjectURL(url);
-      c.toBlob(function (b) { b ? res(b) : rej(new Error('圖片處理失敗')); }, 'image/jpeg', 0.85);
+      Crop.jpeg(c, 1400000).then(res, function () { rej(new Error('圖片處理失敗')); });
     };
     img.onerror = function () { rej(new Error('這個檔案無法讀取。請使用 JPG、PNG 或 WebP（iPhone 的 HEIC 請先轉成 JPG）')); };
     img.src = url;
@@ -350,13 +352,46 @@ function shrink(file) {
 function b64(blob) {
   return new Promise(function (res, rej) { var r = new FileReader(); r.onload = function () { res(String(r.result).split(',')[1]); }; r.onerror = rej; r.readAsDataURL(blob); });
 }
-function upload(file, target) {
-  if (!/^image\//.test(file.type) && !/\.(jpe?g|png|webp|heic)$/i.test(file.name)) return Promise.reject(new Error('請選擇圖片檔'));
-  return shrink(file).then(b64).then(function (d) { return call('adminUploadImage', { target: target, name: file.name, data: d }); });
+/* ---------- 圖片：每個位置固定比例，上傳後先裁切；原圖一起保存，之後可重新裁切 ---------- */
+var SLOT = {
+  wide: { ratio: [3, 2], out: [1800, 1200], label: '3 : 2' },
+  gal: { ratio: [4, 3], out: [1600, 1200], label: '4 : 3' },
+  sq: { ratio: [1, 1], out: [1000, 1000], label: '1 : 1' },
+  og: { ratio: [1200, 630], out: [1200, 630], label: '1.91 : 1' }
+};
+function slotOfKey(k) { return k === '首頁|分享圖片' ? SLOT.og : SLOT.wide; }
+function imgId(u) { var m = /^\/img\/([\w-]+)$/.exec(u || ''); return m ? m[1] : ''; }
+function cropUpload(img, target, slot, info, crop, origId) {
+  return Crop.open(Object.assign({ img: img, crop: crop }, slot, info)).then(function (r) {
+    if (!r) return null;
+    toast('上傳中…');
+    return b64(r.blob).then(function (d) { return call('adminUploadImage', { target: target, name: 'crop.jpg', data: d, origId: origId, crop: r.crop }); }).then(function (x) { return x.url; });
+  });
 }
-function pickFiles(multiple, target, done) {
+function upload(file, target, slot, info) {
+  if (!/^image\//.test(file.type) && !/\.(jpe?g|png|webp|heic)$/i.test(file.name)) return Promise.reject(new Error('請選擇圖片檔'));
+  return Crop.load(file).then(function (img) {
+    return Crop.open(Object.assign({ img: img, name: file.name }, slot, info)).then(function (r) {
+      if (!r) return null;
+      toast('上傳中…');
+      return shrink(file).then(b64).then(function (d) { return call('adminUploadImage', { target: target, name: file.name, data: d }); }).then(function (o) {
+        return b64(r.blob).then(function (d) { return call('adminUploadImage', { target: target, name: file.name, data: d, origId: imgId(o.url), crop: r.crop }); });
+      }).then(function (x) { return x.url; });
+    });
+  });
+}
+/* 重新裁切已上傳的圖：用原圖與上次的範圍打開裁切視窗 */
+function recrop(url, target, slot, info, done) {
+  if (!url) { toast('還沒有圖片'); return; }
+  if (!imgId(url)) { toast('這張是外部連結的圖片，請按「上傳」重新上傳一次，之後就能裁切'); return; }
+  toast('讀取原圖…');
+  call('adminImageInfo', { url: url }).then(function (r) {
+    return Crop.load(r.orig).then(function (img) { return cropUpload(img, target, slot, Object.assign({ name: '原圖' }, info), r.crop, imgId(r.orig)); });
+  }).then(function (u) { if (u) { toast('已裁切，記得按「儲存」'); done(u); } }).catch(function (e) { toast(e.message); });
+}
+function pickFiles(multiple, target, done, slot, info) {
   var fi = $('fi'); fi.multiple = !!multiple; fi.value = '';
-  pend = { target: target, done: done }; fi.click();
+  pend = { target: target, done: done, slot: slot || SLOT.wide, info: info || {} }; fi.click();
 }
 function upBtn(label) { return '<button type="button" class="btn sm" data-up="1">' + (label || '上傳圖片') + '</button>'; }
 
@@ -399,10 +434,9 @@ function drawTabs() {
 }
 $('fi').onchange = function () {
   var files = Array.from(this.files || []), p = pend; if (!files.length || !p) return;
-  toast('上傳中…（' + files.length + ' 張）');
   var urls = [];
-  files.reduce(function (chain, f) { return chain.then(function () { return upload(f, p.target).then(function (r) { urls.push(r.url); }); }); }, Promise.resolve())
-    .then(function () { toast('上傳完成，記得按「儲存」'); p.done(urls); })
+  files.reduce(function (chain, f, i) { return chain.then(function () { return upload(f, p.target, p.slot, Object.assign({}, p.info, files.length > 1 ? { crumb: (p.info.crumb || '') + '　第 ' + (i + 1) + ' / ' + files.length + ' 張' } : {})).then(function (u) { if (u) urls.push(u); }); }); }, Promise.resolve())
+    .then(function () { if (urls.length) { toast('上傳完成，記得按「儲存」'); p.done(urls); } })
     .catch(function (e) { toast(e.message); if (urls.length) p.done(urls); });
 };
 function show() {
@@ -513,7 +547,7 @@ function setOpen(id, on) { return call('adminSetShopOpen', { shopId: id, open: o
 /* 服務項目（每間店自己的項目：名稱、介紹、價格、圖片） */
 function itemCard(r, i) {
   var isNew = !r.id;
-  return '<div class="icard' + (isNew ? ' new' : '') + '" data-i="' + i + '"><div class="im"><img class="thumb" alt=""' + (r.image ? ' src="' + E(r.image) + '"' : ' style="background:var(--soft)"') + '><button type="button" class="btn sm" data-up-item="1" style="padding:6px 10px">上傳圖片</button></div>' +
+  return '<div class="icard' + (isNew ? ' new' : '') + '" data-i="' + i + '"><div class="im"><img class="thumb" alt=""' + (r.image ? ' src="' + E(r.image) + '"' : ' style="background:var(--soft)"') + '><button type="button" class="btn sm" data-up-item="1" style="padding:6px 10px">上傳圖片</button><button type="button" class="btn sm line" data-crop-item="1" style="padding:6px 10px">裁切</button></div>' +
     '<div class="bd"><div class="g"><div class="field" style="flex:2 1 200px"><label>' + (isNew ? '＋ 新增：名稱' : '名稱') + '</label><input data-f="name" value="' + E(r.name) + '"></div><div class="field"><label>分類（選填）</label><input data-f="cat" value="' + E(r.cat) + '"></div>' +
     '<div class="field"><label>價格</label><input data-f="price" value="' + E(r.price) + '" placeholder="例如 NT$1,200 起"></div><div class="field" style="flex:0 0 80px"><label>排序</label><input data-f="order" value="' + E(r.order) + '"></div></div>' +
     '<div class="field"><label>介紹</label><textarea data-f="desc" style="min-height:60px">' + E(r.desc) + '</textarea></div><input data-f="image" data-lb="圖片" type="hidden" value="' + E(r.image) + '">' +
@@ -539,7 +573,7 @@ function vMenu(s) {
     cache.menu = rows;
     $('sp').innerHTML = '<div class="tw"><table><tr><th>分類</th><th>品名</th><th>介紹</th><th>價格</th><th>圖片網址</th><th>排序</th><th>供應中</th><th></th></tr>' +
       rows.concat([{ id: '', cat: '', name: '', desc: '', price: '', image: '', on: true, order: '' }]).map(function (r, i) {
-        return '<tr data-i="' + i + '"><td><input class="mini" style="width:90px" data-f="cat" value="' + E(r.cat) + '"></td><td><input class="mini" style="width:130px" data-f="name" value="' + E(r.name) + '"></td><td><input class="mini" style="width:200px" data-f="desc" value="' + E(r.desc) + '"></td><td><input class="mini" style="width:70px" data-f="price" value="' + E(r.price) + '"></td><td><img class="thumb s pvs" alt="" style="display:none"><input class="mini" style="width:120px" data-f="image" value="' + E(r.image) + '"> <button type="button" class="btn sm" data-up-row="1" style="padding:4px 10px">上傳</button></td><td><input class="mini" style="width:50px" data-f="order" value="' + E(r.order) + '"></td><td><input type="checkbox" data-f="on"' + (r.on ? ' checked' : '') + '></td><td><button class="btn sm" data-save="' + i + '">' + (r.id ? '儲存' : '新增') + '</button>' + (r.id ? ' <button class="btn sm" data-del="' + i + '">刪除</button>' : '') + '</td></tr>';
+        return '<tr data-i="' + i + '"><td><input class="mini" style="width:90px" data-f="cat" value="' + E(r.cat) + '"></td><td><input class="mini" style="width:130px" data-f="name" value="' + E(r.name) + '"></td><td><input class="mini" style="width:200px" data-f="desc" value="' + E(r.desc) + '"></td><td><input class="mini" style="width:70px" data-f="price" value="' + E(r.price) + '"></td><td><img class="thumb s pvs" alt="" style="display:none"><input class="mini" style="width:120px" data-f="image" value="' + E(r.image) + '"> <button type="button" class="btn sm" data-up-row="1" style="padding:4px 10px">上傳</button> <button type="button" class="btn sm line" data-crop-row="1" style="padding:4px 10px">裁切</button></td><td><input class="mini" style="width:50px" data-f="order" value="' + E(r.order) + '"></td><td><input type="checkbox" data-f="on"' + (r.on ? ' checked' : '') + '></td><td><button class="btn sm" data-save="' + i + '">' + (r.id ? '儲存' : '新增') + '</button>' + (r.id ? ' <button class="btn sm" data-del="' + i + '">刪除</button>' : '') + '</td></tr>';
       }).join('') + '</table></div><p class="sd">最後一列是新增品項。分類相同的品項會顯示在同一區；排序數字小的在前面。修改過的欄位會標成黃色，按該列的「儲存」才生效。</p>';
     watch($('sp'), { redraw: function () { vMenu(s); } });
   }).catch(err);
@@ -565,7 +599,7 @@ function vHealth() {
   }).catch(err);
 }
 function hInp(f, v, w) { return '<input class="mini" style="width:' + w + 'px" data-f="' + f + '" value="' + E(v) + '">'; }
-function hImg(v, tg) { return '<img class="thumb s pvs" alt="" style="display:none"><input class="mini" style="width:84px" data-f="image" value="' + E(v) + '"> <button type="button" class="btn sm" data-hup="' + E(tg) + '" style="padding:4px 10px">上傳</button>'; }
+function hImg(v, tg) { return '<img class="thumb s pvs" alt="" style="display:none"><input class="mini" style="width:84px" data-f="image" value="' + E(v) + '"> <button type="button" class="btn sm" data-hup="' + E(tg) + '" style="padding:4px 10px">上傳</button> <button type="button" class="btn sm line" data-hcrop="' + E(tg) + '" style="padding:4px 10px">裁切</button>'; }
 function hRow(tr) { var o = {}; tr.querySelectorAll('[data-f]').forEach(function (el) { o[el.getAttribute('data-f')] = el.type === 'checkbox' ? el.checked : el.value; }); return o; }
 function hItems(r) {
   var rows = r.items.concat([{ id: '', size: '', main: '', mainDesc: '', rice: '', vegG: '250', kcal: '', protein: '', carb: '', fat: '', price: '', upg: '0', name: '', desc: '', image: '', on: true, order: '' }]);
@@ -601,7 +635,8 @@ function hSet(r) {
 document.addEventListener('click', function (e) {
   var t = e.target, b;
   if ((b = t.closest('[data-htab]'))) { if (!guard()) return; htab = b.getAttribute('data-htab'); vHealth(); return; }
-  if ((b = t.closest('[data-hup]'))) { var inp = b.parentNode.querySelector('input[data-f=image]'); pickFiles(false, b.getAttribute('data-hup'), function (u) { if (u[0]) setVal(inp, u[0]); }); return; }
+  if ((b = t.closest('[data-hup]'))) { var inp = b.parentNode.querySelector('input[data-f=image]'); pickFiles(false, b.getAttribute('data-hup'), function (u) { if (u[0]) setVal(inp, u[0]); }, SLOT.sq, { title: '健康餐圖片', crumb: '健康餐' }); return; }
+  if ((b = t.closest('[data-hcrop]'))) { var inq = b.parentNode.querySelector('input[data-f=image]'); recrop(inq.value, b.getAttribute('data-hcrop'), SLOT.sq, { title: '健康餐圖片', crumb: '健康餐' }, function (u) { setVal(inq, u); }); return; }
   if ((b = t.closest('[data-hsave]'))) {
     var tr = b.closest('tr'), kind = b.getAttribute('data-hsave'), i = Number(tr.getAttribute('data-hi')), ls = labelsIn(tr), o = hRow(tr), H = cache.h, req, nm;
     if (!ls.length) { toast('這一列沒有修改'); return; }
@@ -635,11 +670,16 @@ document.addEventListener('click', function (e) {
   if ((b = t.closest('[data-bulk]'))) { var on = b.getAttribute('data-bulk') === '1'; Promise.all(me.shops.map(function (s) { return setOpen(s.id, on); })).then(function () { toast(on ? '已全部開放' : '已全部暫停'); vHome(); }); return; }
   if ((b = t.closest('[data-up-item]'))) {
     var card = b.closest('.icard'), hid = card.querySelector('[data-f=image]'), th = card.querySelector('.thumb');
-    pickFiles(false, 'shop:' + shopSel, function (u) { if (u[0]) { th.classList.remove('broken'); th.src = u[0]; th.style.visibility = 'visible'; setVal(hid, u[0]); } }); return;
+    pickFiles(false, 'shop:' + shopSel, function (u) { if (u[0]) { th.classList.remove('broken'); th.src = u[0]; th.style.visibility = 'visible'; setVal(hid, u[0]); } }, SLOT.sq, { title: '項目圖片', crumb: shopName(shopSel) }); return;
+  }
+  if ((b = t.closest('[data-crop-item]'))) {
+    var cc = b.closest('.icard'), ch = cc.querySelector('[data-f=image]'), ct = cc.querySelector('.thumb');
+    recrop(ch.value, 'shop:' + shopSel, SLOT.sq, { title: '項目圖片', crumb: shopName(shopSel) }, function (u) { ct.src = u; setVal(ch, u); }); return;
   }
   if ((b = t.closest('[data-isave]'))) { var ii = b.getAttribute('data-isave'), ib = labelsIn(b.closest('.icard')); if (!ib.length) { toast('這個項目沒有修改'); return; } var iname = itemOf(ii).name; call('adminSaveItem', { shopId: shopSel, item: itemOf(ii) }).then(function () { toast('已儲存「' + iname + '」：' + ib.join('、')); clearW(); vItems(getShop(shopSel)); }).catch(function (er) { toast(er.message); }); return; }
   if ((b = t.closest('[data-idel]'))) { var di = b.getAttribute('data-idel'); if (confirm('確定刪除這個項目？')) call('adminDeleteItem', { shopId: shopSel, id: cache.items[di].id }).then(function () { toast('已刪除'); vItems(getShop(shopSel)); }).catch(function (er) { toast(er.message); }); return; }
-  if ((b = t.closest('[data-up-row]'))) { var inp = b.parentNode.querySelector('input'); pickFiles(false, 'menu:' + hallSel, function (u) { if (u[0]) setVal(inp, u[0]); }); return; }
+  if ((b = t.closest('[data-up-row]'))) { var inp = b.parentNode.querySelector('input'); pickFiles(false, 'menu:' + hallSel, function (u) { if (u[0]) setVal(inp, u[0]); }, SLOT.sq, { title: '餐點圖片', crumb: hallSel }); return; }
+  if ((b = t.closest('[data-crop-row]'))) { var inr = b.parentNode.querySelector('input'); recrop(inr.value, 'menu:' + hallSel, SLOT.sq, { title: '餐點圖片', crumb: hallSel }, function (u) { setVal(inr, u); }); return; }
   if ((b = t.closest('[data-save]'))) { var mb = labelsIn(b.closest('tr')); if (!mb.length) { toast('這一列沒有修改'); return; } var mn = rowItem(b.getAttribute('data-save')).name; call('adminSaveMenu', { hall: hallSel, item: rowItem(b.getAttribute('data-save')) }).then(function () { toast('已儲存「' + mn + '」：' + mb.join('、')); clearW(); vMenu(getShop(shopSel)); }).catch(function (er) { toast(er.message); }); return; }
   if ((b = t.closest('[data-del]')) && confirm('確定刪除這個品項？')) call('adminDeleteMenu', { hall: hallSel, id: cache.menu[b.getAttribute('data-del')].id }).then(function () { toast('已刪除'); vMenu(getShop(shopSel)); }).catch(function (er) { toast(er.message); });
 });
@@ -682,7 +722,7 @@ function pcLoadFrame() {
 }
 function pcField(f) {
   var k = f.key, v = PC.cur[k], id = 'pc_' + PC.fidx++, inner;
-  if (f.type === 'image') inner = '<div class="upl"><img class="thumb" alt="" ' + (v.image ? 'src="' + E(v.image) + '"' : 'style="visibility:hidden"') + '><button type="button" class="btn sm" data-pcup="' + E(k) + '">上傳圖片</button><button type="button" class="btn sm line" data-pcclr="' + E(k) + '">清除</button></div>';
+  if (f.type === 'image') inner = '<div class="upl"><img class="thumb ' + (slotOfKey(k) === SLOT.og ? 'rog' : 'r32') + '" alt="" ' + (v.image ? 'src="' + E(v.image) + '"' : 'style="visibility:hidden"') + '><button type="button" class="btn sm" data-pcup="' + E(k) + '">上傳圖片</button><button type="button" class="btn sm line" data-pccrop="' + E(k) + '">重新裁切</button><button type="button" class="btn sm line" data-pcclr="' + E(k) + '">清除</button></div><div class="sd" style="margin-top:4px">固定比例 ' + slotOfKey(k).label + '，建議 ' + slotOfKey(k).out.join(' × ') + ' 以上；上傳後可裁切</div>';
   else if (f.type === 'long' || f.type === 'list') inner = '<textarea id="' + id + '" rows="' + (f.type === 'list' ? 5 : 3) + '" data-pck="' + E(k) + '" placeholder="' + (f.opt ? '留白＝前台不顯示' : '') + '">' + E(v.text) + '</textarea>';
   else inner = '<input id="' + id + '" data-pck="' + E(k) + '" value="' + E(v.text) + '" placeholder="' + (f.opt ? '留白＝前台不顯示' : '') + '"' + (f.type === 'url' ? ' inputmode="url"' : '') + '>';
   return '<div class="field pcf" data-k="' + E(k) + '"><label>' + E(f.label) + (f.opt ? '<span class="pill">選填</span>' : '') + '</label>' + inner + '<div class="was" style="display:none"></div></div>';
@@ -755,7 +795,8 @@ document.addEventListener('click', function (e) {
   if ((b = t.closest('[data-pcpage]'))) { PC.pi = Number(b.getAttribute('data-pcpage')); PC.tab = 'edit'; pcShow(); return; }
   if ((b = t.closest('[data-pctab]'))) { PC.tab = 'history'; pcShow(); return; }
   if ((b = t.closest('[data-dev]'))) { var mob = b.getAttribute('data-dev') === 'mob'; $('pcFw').classList.toggle('mob', mob); document.querySelectorAll('#pcDev button').forEach(function (x) { x.classList.toggle('on', x === b); }); pcScale(); return; }
-  if ((b = t.closest('[data-pcup]'))) { var k = b.getAttribute('data-pcup'); pickFiles(false, 'content', function (u) { if (u[0]) { pcSetVal(k, undefined, u[0]); var th = b.parentNode.querySelector('.thumb'); th.src = u[0]; th.style.visibility = 'visible'; } }); return; }
+  if ((b = t.closest('[data-pcup]'))) { var k = b.getAttribute('data-pcup'); pickFiles(false, 'content', function (u) { if (u[0]) { pcSetVal(k, undefined, u[0]); var th = b.parentNode.querySelector('.thumb'); th.src = u[0]; th.style.visibility = 'visible'; } }, slotOfKey(k), { title: PC.fld[k].label, crumb: '頁面內容 › ' + k.split('|')[0] }); return; }
+  if ((b = t.closest('[data-pccrop]'))) { var kc = b.getAttribute('data-pccrop'); recrop(PC.cur[kc].image, 'content', slotOfKey(kc), { title: PC.fld[kc].label, crumb: '頁面內容 › ' + kc.split('|')[0] }, function (u) { pcSetVal(kc, undefined, u); var th = b.parentNode.querySelector('.thumb'); th.src = u; th.style.visibility = 'visible'; }); return; }
   if ((b = t.closest('[data-pcclr]'))) { var k2 = b.getAttribute('data-pcclr'); pcSetVal(k2, undefined, ''); b.parentNode.querySelector('.thumb').style.visibility = 'hidden'; return; }
   if (t.closest('#pcSave')) { pcConfirm(); return; }
   if (t.closest('#pcReset')) { pcFields().forEach(function (x) { if (x.pi === PC.pi) PC.cur[x.f.key] = { text: PC.base[x.f.key].text, image: PC.base[x.f.key].image }; }); pcDraw(); pcSend(); return; }
@@ -833,7 +874,7 @@ function seBody(n) {
   if (n === 5) return '<div class="g">' + seField('btnMode', '主按鈕功能', { type: 'select', opts: [['預約', '線上預約（到預約頁）'], ['電話', '撥打電話'], ['不顯示', '不顯示按鈕']] }) + seField('btnText', '按鈕文字', { max: 10 }) + seField('phone', '店家電話', { ph: '07-0000000', hint: '選「撥打電話」要先填電話' }) + '</div>' +
     '<div class="g">' + seField('ig', 'Instagram 連結', { ph: 'https://instagram.com/...' }) + seField('fb', 'Facebook 連結', { ph: 'https://facebook.com/...' }) + seField('line', 'LINE 連結', { ph: 'https://line.me/...' }) + '</div>' +
     '<p class="sd">連結留白＝前台不顯示。頁面上的「' + E(t('店家頁|回漢口按鈕')) + '」' + (s.id === 'h1' ? '、「' + E(t('店家頁|看餐點按鈕')) + '」' : '') + '按鈕文字是全部店共用。</p>' + (s.id === 'p' ? '' : seSharedBtn());
-  if (n === 6) return '<div class="field sef" data-k="image"><label>主圖</label><div class="upl"><img class="thumb" id="seImg" alt="" ' + (c.image ? 'src="' + E(c.image) + '"' : 'style="visibility:hidden"') + '><button type="button" class="btn sm" data-seimgup="1">上傳圖片</button><button type="button" class="btn sm line" data-seimgclr="1">清除</button></div><div class="was" style="display:none"></div></div>';
+  if (n === 6) return '<div class="field sef" data-k="image"><label>主圖</label><div class="upl"><img class="thumb r32" id="seImg" alt="" ' + (c.image ? 'src="' + E(c.image) + '"' : 'style="visibility:hidden"') + '><button type="button" class="btn sm" data-seimgup="1">上傳圖片</button><button type="button" class="btn sm line" data-seimgcrop="1">重新裁切</button><button type="button" class="btn sm line" data-seimgclr="1">清除</button></div><div class="sd" style="margin-top:4px">固定比例 3 : 2，建議 1800 × 1200 以上；上傳後可裁切</div><div class="was" style="display:none"></div></div>';
   if (n === 7) return seField('itemsTitle', '這一區的標題', { max: 12, ph: '服務項目、療程、方案、商品' }) + '<div class="field sef" data-k="items"><label>項目（▲▼ 調順序；同「分類」的會排在一起）</label><div id="seItems"></div><div class="was" style="display:none"></div></div><p><button type="button" class="btn sm line" data-seitadd="1">＋ 新增一個項目</button></p><p class="sd">英文小標「' + E(t('店家頁|項目英文')) + '」是全部店共用。價格可自由輸入文字。取消「顯示」的項目前台不會出現。</p>';
   if (n === 8) return '<div class="field sef" data-k="gallery"><label>相簿照片（最多 12 張）</label><div id="seGal" class="galed"></div><div class="was" style="display:none"></div></div>';
   if (n === 9) return '<p class="sd">這一區會自動列出漢口總店的其他店家，順序在「店家總覽」用 ▲▼ 調整。標題「' + E(t('店家頁|同棟標題')) + '」是<b>全部店共用</b>。</p>' + seSharedBtn();
@@ -843,7 +884,7 @@ function seDrawItems() {
   var box = $('seItems'); if (!box) return;
   var its = SE.cur.items;
   box.innerHTML = its.length ? its.map(function (r, i) {
-    return '<div class="icard" data-si="' + i + '"><div class="im"><img class="thumb" alt=""' + (r.image ? ' src="' + E(r.image) + '"' : ' style="background:var(--soft)"') + '><button type="button" class="btn sm" data-seitup="' + i + '" style="padding:6px 10px">上傳圖片</button></div>' +
+    return '<div class="icard" data-si="' + i + '"><div class="im"><img class="thumb" alt=""' + (r.image ? ' src="' + E(r.image) + '"' : ' style="background:var(--soft)"') + '><button type="button" class="btn sm" data-seitup="' + i + '" style="padding:6px 10px">上傳圖片</button>' + (r.image ? '<button type="button" class="btn sm line" data-seitcrop="' + i + '" style="padding:6px 10px">裁切</button>' : '') + '</div>' +
       '<div class="bd"><div class="g"><div class="field" style="flex:2 1 160px"><label>名稱</label><input data-sei="' + i + '" data-sef="name" value="' + E(r.name) + '"></div><div class="field"><label>分類（選填）</label><input data-sei="' + i + '" data-sef="cat" value="' + E(r.cat) + '"></div><div class="field"><label>價格</label><input data-sei="' + i + '" data-sef="price" value="' + E(r.price) + '" placeholder="NT$1,200 起"></div></div>' +
       '<div class="field"><label>介紹（沒有就不顯示）</label><textarea data-sei="' + i + '" data-sef="desc" style="min-height:50px">' + E(r.desc) + '</textarea></div>' +
       '<div class="hrow"><label class="sw"><input type="checkbox" data-sei="' + i + '" data-sef="on"' + (r.on ? ' checked' : '') + '>顯示在前台</label><button type="button" class="btn sm line" data-seitmv="' + i + ',-1">▲</button><button type="button" class="btn sm line" data-seitmv="' + i + ',1">▼</button><button type="button" class="btn sm line" data-seitdel="' + i + '">刪除</button></div></div></div>';
@@ -852,7 +893,7 @@ function seDrawItems() {
 function seDrawGal() {
   var box = $('seGal'); if (!box) return; var g = SE.cur.gallery, g0 = SE.base.gallery;
   box.innerHTML = g.map(function (u, i) {
-    return '<figure' + (g0.indexOf(u) < 0 ? ' class="new"' : '') + '><img class="thumb" src="' + E(u) + '" alt=""><span class="x" data-segrm="' + i + '" title="移除">×</span><div class="gfa"><button type="button" data-segmv="' + i + ',-1" title="往前">‹</button><button type="button" data-segmain="' + i + '" title="設為主圖">★</button><button type="button" data-segmv="' + i + ',1" title="往後">›</button></div></figure>';
+    return '<figure' + (g0.indexOf(u) < 0 ? ' class="new"' : '') + '><img class="thumb" src="' + E(u) + '" alt=""><span class="x" data-segrm="' + i + '" title="移除">×</span><div class="gfa"><button type="button" data-segmv="' + i + ',-1" title="往前">‹</button><button type="button" data-segmain="' + i + '" title="設為主圖（會先裁成 3:2）">★</button><button type="button" data-segcrop="' + i + '" title="重新裁切">✂</button><button type="button" data-segmv="' + i + ',1" title="往後">›</button></div></figure>';
   }).join('') + (g.length < 12 ? '<button type="button" class="addp" data-segadd="1">＋<br>新增照片<small>可一次選多張</small></button>' : '');
 }
 function seSelect(n, noHl) {
@@ -965,17 +1006,31 @@ document.addEventListener('click', function (e) {
   if (t.closest('[data-seshared]')) { if (!guard()) return; window._pcGo = 'shop'; view = 'content'; drawTabs(); show(); return; }
   if (t.closest('#seSave')) { seConfirm(); return; }
   if (t.closest('#seReset')) { if (!SE.cur || !seDirty().length || confirm('放棄所有未儲存的修改？')) { SE.cur = JSON.parse(JSON.stringify(SE.base)); seDraw(); sePost(); } return; }
-  if (t.closest('[data-seimgup]')) { pickFiles(false, 'shop:' + SE.s.id, function (u) { if (u[0]) { SE.cur.image = u[0]; var im = $('seImg'); im.src = u[0]; im.style.visibility = 'visible'; seChanged(); } }); return; }
+  function seMain(u) { SE.cur.image = u; var im = $('seImg'); if (im) { im.src = u; im.style.visibility = 'visible'; } seChanged(); }
+  var seInfo = function (tt) { return { title: tt, crumb: shopName(SE.s.id) }; };
+  if (t.closest('[data-seimgup]')) { pickFiles(false, 'shop:' + SE.s.id, function (u) { if (u[0]) seMain(u[0]); }, SLOT.wide, seInfo('主圖')); return; }
+  if (t.closest('[data-seimgcrop]')) { recrop(SE.cur.image, 'shop:' + SE.s.id, SLOT.wide, seInfo('主圖'), seMain); return; }
   if (t.closest('[data-seimgclr]')) { SE.cur.image = ''; $('seImg').style.visibility = 'hidden'; seChanged(); return; }
   if ((b = t.closest('[data-seitadd]'))) { SE.cur.items.push({ id: '', cat: '', name: '', desc: '', price: '', image: '', on: true }); seDrawItems(); seChanged(); var ins = document.querySelectorAll('#seItems .icard input[data-sef=name]'); if (ins.length) ins[ins.length - 1].focus(); return; }
-  if ((b = t.closest('[data-seitup]'))) { var ii = Number(b.getAttribute('data-seitup')); pickFiles(false, 'shop:' + SE.s.id, function (u) { if (u[0]) { SE.cur.items[ii].image = u[0]; seDrawItems(); seChanged(); } }); return; }
+  if ((b = t.closest('[data-seitup]'))) { var ii = Number(b.getAttribute('data-seitup')); pickFiles(false, 'shop:' + SE.s.id, function (u) { if (u[0]) { SE.cur.items[ii].image = u[0]; seDrawItems(); seChanged(); } }, SLOT.sq, seInfo('項目圖片')); return; }
+  if ((b = t.closest('[data-seitcrop]'))) { var ij = Number(b.getAttribute('data-seitcrop')); recrop(SE.cur.items[ij].image, 'shop:' + SE.s.id, SLOT.sq, seInfo('項目圖片'), function (u) { SE.cur.items[ij].image = u; seDrawItems(); seChanged(); }); return; }
   if ((b = t.closest('[data-seitmv]'))) { var p = b.getAttribute('data-seitmv').split(','), i = Number(p[0]), j = i + Number(p[1]), its = SE.cur.items; if (j >= 0 && j < its.length) { var x = its[i]; its[i] = its[j]; its[j] = x; seDrawItems(); seChanged(); } return; }
   if ((b = t.closest('[data-seitdel]'))) { var di = Number(b.getAttribute('data-seitdel')); if (!SE.cur.items[di].id || confirm('刪除「' + (SE.cur.items[di].name || '這個項目') + '」？按「儲存」後才會真的刪除。')) { SE.cur.items.splice(di, 1); seDrawItems(); seChanged(); } return; }
   var g = SE.cur.gallery;
   if ((b = t.closest('[data-segrm]'))) { g.splice(Number(b.getAttribute('data-segrm')), 1); seDrawGal(); seChanged(); return; }
   if ((b = t.closest('[data-segmv]'))) { var q = b.getAttribute('data-segmv').split(','), a1 = Number(q[0]), a2 = a1 + Number(q[1]); if (a2 >= 0 && a2 < g.length) { var y = g[a1]; g[a1] = g[a2]; g[a2] = y; seDrawGal(); seChanged(); } return; }
-  if ((b = t.closest('[data-segmain]'))) { var k = Number(b.getAttribute('data-segmain')), old = SE.cur.image, nu = g[k]; if (old && isHttps(old)) g[k] = old; else g.splice(k, 1); SE.cur.image = nu; var im2 = $('seImg'); if (im2) { im2.src = nu; im2.style.visibility = 'visible'; } seDrawGal(); seChanged(); return; }
-  if (t.closest('[data-segadd]')) { pickFiles(true, 'shop:' + SE.s.id, function (u) { SE.cur.gallery = SE.cur.gallery.concat(u).filter(function (v, i2, a) { return a.indexOf(v) === i2; }).slice(0, 12); seDrawGal(); seChanged(); }); return; }
+  if ((b = t.closest('[data-segcrop]'))) { var kg = Number(b.getAttribute('data-segcrop')); recrop(g[kg], 'shop:' + SE.s.id, SLOT.gal, seInfo('相簿照片'), function (u) { SE.cur.gallery[kg] = u; seDrawGal(); seChanged(); }); return; }
+  if ((b = t.closest('[data-segmain]'))) {
+    /* 相簿照片設為主圖：先裁成主圖的 3:2；原本的主圖放回相簿（再裁成 4:3，取消就不放回） */
+    var k = Number(b.getAttribute('data-segmain')), old = SE.cur.image, sid = 'shop:' + SE.s.id;
+    recrop(g[k], sid, SLOT.wide, seInfo('主圖（從相簿設定）'), function (nu) {
+      seMain(nu);
+      function put(v) { if (v) SE.cur.gallery[k] = v; else SE.cur.gallery.splice(k, 1); seDrawGal(); seChanged(); }
+      if (old && imgId(old)) recrop(old, sid, SLOT.gal, seInfo('原本的主圖放進相簿'), put); else put(old && isHttps(old) ? old : '');
+    });
+    return;
+  }
+  if (t.closest('[data-segadd]')) { pickFiles(true, 'shop:' + SE.s.id, function (u) { SE.cur.gallery = SE.cur.gallery.concat(u).filter(function (v, i2, a) { return a.indexOf(v) === i2; }).slice(0, 12); seDrawGal(); seChanged(); }, SLOT.gal, seInfo('相簿照片')); return; }
 });
 
 /* ---------- 合作洽談 ---------- */

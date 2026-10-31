@@ -128,7 +128,6 @@ a.ev-door{display:block}
  .ev-fh .n{font-size:66px}
  .ev-grid,.ev-fl.rev .ev-grid{grid-template-columns:1fr;gap:18px;margin-top:28px}
  .ev-fl.rev .ev-door{order:0}
- .ev-door{aspect-ratio:4/3.4}
  .ev-desc{margin-bottom:14px}
  .ev-acc{grid-template-columns:1fr;padding:44px 22px;text-align:center}
  .ev-acc .h{font-size:22px}

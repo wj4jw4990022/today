@@ -24,7 +24,7 @@ var E = Z.esc, SIZES = ['LIGHT', 'BALANCE', 'POWER'], COL = { '紅': '#C9483A', 
 var M = null, sel = '';
 function pic(url, label, h) {
   var u = Z.safeUrl(url);
-  return '<div class="ph x-pic' + (u ? ' has' : '') + '" style="height:' + h + 'px">' + (u ? '<img src="' + E(u) + '" alt="' + E(label) + '" loading="lazy">' : '餐點照片') + '</div>';
+  return '<div class="ph x-pic' + (u ? ' has' : '') + '" style="aspect-ratio:1/1">' + (u ? '<img src="' + E(u) + '" alt="' + E(label) + '" loading="lazy">' : '餐點照片') + '</div>';
 }
 function mmdd(s) { var p = s.split('-'); return Number(p[1]) + '/' + Number(p[2]); }
 function weekRange(s) { var d = new Date(s + 'T12:00:00'), e = new Date(d.getTime() + 6 * 86400000); return mmdd(s) + ' – ' + (e.getMonth() + 1) + '/' + e.getDate(); }

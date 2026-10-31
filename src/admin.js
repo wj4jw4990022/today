@@ -231,7 +231,7 @@ export const adminOps = {
     else if (/^(health|addon|veg):[\w-]+$/.test(t)) needShop(a, 'h1'); // 健康餐：品項、加購、本週蔬菜
     else if (t === 'content') needAll(a);
     else throw new UserError('上傳目標不正確');
-    await throttle(c, 'up_' + a.email, 60, 3600, '上傳次數過多，請一小時後再試');
+    await throttle(c, 'up_' + a.email, 150, 3600, '上傳次數過多，請一小時後再試'); // 每張新圖會上傳兩次（原圖＋裁切後）
     const b64 = String(p.data || '');
     if (!b64) throw new UserError('沒有收到圖片');
     if (b64.length > 2000000) throw new UserError('圖片太大（上限約 1.4 MB，請換較小的圖）');
@@ -240,8 +240,34 @@ export const adminOps = {
     const kind = sniffImage(head);
     if (!kind) throw new UserError('只接受 JPG、PNG、WebP 圖片');
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-    await c.env.DB.prepare('INSERT INTO images (image_id, mime, data_b64, size, uploaded_by, created_at) VALUES (?,?,?,?,?,?)').bind(id, kind.mime, b64, Math.floor(b64.length * 3 / 4), a.email, nowStamp()).run();
+    /* 裁切後的圖：記下原圖編號與裁切範圍（原圖座標，rot 為 0/90/180/270），之後可重新裁切 */
+    let origId = null, crop = null;
+    if (p.origId) {
+      origId = String(p.origId);
+      if (!/^[a-z0-9]{6,24}$/.test(origId)) throw new UserError('原圖編號不正確');
+      const k = p.crop || {}, n = (v) => { const x = Number(v); if (!isFinite(x) || x < 0 || x > 100000) throw new UserError('裁切範圍不正確'); return Math.round(x); };
+      crop = JSON.stringify({ x: n(k.x), y: n(k.y), w: n(k.w), h: n(k.h), rot: [0, 90, 180, 270].indexOf(Number(k.rot)) >= 0 ? Number(k.rot) : 0 });
+    }
+    const size = Math.floor(b64.length * 3 / 4), at = nowStamp();
+    try {
+      await c.env.DB.prepare('INSERT INTO images (image_id, mime, data_b64, size, uploaded_by, created_at, orig_id, crop) VALUES (?,?,?,?,?,?,?,?)').bind(id, kind.mime, b64, size, a.email, at, origId, crop).run();
+    } catch (e) {
+      if (!/orig_id|crop|no such column/i.test(String(e && e.message))) throw e;
+      /* 資料庫還沒套用 0004：照舊存圖（只是之後不能沿用原圖重新裁切） */
+      await c.env.DB.prepare('INSERT INTO images (image_id, mime, data_b64, size, uploaded_by, created_at) VALUES (?,?,?,?,?,?)').bind(id, kind.mime, b64, size, a.email, at).run();
+    }
     return { url: '/img/' + id, name: t.replace(/[^\w-]+/g, '_') + '.' + kind.ext };
+  },
+  /** 重新裁切用：查本站圖片的原圖與上次的裁切範圍；舊圖沒有原圖紀錄就用它自己當原圖 */
+  async adminImageInfo(c, p, a) {
+    const m = /^\/img\/([\w-]+)$/.exec(String(p.url || ''));
+    if (!m) throw new UserError('只有本站上傳的圖片可以重新裁切');
+    let r = null;
+    try { r = await c.env.DB.prepare('SELECT image_id, orig_id, crop FROM images WHERE image_id = ?').bind(m[1]).first(); }
+    catch (e) { r = await c.env.DB.prepare('SELECT image_id FROM images WHERE image_id = ?').bind(m[1]).first(); }
+    if (!r) throw new UserError('找不到這張圖片');
+    let crop = null; try { crop = r.crop ? JSON.parse(r.crop) : null; } catch (e) { crop = null; }
+    return { orig: '/img/' + (r.orig_id || r.image_id), crop: r.orig_id ? crop : null };
   },
   async adminInquiries(c, p, a) {
     needAll(a);

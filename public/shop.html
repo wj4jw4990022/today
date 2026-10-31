@@ -62,7 +62,7 @@ Z.init('shop', function (d) {
   el('intro').textContent = Z.isPlaceholder(shop.intro) ? '[店家介紹]' : shop.intro;
   el('cta').innerHTML = Z.mainBtn(shop) + (shop.id === 'h1' ? '<a class="btn line" href="hankou-menu.html">' + Z.ct('店家頁|看餐點按鈕', '看餐點') + '</a>' : '') + '<a class="btn line" href="hankou.html">' + Z.ct('店家頁|回漢口按鈕', '回漢口總店') + '</a>' +
     (shop.contact && shop.contact.phone && shop.contact.btnMode !== 'tel' ? '<a class="cap" style="align-self:center" href="tel:' + Z.esc(String(shop.contact.phone).replace(/[^0-9+#]/g, '')) + '">☎ ' + Z.esc(shop.contact.phone) + '</a>' : '') + Z.social(shop);
-  el('pic').innerHTML = Z.photo(shop.image, shop.name, 'height:480px;background:var(--ph)');
+  el('pic').innerHTML = Z.photo(shop.image, shop.name, 'aspect-ratio:3/2;background:var(--ph)');
   var g = (shop.gallery || []).filter(Z.safeUrl);
   if (g.length) {
     el('gsec').style.display = 'block';

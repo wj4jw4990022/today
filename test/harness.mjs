@@ -7,7 +7,7 @@ const stmts = (f) => readFileSync(new URL(f, import.meta.url), 'utf8').split('\n
 
 export async function setup() {
   const { env, dispose } = await getPlatformProxy({ persist: false });
-  for (const f of ['../migrations/0001_init.sql', '../migrations/0002_page_content.sql', '../migrations/0003_shop_order.sql', './seed.sql']) for (const s of stmts(f)) await env.DB.prepare(s).run();
+  for (const f of ['../migrations/0001_init.sql', '../migrations/0002_page_content.sql', '../migrations/0003_shop_order.sql', '../migrations/0004_image_crop.sql', './seed.sql']) for (const s of stmts(f)) await env.DB.prepare(s).run();
   const mails = [], pushes = [], pending = [];
   env.GOOGLE_CLIENT_ID = 'cid'; env.ALLOW_TEST_TOKENS = '1';
   env.MAIL_RELAY_URL = 'https://relay.test/m'; env.MAIL_RELAY_KEY = 'k';
