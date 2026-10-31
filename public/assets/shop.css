@@ -1,5 +1,5 @@
 /* 漢口各樓層店家頁：電梯到站版（搭配 hankou.css 的深色配色與電梯門） */
-.sp-arr{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 56px;background:rgba(15,23,24,.95);border-top:1px solid rgba(217,180,119,.4);border-bottom:1px solid rgba(217,180,119,.4)}
+.sp-arr{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 56px;background:rgba(var(--deep-rgb),.97);border-top:1px solid rgba(var(--gold-rgb),.4);border-bottom:1px solid rgba(var(--gold-rgb),.4)}
 .sp-arr .crumb{font-size:12px;letter-spacing:.2em;color:var(--mute);flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sp-arr .crumb a{color:var(--gold)}
 .sp-arr .mid{display:flex;align-items:center;gap:12px}
@@ -20,10 +20,10 @@
 .sp-now .ev-dot{width:8px;height:8px}
 .sp-now .off{color:var(--mute)}
 .sp-line{font-family:'Noto Serif TC',serif;font-size:17px;letter-spacing:.1em;margin:0 0 12px;color:var(--gold)}
-.sp-intro{font-size:15px;line-height:2.2;color:rgba(239,232,218,.82);margin:0 0 28px;max-width:480px;white-space:pre-line}
+.sp-intro{font-size:15px;line-height:2.2;color:rgba(241,239,230,.86);margin:0 0 28px;max-width:480px;white-space:pre-line}
 .sp-cta{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
-.sp-g{display:inline-block;padding:14px 34px;background:var(--gold);color:#141F21;letter-spacing:.36em;font-size:13px;border:1px solid var(--gold)}
-.sp-g:hover{background:#E8C68C}
+.sp-g{display:inline-block;padding:14px 34px;background:var(--gold);color:var(--lit-ink);letter-spacing:.36em;font-size:13px;border:1px solid var(--gold)}
+.sp-g:hover{background:var(--lit1)}
 .sp-g.off{background:transparent;color:var(--mute);border-color:var(--line);pointer-events:none}
 .sp-cta .ev-ghost{padding:13px 26px}
 .sp-soc{display:flex;flex-wrap:wrap;gap:16px;margin-top:22px;font-size:12px;letter-spacing:.2em;color:var(--mute)}
@@ -36,8 +36,8 @@
 .sp-wk{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;font-size:12px}
 .sp-wk div{border:1px solid var(--line);padding:8px 0;line-height:1.6}
 .sp-wk div b{display:block;font-weight:400;font-family:'Noto Serif TC',serif;font-size:14px}
-.sp-wk .td{border-color:var(--gold);color:var(--gold);box-shadow:0 0 10px rgba(255,214,150,.25)}
-.sp-wk .off{color:rgba(239,232,218,.35)}
+.sp-wk .td{border-color:var(--gold);color:var(--gold);box-shadow:0 0 10px rgba(var(--glow-rgb),.25)}
+.sp-wk .off{color:rgba(241,239,230,.4)}
 .sp-info p{margin:0;font-size:14px;line-height:2}
 .sp-info a.go{font-family:'Cormorant Garamond',serif;font-style:italic;color:var(--gold);font-size:16px}
 
@@ -50,16 +50,16 @@
 .sp-cats button.on{border-color:var(--gold);color:var(--gold)}
 .sp-mn{display:grid;grid-template-columns:1fr 1fr;gap:0 64px}
 .sp-mi{display:flex;gap:18px;align-items:center;padding:18px 0;border-bottom:1px solid var(--line);min-width:0}
-.sp-mi .th{width:84px;aspect-ratio:1;flex:none;background:#24383A;outline:1px solid rgba(217,180,119,.35);outline-offset:3px;overflow:hidden}
+.sp-mi .th{width:84px;aspect-ratio:1;flex:none;background:var(--deep);outline:1px solid rgba(var(--gold-rgb),.35);outline-offset:3px;overflow:hidden}
 .sp-mi .th img{width:100%;height:100%;object-fit:cover;display:block}
 .sp-mi .x{flex:1;min-width:0}
 .sp-mi .x b{font-family:'Noto Serif TC',serif;font-weight:500;font-size:17px;letter-spacing:.08em;display:flex;align-items:baseline;gap:10px}
-.sp-mi .x b:after{content:'';flex:1;min-width:16px;border-bottom:1px dotted rgba(217,180,119,.4);transform:translateY(-4px)}
+.sp-mi .x b:after{content:'';flex:1;min-width:16px;border-bottom:1px dotted rgba(var(--gold-rgb),.4);transform:translateY(-4px)}
 .sp-mi .x span{display:block;font-size:12.5px;color:var(--mute);margin-top:4px;line-height:1.8}
 .sp-mi .pr{font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--gold);white-space:nowrap}
 .sp-mi[hidden]{display:none}
 .sp-gal{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-.sp-gal a{display:block;aspect-ratio:4/3;outline:1px solid rgba(217,180,119,.3);outline-offset:4px;overflow:hidden}
+.sp-gal a{display:block;aspect-ratio:4/3;outline:1px solid rgba(var(--gold-rgb),.3);outline-offset:4px;overflow:hidden}
 .sp-gal img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s}
 .sp-gal a:hover img{transform:scale(1.03)}
 
@@ -80,9 +80,9 @@
 .sp-end .h{font-size:24px;letter-spacing:.3em;margin:10px 0 26px}
 
 /* 手機底部預約列（沿用 .sbar） */
-.hkx .sbar{background:rgba(15,23,24,.96);border-top:1px solid rgba(217,180,119,.4)}
+.hkx .sbar{background:rgba(var(--deep-rgb),.97);border-top:1px solid rgba(var(--gold-rgb),.4)}
 .hkx .sbar .sn{font-family:'Noto Serif TC',serif}
-.hkx .sbar .btn{background:var(--gold)!important;border-color:var(--gold);color:#141F21!important}
+.hkx .sbar .btn{background:var(--gold)!important;border-color:var(--gold);color:var(--lit-ink)!important}
 
 @media (max-width:900px){
  .sp-arr{padding:8px 14px}.sp-arr .crumb{display:none}.sp-arr .mid{flex:1}.sp-arr .ev-lv{font-size:26px}.sp-arr .ev-b{width:28px;height:28px;font-size:13px}.sp-arr .sp-fm{gap:6px;flex:none}

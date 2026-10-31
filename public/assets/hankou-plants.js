@@ -1,8 +1,8 @@
 /* 漢口總店頁：植物線條（垂掛版）。每層天花板垂下蕨類與黃金葛，地面角落一片龜背芋大葉。
    全部是金色細線的靜態 SVG，沒有濾鏡與混色，不影響捲動效能；版面寬度改變時重畫。 */
 (function () {
-  var NS = 'http://www.w3.org/2000/svg', FL = 'rgba(8,15,15,.42)', lastW = 0;
-  function G(o) { return 'rgba(217,180,119,' + o.toFixed(3) + ')'; }
+  var NS = 'http://www.w3.org/2000/svg', FL = 'rgba(29,61,52,.3)', lastW = 0;
+  function G(o) { return 'rgba(241,239,230,' + (o * .8).toFixed(3) + ')'; }
   function rot(x, y, a) { var c = Math.cos(a), s = Math.sin(a); return [x * c - y * s, x * s + y * c]; }
   function add(p, q) { return [p[0] + q[0], p[1] + q[1]]; }
   function T(p, a, x, y) { return add(p, rot(x, y, a)); }
@@ -50,7 +50,7 @@
       var t = .1 + .78 * i / (n + 1), m = T(p, a, t * L, 0), wd = Math.sin(Math.PI * Math.min(.95, t + .12)) * W * .86;
       [1, -1].forEach(function (sg) {
         s += '<path d="M' + P(m) + 'Q' + P(T(p, a, t * L + .08 * L, sg * wd * .5)) + ' ' + P(T(p, a, t * L + .18 * L, sg * wd)) + '" fill="none" stroke="' + G(op * .5) + '" stroke-width=".7"/>';
-        if (o.split && i % 2 === 0) s += '<path d="M' + P(T(p, a, t * L + .2 * L, sg * wd * 1.02)) + 'L' + P(T(p, a, t * L + .12 * L, sg * wd * .52)) + '" stroke="#16231f" stroke-width="' + (W * .07).toFixed(1) + '" stroke-linecap="round"/>';
+        if (o.split && i % 2 === 0) s += '<path d="M' + P(T(p, a, t * L + .2 * L, sg * wd * 1.02)) + 'L' + P(T(p, a, t * L + .12 * L, sg * wd * .52)) + '" stroke="#4A6A5D" stroke-width="' + (W * .07).toFixed(1) + '" stroke-linecap="round"/>';
       });
     }
     return s;

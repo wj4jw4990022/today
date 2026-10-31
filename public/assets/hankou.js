@@ -2,6 +2,7 @@
    樓層由 floor 欄位第一段推導（「1F 後段」→「1F」），依數字排序；店家順序沿用後端（sort_order）；
    每層的英文小標、標題、介紹、門內照片可在後台「頁面內容 › 漢口總店頁 › 各樓層」修改，照片留白時用該層第一間店的主圖。 */
 (function () {
+  var C = { line: '#E6DCC0', num: '#F1EFE6', on: '#E6DCC0', needle: '#FBF6E8' }; // 樓層指針的顏色（配合 hankou.css 的配色）
   var DEF = {
     '1F': ['Café & Select', '咖啡與選物', '一進門的那一層。咖啡、早午餐與選物，從這裡開始一天。'],
     '2F': ['Hair & Ink', '髮型與刺青', '整理頭髮，或留下一個圖案。'],
@@ -20,12 +21,12 @@
     floors.forEach(function (f, i) {
       var a = angle(i, n) * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
       g += '<text x="' + (cx + 78 * c).toFixed(1) + '" y="' + (cy - 78 * s + 6).toFixed(1) + '" data-f="' + E(f.f) + '">' + E(num(f.f)) + '</text>' +
-        '<line x1="' + (cx + 93 * c).toFixed(1) + '" y1="' + (cy - 93 * s).toFixed(1) + '" x2="' + (cx + 100 * c).toFixed(1) + '" y2="' + (cy - 100 * s).toFixed(1) + '" stroke="#D9B477" stroke-opacity=".6"/>';
+        '<line x1="' + (cx + 93 * c).toFixed(1) + '" y1="' + (cy - 93 * s).toFixed(1) + '" x2="' + (cx + 100 * c).toFixed(1) + '" y2="' + (cy - 100 * s).toFixed(1) + '" stroke="' + C.line + '" stroke-opacity=".6"/>';
     });
-    return '<svg viewBox="0 0 230 118" fill="none"><path d="M15 112 A100 100 0 0 1 215 112" stroke="#D9B477"/><path d="M30 112 A85 85 0 0 1 200 112" stroke="#D9B477" stroke-opacity=".35"/>' +
-      '<g font-family="Cormorant Garamond,serif" font-size="17" fill="#EFE8DA" text-anchor="middle">' + g + '</g>' +
-      '<text x="115" y="96" font-family="Cormorant Garamond,serif" font-style="italic" font-size="11" fill="#D9B477" text-anchor="middle" letter-spacing="3">FLOOR</text>' +
-      '<g class="ev-needle" id="needle"><line x1="115" y1="112" x2="177" y2="112" stroke="#FBE3B2" stroke-width="1.5"/></g><circle cx="115" cy="112" r="5" fill="#D9B477"/></svg>';
+    return '<svg viewBox="0 0 230 118" fill="none"><path d="M15 112 A100 100 0 0 1 215 112" stroke="' + C.line + '"/><path d="M30 112 A85 85 0 0 1 200 112" stroke="' + C.line + '" stroke-opacity=".35"/>' +
+      '<g font-family="Cormorant Garamond,serif" font-size="17" fill="' + C.num + '" text-anchor="middle">' + g + '</g>' +
+      '<text x="115" y="96" font-family="Cormorant Garamond,serif" font-style="italic" font-size="11" fill="' + C.on + '" text-anchor="middle" letter-spacing="3">FLOOR</text>' +
+      '<g class="ev-needle" id="needle"><line x1="115" y1="112" x2="177" y2="112" stroke="' + C.needle + '" stroke-width="1.5"/></g><circle cx="115" cy="112" r="5" fill="' + C.on + '"/></svg>';
   }
   function btn(f, tag) { return '<' + tag + ' class="ev-b" data-go="' + E(f.f) + '" aria-label="前往 ' + E(f.f) + '">' + E(num(f.f)) + '</' + tag + '>'; }
 
@@ -78,7 +79,7 @@
     document.getElementById('sidelv').innerHTML = lv;
     document.getElementById('fbarlv').innerHTML = lv + '<span>' + E(Z.t('漢口總店|' + f + '標題', (DEF[f] || [])[1] || '')) + '</span>';
     var nd = document.getElementById('needle'); if (nd) nd.style.transform = 'rotate(' + (-angle(i, floors.length)) + 'deg)';
-    document.querySelectorAll('#dial text[data-f]').forEach(function (t) { t.setAttribute('fill', t.getAttribute('data-f') === f ? '#D9B477' : '#EFE8DA'); });
+    document.querySelectorAll('#dial text[data-f]').forEach(function (t) { t.setAttribute('fill', t.getAttribute('data-f') === f ? C.on : C.num); });
   }
 
   function render(d) {
