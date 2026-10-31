@@ -1,0 +1,138 @@
+/* 漢口總店頁：電梯大樓版（只在 hankou.html 載入）。深藍綠牆、斜射金光、金色細線；無圓角（電梯按鈕除外，是圓形按鈕） */
+.hkx{--bg:#141F21;--ink:#EFE8DA;--mute:rgba(239,232,218,.6);--accent:#D9B477;--accent2:#D9B477;--soft:#1B2A2C;--line:rgba(239,232,218,.14);--dark:#0F1718;--darkfg:#EFE8DA;--ph:#1B2A2C;--gold:#D9B477;--gold2:#B8925A;--soonc:#86A39A}
+.hkx .btn{color:#141F21}
+.hkx .btn.sm{color:var(--gold)}
+.hkx .btn.sm:hover{color:#141F21}
+.hkx .nav .logo img{filter:brightness(0) invert(.93) sepia(.25)}
+.hkx .ddp{box-shadow:0 12px 28px rgba(0,0,0,.4)}
+.hkx .foot{margin-top:0}
+
+.ev-wall{position:relative;overflow:hidden;overflow:clip;background:radial-gradient(120% 80% at 80% 10%,#2a4042 0%,#1B2A2C 45%,#141F21 100%)}
+.ev-beam{position:absolute;inset:-20%;pointer-events:none;background:linear-gradient(118deg,transparent 38%,rgba(255,206,140,.10) 44%,rgba(255,214,160,.28) 49%,rgba(255,206,140,.12) 54%,transparent 60%);filter:blur(6px);mix-blend-mode:screen}
+.ev-beam.b2{background:linear-gradient(118deg,transparent 58%,rgba(255,206,140,.08) 61%,rgba(255,214,160,.16) 63%,transparent 67%)}
+:where(.ev-wall>*:not(.ev-beam)){position:relative}
+.ev-caps{font-size:10px;letter-spacing:.38em;text-transform:uppercase;color:var(--gold)}
+.ev-it{font-family:'Cormorant Garamond',serif;font-style:italic}
+
+/* 頁首 */
+.ev-hero{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:40px 60px;padding:70px 100px 90px}
+.ev-hero .en{color:var(--gold);font-size:24px}
+.ev-hero h1{font-family:'Noto Serif TC',serif;font-weight:500;font-size:72px;letter-spacing:.3em;margin:10px 0 8px;line-height:1.3}
+.ev-hero .sub{font-size:14px;color:var(--mute);letter-spacing:.2em;margin-bottom:30px;line-height:1.9}
+.ev-meta{border-top:1px solid var(--line);max-width:480px}
+.ev-meta>div{display:flex;gap:20px;align-items:baseline;padding:13px 0;border-bottom:1px solid var(--line);font-size:14px}
+.ev-meta em{font-style:normal;flex:0 0 64px;font-size:10px;letter-spacing:.3em;color:var(--gold)}
+.ev-meta a.go{margin-left:auto;font-family:'Cormorant Garamond',serif;font-style:italic;color:var(--gold);font-size:16px;white-space:nowrap}
+.ev-meta b{color:var(--gold);font-weight:400}
+.ev-rt{display:flex;flex-direction:column;align-items:center}
+.ev-dial{width:100%;max-width:440px;aspect-ratio:230/118}
+.ev-dial svg{width:100%;height:100%;display:block;overflow:visible}
+.ev-needle{transform-origin:115px 112px;transition:transform .7s cubic-bezier(.3,1.3,.5,1)}
+.ev-panel{margin-top:36px;padding:14px 22px;border:1px solid rgba(217,180,119,.45);background:linear-gradient(180deg,rgba(20,31,33,.6),rgba(20,31,33,.9));display:flex;gap:18px;justify-content:center;position:relative}
+.ev-panel:before{content:'';position:absolute;inset:4px;border:1px solid rgba(217,180,119,.18);pointer-events:none}
+.ev-rt .hint{margin-top:16px;font-size:11px;letter-spacing:.3em;color:var(--mute)}
+.ev-b{width:56px;height:56px;border-radius:50%!important;border:1px solid var(--gold2);display:inline-flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--gold);background:radial-gradient(circle at 35% 30%,rgba(255,230,180,.12),rgba(0,0,0,.2));cursor:pointer;flex:none;padding:0;transition:background .3s,box-shadow .3s,color .3s;position:relative;z-index:1}
+.ev-b:hover{box-shadow:0 0 12px rgba(255,214,150,.35)}
+.ev-b.on{background:radial-gradient(circle at 35% 30%,#FBE3B2,#C99F5F);color:#1a1712;box-shadow:0 0 18px rgba(255,214,150,.55)}
+
+/* 主體：左側電梯欄＋樓層 */
+.ev-body{display:grid;grid-template-columns:250px 1fr;border-top:1px solid var(--line)}
+.ev-side{border-right:1px solid var(--line)}
+.ev-stick{position:sticky;top:0;padding:52px 32px}
+.ev-now{border:1px solid rgba(217,180,119,.45);padding:14px 18px;margin-bottom:28px;background:#0F1718}
+.ev-now .ev-caps{display:block;margin-bottom:6px}
+.ev-lv{font-family:'Cormorant Garamond',serif;font-size:52px;line-height:1;color:var(--gold);text-shadow:0 0 14px rgba(255,214,150,.55)}
+.ev-lv small{font-size:22px}
+.ev-lift a{display:flex;align-items:center;gap:16px;padding:10px 0}
+.ev-lift .ev-b{width:44px;height:44px;font-size:20px}
+.ev-lift .t{font-size:11px;letter-spacing:.16em;color:var(--mute);line-height:1.6}
+.ev-lift .t b{display:block;font-family:'Noto Serif TC',serif;font-weight:400;font-size:14px;color:var(--ink);letter-spacing:.1em}
+.ev-lift a.on .t b{color:var(--gold)}
+.ev-lift a.on .ev-b{background:radial-gradient(circle at 35% 30%,#FBE3B2,#C99F5F);color:#1a1712;box-shadow:0 0 18px rgba(255,214,150,.55)}
+
+.ev-fl{padding:84px 100px 84px 84px;border-bottom:1px solid var(--line);scroll-margin-top:0}
+.ev-fh{display:flex;align-items:flex-end;gap:16px}
+.ev-fh .n{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:84px;line-height:.8}
+.ev-fh .n sup{font-size:28px;color:var(--gold);vertical-align:top;margin-left:2px}
+.ev-fh .ev-caps{display:block;margin-bottom:6px}
+.ev-fh .zh{font-family:'Noto Serif TC',serif;font-size:16px;letter-spacing:.14em}
+.ev-grid{display:grid;grid-template-columns:1.35fr 1fr;gap:56px;margin-top:40px;align-items:start}
+.ev-fl.rev .ev-grid{grid-template-columns:1fr 1.35fr}
+.ev-fl.rev .ev-door{order:2}
+.ev-desc{font-size:13.5px;line-height:2.1;color:var(--mute);margin:0 0 22px;letter-spacing:.06em;white-space:pre-line}
+
+/* 電梯門：照片在門後，捲到畫面中央時門打開 */
+.ev-door{position:relative;border:1px solid rgba(217,180,119,.55);padding:6px;background:#0F1718;aspect-ratio:3/2}
+.ev-arch{position:absolute;left:50%;top:-12px;transform:translateX(-50%);background:#141F21;padding:0 10px;display:flex;gap:8px;font-family:'Cormorant Garamond',serif;font-size:13px;color:var(--mute);z-index:3;line-height:22px}
+.ev-arch b{color:var(--gold);font-weight:400}
+.ev-in{position:absolute;inset:6px;overflow:hidden}
+.ev-pic{position:absolute;inset:0;background:radial-gradient(90% 70% at 60% 40%,#3d5658,#1b2a2c 70%)}
+.ev-pic.ph{display:block;padding:0;outline:0;color:transparent}
+.ev-pic img{width:100%;height:100%;object-fit:cover;display:block}
+.ev-pic .ev-beam{inset:-30%}
+.ev-dl,.ev-dr{position:absolute;top:0;bottom:0;width:50.5%;background:linear-gradient(90deg,#2a3436,#3a4648 48%,#2a3436);border:1px solid rgba(217,180,119,.35);transition:width 1.4s cubic-bezier(.6,.05,.2,1);z-index:2}
+.ev-dl{left:0;border-right-color:var(--gold)}.ev-dr{right:0;border-left-color:var(--gold)}
+.ev-dl:after,.ev-dr:after{content:'';position:absolute;top:12%;bottom:12%;left:18%;right:18%;border:1px solid rgba(217,180,119,.18)}
+.ev-door.op .ev-dl,.ev-door.op .ev-dr{width:9%}
+a.ev-door{display:block}
+.ev-door.has>img{position:absolute;inset:6px;width:calc(100% - 12px);height:calc(100% - 12px);object-fit:cover}
+
+.ev-shop{display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line)}
+.ev-shop:first-child{border-top:1px solid var(--line)}
+.ev-dot{width:7px;height:7px;border-radius:50%!important;flex:none;border:1px solid var(--mute)}
+.ev-dot.open{background:var(--gold);border-color:var(--gold);box-shadow:0 0 8px rgba(255,214,150,.9)}
+.ev-dot.soon{background:var(--soonc);border-color:var(--soonc)}
+.ev-dot.closed,.ev-dot.done{background:#56605d;border-color:#56605d}
+.ev-shop .x{flex:1;min-width:0}
+.ev-shop .nm{font-family:'Noto Serif TC',serif;font-size:17px;letter-spacing:.06em;line-height:1.5;display:block}
+.ev-shop .nm:hover{color:var(--gold)}
+.ev-shop .ty{font-size:11px;letter-spacing:.2em;color:var(--mute);margin-top:3px;line-height:1.6}
+.ev-shop .acts{display:flex;gap:14px;flex:none}
+.ev-shop .acts a{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:16px;color:var(--gold);white-space:nowrap}
+.ev-shop .acts a.dim{color:var(--mute)}
+.ev-shop .acts a:hover{color:var(--ink)}
+
+/* 交通與預約 */
+.ev-acc{display:grid;grid-template-columns:1fr 1fr;gap:40px 80px;padding:90px 100px;align-items:center}
+.ev-acc .h{font-size:32px;letter-spacing:.24em;margin:10px 0 18px}
+.ev-acc p{font-size:14px;color:var(--mute);line-height:2.2;margin:0;white-space:pre-line}
+.ev-ghost{display:inline-block;padding:14px 30px;border:1px solid var(--gold);color:var(--gold);letter-spacing:.36em;font-size:13px;background:linear-gradient(90deg,rgba(217,180,119,.04),rgba(217,180,119,.14),rgba(217,180,119,.04))}
+.ev-ghost:hover{background:var(--gold);color:#141F21}
+.ev-acc .acts{display:flex;gap:14px;flex-wrap:wrap;margin-top:28px}
+.ev-end{text-align:center;padding:70px 22px 80px;border-top:1px solid var(--line)}
+.ev-end .h{font-size:22px;letter-spacing:.3em;margin:10px 0 28px}
+
+/* 手機：固定在頂端的樓層列 */
+.ev-fbar{display:none}
+@media (max-width:900px){
+ .ev-hero{grid-template-columns:1fr;padding:30px 22px 34px;text-align:center;gap:0}
+ .ev-hero .ev-rt{order:-1}
+ .ev-dial{max-width:240px}
+ .ev-hero h1{font-size:36px;margin-top:8px;padding-left:.3em}
+ .ev-hero .en{font-size:18px;display:block;margin-top:12px}
+ .ev-hero .sub{font-size:12px;margin-bottom:20px}
+ .ev-panel{margin-top:22px;gap:14px;padding:12px 16px}
+ .ev-panel .ev-b{width:44px;height:44px;font-size:20px}
+ .ev-rt .hint{display:none}
+ .ev-meta{max-width:none;text-align:left}
+ .ev-body{grid-template-columns:1fr}
+ .ev-side{display:none}
+ .ev-fbar{display:flex;position:sticky;top:0;z-index:20;align-items:center;justify-content:space-between;gap:10px;padding:9px 18px;background:rgba(15,23,24,.95);border-top:1px solid rgba(217,180,119,.4);border-bottom:1px solid rgba(217,180,119,.4)}
+ .ev-fbar .ev-lv{font-size:28px;white-space:nowrap}
+ .ev-fbar .ev-lv small{font-size:14px}
+ .ev-fbar .ev-lv span{font-family:'Noto Serif TC',serif;font-size:12px;color:var(--ink);text-shadow:none;margin-left:8px;letter-spacing:.1em}
+ .ev-fbar .ev-fm{display:flex;gap:7px}
+ .ev-fbar .ev-b{width:30px;height:30px;font-size:14px}
+ .ev-fl{padding:40px 18px 30px;scroll-margin-top:52px}
+ .ev-fh .n{font-size:66px}
+ .ev-grid,.ev-fl.rev .ev-grid{grid-template-columns:1fr;gap:18px;margin-top:28px}
+ .ev-fl.rev .ev-door{order:0}
+ .ev-door{aspect-ratio:4/3.4}
+ .ev-desc{margin-bottom:14px}
+ .ev-acc{grid-template-columns:1fr;padding:44px 22px;text-align:center}
+ .ev-acc .h{font-size:22px}
+ .ev-acc .acts{justify-content:center}
+ .ev-end{padding:30px 18px 40px}
+ .ev-end .ev-ghost{display:block}
+}
+@media (prefers-reduced-motion:reduce){.ev-dl,.ev-dr,.ev-needle{transition:none}}
