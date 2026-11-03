@@ -196,6 +196,7 @@ body.hasbar .pg{padding-bottom:170px}
 .galed .gfa button{flex:1;border:0;background:transparent;color:#fff;cursor:pointer;line-height:22px}
 .galed figure.new{outline:2px solid #E0B93A}
 #toast{position:fixed;right:20px;bottom:20px;background:var(--dark);color:var(--darkfg);padding:10px 18px;font-size:13px;display:none;z-index:9}
+.hm{display:inline-flex;align-items:center;gap:4px}.hm b{font-weight:400;color:var(--mute)}.hm select{min-width:58px}
 </style>
 </head>
 <body class="hk">
@@ -265,6 +266,24 @@ function syncImgs(root) {
     if (isHttps(el.value)) { if (im.getAttribute('src') !== el.value) { im.classList.remove('broken'); im.src = el.value; } im.style.display = 'inline-block'; } else im.style.display = 'none';
   });
 }
+/* 時間選擇：「時」「分」兩個下拉選單（取代瀏覽器內建的時間欄位；中文介面的內建欄位要先選上午／下午，只打數字會存成空白）。
+   值存在旁邊的隱藏欄位（attrs 放在隱藏欄位上），改動時對隱藏欄位送出 input／change 事件，原本的監聽照常運作。 */
+function pad2(n) { return (n < 10 ? '0' : '') + n; }
+function hmSel(attrs, v) {
+  var p = /^(\d\d):(\d\d)$/.exec(v || ''), h = p ? p[1] : '', m = p ? p[2] : '', hs = '<option value="">--</option>', ms = '<option value="">--</option>', mins = [];
+  for (var i = 0; i < 24; i++) hs += '<option' + (pad2(i) === h ? ' selected' : '') + '>' + pad2(i) + '</option>';
+  for (var j = 0; j < 60; j += 5) mins.push(pad2(j)); if (m && mins.indexOf(m) < 0) { mins.push(m); mins.sort(); }
+  mins.forEach(function (x) { ms += '<option' + (x === m ? ' selected' : '') + '>' + x + '</option>'; });
+  return '<span class="hm"><input type="hidden" ' + attrs + ' value="' + (p ? E(v) : '') + '"><select class="mini" data-hmh data-skip aria-label="時">' + hs + '</select><b>:</b><select class="mini" data-hmm data-skip aria-label="分">' + ms + '</select></span>';
+}
+document.addEventListener('change', function (e) {
+  var t = e.target; if (!t.hasAttribute || !(t.hasAttribute('data-hmh') || t.hasAttribute('data-hmm'))) return;
+  var sp = t.closest('.hm'), hh = sp.querySelector('[data-hmh]'), mm = sp.querySelector('[data-hmm]'), hid = sp.querySelector('input[type=hidden]');
+  if (hh.value && !mm.value) mm.value = '00';
+  if (!hh.value) mm.value = '';
+  hid.value = hh.value ? hh.value + ':' + mm.value : '';
+  hid.dispatchEvent(new Event('input', { bubbles: true })); hid.dispatchEvent(new Event('change', { bubbles: true }));
+});
 function upd() {
   var root = W.root; if (!root) return;
   var ls = [];
@@ -518,7 +537,7 @@ function vBookings(s) {
 
 /* 預約設定 */
 function vSettings(s) {
-  var slots = s.slots.map(function (t) { return '<span class="t"><input class="mini" type="time" value="' + t + '" data-slot data-skip><button class="x" type="button" data-rm>×</button></span>'; }).join('');
+  var slots = s.slots.map(function (t) { return '<span class="t">' + hmSel('data-slot data-skip', t) + '<button class="x" type="button" data-rm>×</button></span>'; }).join('');
   $('sp').innerHTML =
    '<div class="card"><label class="sw"><input type="checkbox" id="open" data-skip' + (s.open ? ' checked' : '') + '><b>開放線上預約</b><span class="sd">關閉後，前台按鈕會顯示「暫停預約」，已收到的訂位不受影響。</span></label></div>' +
    '<div class="card"><div class="h" style="font-size:20px">可預約時段</div><div class="field" id="slf" style="padding:6px 0"><div id="slots">' + slots + '</div><div><button class="btn sm" type="button" id="addSlot">＋ 新增時段</button></div></div>' +
@@ -527,7 +546,7 @@ function vSettings(s) {
    '<div class="g"><div class="field"><label>通知 Email（多個用逗號分隔）</label><input id="em" value="' + E(s.email) + '"></div><div class="field"><label>LINE 通知對象（保留，之後串接官方帳號）</label><input id="ln" value="' + E(s.line) + '"></div></div>' +
    '<div><button class="btn" id="saveSet">儲存預約設定</button></div></div>';
   $('open').onchange = function () { var on = this.checked; setOpen(s.id, on).then(function () { toast(on ? '已開放預約' : '已暫停預約'); vShop(); }); };
-  $('addSlot').onclick = function () { $('slots').insertAdjacentHTML('beforeend', '<span class="t"><input class="mini" type="time" value="12:00" data-slot data-skip><button class="x" type="button" data-rm>×</button></span>'); upd(); };
+  $('addSlot').onclick = function () { $('slots').insertAdjacentHTML('beforeend', '<span class="t">' + hmSel('data-slot data-skip', '12:00') + '<button class="x" type="button" data-rm>×</button></span>'); upd(); };
   $('slots').onclick = function (e) { if (e.target.hasAttribute('data-rm')) { e.target.parentNode.remove(); upd(); } };
   function slotsNow() { return Array.from(document.querySelectorAll('[data-slot]')).map(function (i) { return i.value; }).filter(Boolean).sort(); }
   function closedNow() { return Array.from(document.querySelectorAll('[data-cl]:checked')).map(function (i) { return Number(i.getAttribute('data-cl')); }); }
@@ -858,6 +877,7 @@ function seField(k, label, o) {
   o = o || {}; var v = SE.cur[k], ro = o.ro ? ' readonly' : '';
   var inner = o.area ? '<textarea data-sek="' + k + '" rows="' + (o.rows || 5) + '" maxlength="' + (o.max || 1000) + '"' + ro + '>' + E(v) + '</textarea>'
     : o.type === 'select' ? '<select data-sek="' + k + '">' + o.opts.map(function (x) { return '<option' + (x[0] === v ? ' selected' : '') + ' value="' + E(x[0]) + '">' + E(x[1]) + '</option>'; }).join('') + '</select>'
+    : o.type === 'hm' ? hmSel('data-sek="' + k + '"', v)
     : o.type === 'check' ? '<label class="sw"><input type="checkbox" data-sek="' + k + '"' + (v ? ' checked' : '') + '>' + E(o.text) + '</label>'
     : '<input data-sek="' + k + '"' + (o.type ? ' type="' + o.type + '"' : '') + (o.max ? ' maxlength="' + o.max + '"' : '') + ' value="' + E(v) + '" placeholder="' + E(o.ph || '') + '"' + ro + '>';
   return '<div class="field sef" data-k="' + k + '" style="' + (o.w ? 'flex:' + o.w : '') + '">' + (o.type === 'check' ? '' : '<label>' + E(label) + '</label>') + inner + (o.hint ? '<div class="sd" style="font-size:12px">' + E(o.hint) + '</div>' : '') + '<div class="was" style="display:none"></div></div>';
@@ -868,7 +888,7 @@ function seBody(n) {
   if (n === 1) return '<p class="sd">目前顯示：<b>' + E(t('店家頁|麵包屑') + '　／　' + c.floorA + (c.floorB ? ' ' + c.floorB : '') + '　' + c.name) + '</b><br>前半段「' + E(t('店家頁|麵包屑')) + '」是<b>全部店共用</b>；後半段是這間店的樓層與店名，到「2 樓層與店名」修改。</p>' + seSharedBtn();
   if (n === 2) return '<div class="g">' + seField('floorA', '樓層（大字）', { ro: !me.all, ph: '例如 2F', max: 10, hint: me.all ? '' : '樓層由總管理員修改' }) + seField('floorB', '樓層位置（小標籤，選填）', { ro: !me.all, ph: '例如 後段', max: 12 }) + '</div>' +
     seField('name', '店名', { max: 40, hint: '店名也會出現在導覽列、首頁今日營業時間、漢口總店頁的卡片與訂位頁' }) + seField('type', '類型（第二個標籤）', { max: 30, ph: '例如 選物服飾' });
-  if (n === 3) return '<div class="g">' + seField('hs', '營業開始', { type: 'time' }) + seField('he', '營業結束', { type: 'time' }) + '</div>' + seField('hr', '補充說明（只在沒填開始／結束時顯示）', { max: 100, ph: '例如：依預約為主' }) + seField('sh', '', { type: 'check', text: '在首頁與樓層頁顯示「營業中／已打烊」狀態' }) +
+  if (n === 3) return '<div class="g">' + seField('hs', '營業開始', { type: 'hm' }) + seField('he', '營業結束', { type: 'hm' }) + '</div>' + seField('hr', '補充說明（只在沒填開始／結束時顯示）', { max: 100, ph: '例如：依預約為主' }) + seField('sh', '', { type: 'check', text: '在首頁與樓層頁顯示「營業中／已打烊」狀態' }) +
     '<p class="sd">公休日在「店家總覽 › 訂位與設定 › 預約設定」：目前是「' + (s.closed.length ? s.closed.map(function (x) { return '週' + Z.wd[x]; }).join('、') + '公休' : '無公休日') + '」。</p>';
   if (n === 4) return seField('intro', '完整介紹（客人點進店家頁看到的說明，可換行）', { area: true, rows: 7 }) + (s.hall === '漢口總店' ? seField('tagline', '一句話介紹（最多 40 字）', { max: 40, hint: '顯示在漢口總店頁的店家卡片上；留白＝改顯示完整介紹的前幾行' }) : '');
   if (n === 5) return '<div class="g">' + seField('btnMode', '主按鈕功能', { type: 'select', opts: [['預約', '線上預約（到預約頁）'], ['電話', '撥打電話'], ['不顯示', '不顯示按鈕']] }) + seField('btnText', '按鈕文字', { max: 10 }) + seField('phone', '店家電話', { ph: '07-0000000', hint: '選「撥打電話」要先填電話' }) + '</div>' +
