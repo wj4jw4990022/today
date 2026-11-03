@@ -447,7 +447,7 @@ function start() {
 }
 function drawTabs() {
   var t = [['home', '店家總覽']];
-  if (me.all || me.shops.some(function (x) { return x.id === 'h1'; })) t.push(['health', '健康餐']);
+  if (me.all) t.push(['health', '健康餐']); // 健康餐只有總管理員可以看與修改
   if (me.all) t.push(['content', '頁面內容'], ['inq', '合作洽談']);
   $('tabs').innerHTML = t.map(function (x) { return '<button class="chip' + ((x[0] === view || (x[0] === 'home' && (view === 'shop' || view === 'shopedit') && me.shops.length > 1)) ? ' on' : '') + '" data-view="' + x[0] + '">' + x[1] + '</button>'; }).join('');
 }

@@ -228,7 +228,7 @@ export const adminOps = {
     const t = String(p.target || ''); let m;
     if ((m = /^shop:(\w+)$/.exec(t))) needShop(a, m[1]);
     else if ((m = /^menu:(.+)$/.exec(t))) { const sid = HALL_SHOP[m[1]]; if (!sid) throw new UserError('館別不正確'); needShop(a, sid); }
-    else if (/^(health|addon|veg):[\w-]+$/.test(t)) needShop(a, 'h1'); // 健康餐：品項、加購、本週蔬菜
+    else if (/^(health|addon|veg):[\w-]+$/.test(t)) needAll(a); // 健康餐：品項、加購、本週蔬菜（只有總管理員）
     else if (t === 'content') needAll(a);
     else throw new UserError('上傳目標不正確');
     await throttle(c, 'up_' + a.email, 150, 3600, '上傳次數過多，請一小時後再試'); // 每張新圖會上傳兩次（原圖＋裁切後）

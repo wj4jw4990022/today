@@ -1,5 +1,5 @@
 import { UserError, clean, todayStr, nowMinute, isDate, imgUrl, isTrue, byOrder } from './util.js';
-import { needShop, needAll } from './service.js';
+import { needAll } from './service.js';
 
 /**
  * 健康餐模組（階段一：菜單與後台品項管理）
@@ -66,7 +66,7 @@ export async function publicMenu(c) {
 /* ---------- 後台 ---------- */
 export const healthOps = {
   async adminHealthList(c, p, a) {
-    needShop(a, SHOP);
+    needAll(a); // 健康餐只有總管理員可以看與修改
     const st = await settings(c);
     const settingsRows = a.all ? (await c.db.all('健康餐設定')).map((r) => ({ key: r['設定項目'], value: r['值'], note: r['說明'], status: r['狀態'] || '' })) : null;
     const cur = await currentVeg(c);
@@ -79,7 +79,7 @@ export const healthOps = {
   },
   /** 餐點品項：後台可新增、修改（含份量與主菜名稱）、刪除。沒有 id＝新增 */
   async adminSaveHealthItem(c, p, a) {
-    needShop(a, SHOP);
+    needAll(a); // 健康餐只有總管理員可以看與修改
     const it = p.item || {}, id = clean(it.id, 30), size = clean(it.size, 20), main = clean(it.main, 20);
     if (!size || !main) throw new UserError('請填寫份量與主菜');
     const vals = {
@@ -99,13 +99,13 @@ export const healthOps = {
     return { ok: true };
   },
   async adminDeleteHealthItem(c, p, a) {
-    needShop(a, SHOP);
+    needAll(a); // 健康餐只有總管理員可以看與修改
     const hit = await c.db.first('健康餐品項', { 品項ID: p.id, 店家ID: SHOP });
     if (hit) await c.db.remove('健康餐品項', hit._row);
     return { ok: true };
   },
   async adminSaveAddon(c, p, a) {
-    needShop(a, SHOP);
+    needAll(a); // 健康餐只有總管理員可以看與修改
     const it = p.item || {}, name = clean(it.name, 40), type = clean(it.type, 10);
     if (!name) throw new UserError('請填寫名稱');
     if (['醬汁', '飲品'].indexOf(type) < 0) throw new UserError('類型請選醬汁或飲品');
@@ -119,14 +119,14 @@ export const healthOps = {
     return { ok: true };
   },
   async adminDeleteAddon(c, p, a) {
-    needShop(a, SHOP);
+    needAll(a); // 健康餐只有總管理員可以看與修改
     const hit = await c.db.first('加購品項', { 品項ID: p.id, 店家ID: SHOP });
     if (hit) await c.db.remove('加購品項', hit._row);
     return { ok: true };
   },
   /** 每週蔬菜：以「週起始日」為鍵，同一週再存一次就是覆蓋 */
   async adminSaveVeg(c, p, a) {
-    needShop(a, SHOP);
+    needAll(a); // 健康餐只有總管理員可以看與修改
     const v = p.veg || {}, start = clean(v.start, 10);
     if (!isDate(start)) throw new UserError('請選擇週起始日');
     const vals = { 週起始日: start, 固定蔬菜: clean(v.fixed, 200), 輪替蔬菜1: clean(v.r1, 60), 輪替蔬菜2: clean(v.r2, 60), 圖片網址: img(v.image), 更新人員: a.email, 更新時間: nowMinute() };
@@ -136,7 +136,7 @@ export const healthOps = {
     return { ok: true };
   },
   async adminDeleteVeg(c, p, a) {
-    needShop(a, SHOP);
+    needAll(a); // 健康餐只有總管理員可以看與修改
     const hit = await c.db.first('每週蔬菜', { 週起始日: String(p.start) });
     if (hit) await c.db.remove('每週蔬菜', hit._row);
     return { ok: true };
