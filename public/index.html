@@ -12,7 +12,8 @@
 <link rel="stylesheet" href="assets/style.css">
 <style>
 .gate .nav{display:none}
-.gt{position:relative;display:flex;height:100vh;min-height:760px;max-height:980px;overflow:hidden;background:#F1EFE6}
+/* 高度依寬度預留到卡片放大時也放得下，避免營業狀態與按鈕被切掉；下方「今日營業時間」跟著往下 */
+.gt{position:relative;display:flex;min-height:max(760px, calc(500px + 39vw));overflow:hidden;background:#F1EFE6}
 .gh{flex:1 1 0;min-width:0;position:relative;display:flex;flex-direction:column;padding:228px 64px 52px;transition:flex-grow .5s ease}
 .g-hk{background:linear-gradient(180deg,#F1EFE6 0,#F1EFE6 205px,#4a6a5d 290px,#1d3d34 400px,#17302A 100%);color:#EDEBDF}
 .g-hp{background:linear-gradient(180deg,#F1EFE6 0,#F1EFE6 205px,#F4EEE2 300px,#FBF9F5 100%);color:#3A3026}
