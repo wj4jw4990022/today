@@ -144,6 +144,14 @@
     var u = Z.safeUrl(url);
     return '<div class="ph' + (u ? ' has' : '') + '"' + (style ? ' style="' + style + '"' : '') + '>' + (u ? '<img src="' + Z.esc(u) + '" alt="' + Z.esc(label) + '" loading="lazy">' : '[照片]') + '</div>';
   };
+  /* 店家還沒上傳主圖時的示意插畫（assets/illus/，3:2）；上傳照片後自動換成照片 */
+  var ILLUS = { h1: 'coffee', h1b: 'shop', h2: 'hair', h2b: 'tattoo', h3: 'crystal', h3b: 'massage', h3c: 'space', h4: 'bridal', p: 'huangpu' };
+  Z.illus = function (s) {
+    var k = ILLUS[s.id], t = String(s.type || '') + String(s.name || '');
+    if (!k) k = /咖啡|餐|食/.test(t) ? 'coffee' : /髮/.test(t) ? 'hair' : /刺青|紋/.test(t) ? 'tattoo' : /石|晶|靈/.test(t) ? 'crystal' : /推拿|按摩|整復|SPA/i.test(t) ? 'massage' : /婚紗|攝影|禮服/.test(t) ? 'bridal' : 'shop';
+    return 'assets/illus/' + k + '.svg';
+  };
+  Z.mainImg = function (s) { return Z.safeUrl(s.image) || Z.illus(s); };
   Z.fail = function (el, msg) { el.innerHTML = '<div class="msg err">' + Z.esc(msg || '資料載入失敗，請稍後再試。') + '</div>'; };
 
   Z.init = function (active, fn) {

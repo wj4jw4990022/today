@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" width="900" height="600">
+<defs><radialGradient id="g" cx="78%" cy="12%" r="110%"><stop offset="0" stop-color="#33504A"/><stop offset=".45" stop-color="#233A36"/><stop offset="1" stop-color="#1B2E2B"/></radialGradient>
+<linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop offset=".34" stop-color="rgb(255,214,160)" stop-opacity="0"/><stop offset=".49" stop-color="rgb(255,214,160)" stop-opacity=".16"/><stop offset=".64" stop-color="rgb(255,214,160)" stop-opacity="0"/></linearGradient></defs>
+<rect width="900" height="600" fill="url(#g)"/>
+<g fill="none" stroke="#D9B477" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M0 470 H900" stroke-opacity=".7"/><path d="M0 482 H900" stroke-opacity=".25"/>
+<path d="M180 470 V180 a170 170 0 0 1 340 0 V470" stroke-opacity=".4" fill="rgba(217,180,119,.05)"/>
+<path d="M350 120 a14 14 0 1 1 0.1 0" /><path d="M350 134 v14"/>
+<path d="M322 150 q28 -10 56 0 l-6 70 q-22 8 -44 0 z"/><path d="M328 220 q-80 140 -110 250 h264 q-30 -110 -110 -250" fill="rgba(217,180,119,.07)"/>
+<path d="M300 300 q50 20 100 0 M270 380 q80 30 160 0 M240 450 q110 30 220 0" stroke-opacity=".45"/>
+<path d="M650 470 l40 -170 l40 170 M690 300 v170"/><rect x="655" y="250" width="70" height="46" rx="4"/><circle cx="690" cy="273" r="14"/><path d="M675 250 v-10 h20 v10"/>
+<path d="M780 120 l90 40 v110 l-90 40 z"/><path d="M780 190 h-30 v280 M720 470 h60" />
+<path d="M560 140 l4 -9 l4 9 l9 4 l-9 4 l-4 9 l-4 -9 l-9 -4z M140 220 l3 -7 l3 7 l7 3 l-7 3 l-3 7 l-3 -7 l-7 -3z" stroke-opacity=".8"/>
+
+</g>
+<rect width="900" height="600" fill="url(#b)"/>
+<text x="872" y="580" text-anchor="end" font-family="Georgia,serif" font-style="italic" font-size="15" letter-spacing="2" fill="rgba(217,180,119,.55)">illustration · 示意</text>
+</svg>

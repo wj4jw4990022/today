@@ -24,7 +24,7 @@
   <div class="cap" data-c="黃埔二店|地址">高雄市鳳山區黃埔新村西四巷 37 號</div>
   <div id="cta" data-r="5" style="display:flex;flex-wrap:wrap;gap:14px;margin-top:6px"><a class="btn line" href="huangpu-menu.html" data-c="黃埔二店|餐點按鈕">黃埔餐點</a></div>
  </div>
- <div class="col" style="max-width:580px"><div class="ph" id="hp-pic" data-r="6" style="height:500px">[照片：黃埔二店外觀]</div></div>
+ <div class="col" style="max-width:580px"><div class="ph has" id="hp-pic" data-r="6" style="aspect-ratio:3/2"><img src="assets/illus/huangpu.svg" alt="黃埔二店（示意）"></div></div>
 </section>
 <section class="sec row" style="border-top:1px solid var(--line)" data-opt="黃埔二店|空間介紹">
  <div class="col" style="flex-basis:300px"><div class="en" data-c="黃埔二店|空間英文">Space</div><h2 class="h" style="font-size:34px" data-c="黃埔二店|空間標題">空間與氛圍</h2></div>
@@ -45,7 +45,7 @@ Z.init('huangpu', function (d) {
   el('hp-intro').textContent = Z.isPlaceholder(s.intro) ? '' : s.intro; el('hp-intro').style.display = el('hp-intro').textContent ? '' : 'none';
   var tags = []; if (!Z.isPlaceholder(s.hours)) tags.push(s.hours); if (s.contact && s.contact.phone) tags.push(s.contact.phone);
   el('hp-tags').innerHTML = tags.map(function (x) { return '<span class="tag">' + Z.esc(x) + '</span>'; }).join('');
-  var u = Z.safeUrl(s.image); if (u) { el('hp-pic').classList.add('has'); el('hp-pic').innerHTML = '<img src="' + Z.esc(u) + '" alt="黃埔二店">'; }
+  el('hp-pic').classList.add('has'); el('hp-pic').innerHTML = '<img src="' + Z.esc(Z.mainImg(s)) + '" alt="黃埔二店">';
   var g = (s.gallery || []).filter(Z.safeUrl).slice(0, 6);
   el('hp-gal').style.display = g.length ? 'block' : 'none';
   el('hp-gal-in').innerHTML = g.map(function (x) { return '<div class="col"><div class="ph has" style="height:260px"><img src="' + Z.esc(x) + '" alt="黃埔二店" loading="lazy"></div></div>'; }).join('');

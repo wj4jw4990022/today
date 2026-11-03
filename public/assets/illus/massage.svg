@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" width="900" height="600">
+<defs><radialGradient id="g" cx="78%" cy="12%" r="110%"><stop offset="0" stop-color="#33504A"/><stop offset=".45" stop-color="#233A36"/><stop offset="1" stop-color="#1B2E2B"/></radialGradient>
+<linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop offset=".34" stop-color="rgb(255,214,160)" stop-opacity="0"/><stop offset=".49" stop-color="rgb(255,214,160)" stop-opacity=".16"/><stop offset=".64" stop-color="rgb(255,214,160)" stop-opacity="0"/></linearGradient></defs>
+<rect width="900" height="600" fill="url(#g)"/>
+<g fill="none" stroke="#D9B477" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M0 470 H900" stroke-opacity=".7"/><path d="M0 482 H900" stroke-opacity=".25"/>
+<path d="M560 470 V150 h70 V470 M630 150 h70 V470 M700 150 h70 V470" stroke-opacity=".55"/><path d="M560 230 h210 M560 310 h210 M560 390 h210" stroke-opacity=".3"/>
+<path d="M150 360 h330 a14 14 0 0 1 0 28 h-330 a14 14 0 0 1 0 -28z"/><ellipse cx="455" cy="374" rx="14" ry="6" stroke-opacity=".7"/>
+<path d="M180 388 l-16 82 M450 388 l16 82 M200 388 l-6 82 M430 388 l6 82" stroke-opacity=".8"/>
+<path d="M210 360 v-18 h90 v18 M220 342 v-14 h70 v14" />
+<ellipse cx="370" cy="352" rx="34" ry="8"/><ellipse cx="370" cy="340" rx="26" ry="7"/><ellipse cx="370" cy="329" rx="18" ry="6"/>
+<circle cx="420" cy="150" r="40" stroke-opacity=".6"/><path d="M420 110 v-110" stroke-opacity=".6"/>
+<path d="M799.2 408.4 h61.60000000000001 l-8.8 61.60000000000001 h-44.0 z"/>
+<path d="M830 408.4 q-44.0 -66.0 -77.0 -77.0 q39.6 -4.4 77.0 77.0"/><path d="M830 408.4 q11.0 -88.0 55.00000000000001 -121.00000000000001 q4.4 55.00000000000001 -55.00000000000001 121.00000000000001"/><path d="M830 408.4 q44.0 -33.0 88.0 -33.0 q-33.0 33.0 -88.0 33.0"/>
+</g>
+<rect width="900" height="600" fill="url(#b)"/>
+<text x="872" y="580" text-anchor="end" font-family="Georgia,serif" font-style="italic" font-size="15" letter-spacing="2" fill="rgba(217,180,119,.55)">illustration · 示意</text>
+</svg>

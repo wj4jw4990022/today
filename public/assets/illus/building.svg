@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" width="900" height="600">
+<defs><radialGradient id="g" cx="78%" cy="12%" r="110%"><stop offset="0" stop-color="#33504A"/><stop offset=".45" stop-color="#233A36"/><stop offset="1" stop-color="#1B2E2B"/></radialGradient>
+<linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop offset=".34" stop-color="rgb(255,214,160)" stop-opacity="0"/><stop offset=".49" stop-color="rgb(255,214,160)" stop-opacity=".16"/><stop offset=".64" stop-color="rgb(255,214,160)" stop-opacity="0"/></linearGradient></defs>
+<rect width="900" height="600" fill="url(#g)"/>
+<g fill="none" stroke="#D9B477" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M0 520 H900" stroke-opacity=".7"/><path d="M0 534 H900" stroke-opacity=".3"/>
+<path d="M260 520 V60 h380 V520"/><path d="M240 60 h420" />
+<path d="M260 175 h380 M260 290 h380 M260 405 h380" stroke-opacity=".7"/>
+<rect x="290" y="85" width="90" height="70" fill="rgba(255,214,150,.18)"/><rect x="420" y="85" width="90" height="70"/><rect x="540" y="85" width="70" height="70" fill="rgba(255,214,150,.12)"/>
+<rect x="290" y="200" width="90" height="70"/><rect x="420" y="200" width="90" height="70" fill="rgba(255,214,150,.18)"/><rect x="540" y="200" width="70" height="70"/>
+<rect x="290" y="315" width="90" height="70" fill="rgba(255,214,150,.12)"/><rect x="420" y="315" width="90" height="70"/><rect x="540" y="315" width="70" height="70" fill="rgba(255,214,150,.18)"/>
+<rect x="290" y="425" width="140" height="95" fill="rgba(255,214,150,.15)"/><rect x="470" y="430" width="70" height="90"/><path d="M505 430 v90" stroke-opacity=".6"/><path d="M490 418 h30" /><circle cx="505" cy="412" r="3"/>
+<rect x="560" y="425" width="60" height="95"/>
+<path d="M200 520 v-60 M200 460 q-20 -30 0 -60 q20 30 0 60" stroke-opacity=".7"/><path d="M700 520 v-90 M700 430 q-30 -40 0 -90 q30 50 0 90" stroke-opacity=".7"/>
+<path d="M300 60 q-9.799999999999999 49.0 -2.8 105.0" stroke-opacity=".7"/>
+<path d="M298.8 75.0 q-7.6 -2.8 -12.6 4.4" stroke-opacity=".6"/>
+<path d="M298.8 75.0 q7.6 -2.8 12.6 4.4" stroke-opacity=".6"/>
+<path d="M297.9 90.0 q-9.1 -2.8 -15.2 5.3" stroke-opacity=".6"/>
+<path d="M297.9 90.0 q9.1 -2.8 15.2 5.3" stroke-opacity=".6"/>
+<path d="M297.5 105.0 q-10.7 -2.8 -17.8 6.2" stroke-opacity=".6"/>
+<path d="M297.5 105.0 q10.7 -2.8 17.8 6.2" stroke-opacity=".6"/>
+<path d="M297.5 120.0 q-9.6 -2.8 -16.0 5.6" stroke-opacity=".6"/>
+<path d="M297.5 120.0 q9.6 -2.8 16.0 5.6" stroke-opacity=".6"/>
+<path d="M297.9 135.0 q-8.0 -2.8 -13.4 4.7" stroke-opacity=".6"/>
+<path d="M297.9 135.0 q8.0 -2.8 13.4 4.7" stroke-opacity=".6"/>
+<path d="M298.8 150.0 q-6.5 -2.8 -10.8 3.8" stroke-opacity=".6"/>
+<path d="M298.8 150.0 q6.5 -2.8 10.8 3.8" stroke-opacity=".6"/><path d="M600 175 q9.799999999999999 49.0 2.8 105.0" stroke-opacity=".7"/>
+<path d="M601.2 190.0 q-7.6 -2.8 -12.6 4.4" stroke-opacity=".6"/>
+<path d="M601.2 190.0 q7.6 -2.8 12.6 4.4" stroke-opacity=".6"/>
+<path d="M602.1 205.0 q-9.1 -2.8 -15.2 5.3" stroke-opacity=".6"/>
+<path d="M602.1 205.0 q9.1 -2.8 15.2 5.3" stroke-opacity=".6"/>
+<path d="M602.5 220.0 q-10.7 -2.8 -17.8 6.2" stroke-opacity=".6"/>
+<path d="M602.5 220.0 q10.7 -2.8 17.8 6.2" stroke-opacity=".6"/>
+<path d="M602.5 235.0 q-9.6 -2.8 -16.0 5.6" stroke-opacity=".6"/>
+<path d="M602.5 235.0 q9.6 -2.8 16.0 5.6" stroke-opacity=".6"/>
+<path d="M602.1 250.0 q-8.0 -2.8 -13.4 4.7" stroke-opacity=".6"/>
+<path d="M602.1 250.0 q8.0 -2.8 13.4 4.7" stroke-opacity=".6"/>
+<path d="M601.2 265.0 q-6.5 -2.8 -10.8 3.8" stroke-opacity=".6"/>
+<path d="M601.2 265.0 q6.5 -2.8 10.8 3.8" stroke-opacity=".6"/><path d="M380 290 q-8.4 42.0 -2.4 90.0" stroke-opacity=".7"/>
+<path d="M378.8 305.0 q-6.7 -2.4 -11.2 3.9" stroke-opacity=".6"/>
+<path d="M378.8 305.0 q6.7 -2.4 11.2 3.9" stroke-opacity=".6"/>
+<path d="M378.1 320.0 q-8.3 -2.4 -13.8 4.8" stroke-opacity=".6"/>
+<path d="M378.1 320.0 q8.3 -2.4 13.8 4.8" stroke-opacity=".6"/>
+<path d="M377.8 335.0 q-8.9 -2.4 -14.8 5.2" stroke-opacity=".6"/>
+<path d="M377.8 335.0 q8.9 -2.4 14.8 5.2" stroke-opacity=".6"/>
+<path d="M378.1 350.0 q-7.3 -2.4 -12.2 4.3" stroke-opacity=".6"/>
+<path d="M378.1 350.0 q7.3 -2.4 12.2 4.3" stroke-opacity=".6"/>
+<path d="M378.8 365.0 q-5.8 -2.4 -9.6 3.4" stroke-opacity=".6"/>
+<path d="M378.8 365.0 q5.8 -2.4 9.6 3.4" stroke-opacity=".6"/>
+</g>
+<rect width="900" height="600" fill="url(#b)"/>
+<text x="872" y="580" text-anchor="end" font-family="Georgia,serif" font-style="italic" font-size="15" letter-spacing="2" fill="rgba(217,180,119,.55)">illustration · 示意</text>
+</svg>

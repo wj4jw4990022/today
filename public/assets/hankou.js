@@ -46,7 +46,7 @@
 
   function floorHtml(f, i) {
     var d = DEF[f.f] || ['', '', ''], k = '漢口總店|' + f.f;
-    var img = f.shops.map(function (s) { return Z.safeUrl(s.image); }).filter(Boolean)[0];
+    var img = f.shops.map(function (s) { return Z.safeUrl(s.image); }).filter(Boolean)[0] || Z.illus(f.shops[0]);
     var first = f.shops.filter(function (s) { return Z.safeUrl(s.image); })[0] || f.shops[0];
     var arch = floors.map(function (g) { return g.f === f.f ? '<b>' + E(num(g.f)) + '</b>' : '<span>' + E(num(g.f)) + '</span>'; }).join('');
     var pic = img ? '<img src="' + E(img) + '" alt="' + E(first.name) + '" loading="lazy">' : '<div class="ev-beam"></div>';
@@ -63,7 +63,7 @@
   function lobby(f, k, d) {
     var n = f.shops.length;
     return '<p class="ev-desc ev-lead">' + Z.ct(k + '介紹', d[2]) + '</p><div class="ev-lobby" style="--n:' + Math.min(n, 3) + '">' + f.shops.map(function (s, j) {
-      var u = Z.safeUrl(s.image), pic = u ? '<img src="' + E(u) + '" alt="' + E(s.name) + '" loading="lazy">' : '<div class="ev-beam"></div>';
+      var pic = '<img src="' + E(Z.mainImg(s)) + '" alt="' + E(s.name) + '" loading="lazy">';
       return '<div class="ev-cell">' + door(s, '<b>' + E(f.f) + '</b><span>·</span><span>' + (j < 9 ? '0' : '') + (j + 1) + '</span>', pic, '') + shopRow(s) + '</div>';
     }).join('') + '</div>';
   }

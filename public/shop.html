@@ -50,9 +50,8 @@ if (id === 'p') location.replace('huangpu.html');
   function ftitle(f) { return Z.t('漢口總店|' + f + '標題', DEF[f] || f); }
   function hh(t) { var a = String(t).split(':'); return a[1] === '00' ? a[0] : t; }
   function door(s, arch, cls) {
-    var u = Z.safeUrl(s.image);
     return '<a class="ev-door' + (cls || '') + '" href="shop.html?id=' + encodeURIComponent(s.id) + '" aria-label="' + E(s.name) + '"><span class="ev-arch">' + arch + '</span><div class="ev-in"><div class="ev-pic">' +
-      (u ? '<img src="' + E(u) + '" alt="' + E(s.name) + '">' : '<div class="ev-beam"></div>') + '</div><div class="ev-dl"></div><div class="ev-dr"></div></div></a>';
+      '<img src="' + E(Z.mainImg(s)) + '" alt="' + E(s.name) + '"></div><div class="ev-dl"></div><div class="ev-dr"></div></div></a>';
   }
   function no2(i) { return (i < 9 ? '0' : '') + (i + 1); }
 

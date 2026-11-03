@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" width="900" height="600">
+<defs><radialGradient id="g" cx="78%" cy="12%" r="110%"><stop offset="0" stop-color="#33504A"/><stop offset=".45" stop-color="#233A36"/><stop offset="1" stop-color="#1B2E2B"/></radialGradient>
+<linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop offset=".34" stop-color="rgb(255,214,160)" stop-opacity="0"/><stop offset=".49" stop-color="rgb(255,214,160)" stop-opacity=".16"/><stop offset=".64" stop-color="rgb(255,214,160)" stop-opacity="0"/></linearGradient></defs>
+<rect width="900" height="600" fill="url(#g)"/>
+<g fill="none" stroke="#D9B477" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M0 470 H900" stroke-opacity=".7"/><path d="M0 482 H900" stroke-opacity=".25"/>
+<rect x="150" y="110" width="140" height="180"/><rect x="320" y="90" width="120" height="150"/><rect x="320" y="260" width="120" height="110"/>
+<path d="M220 150 c-30 20 -30 60 0 80 c30 -20 30 -60 0 -80z M220 150 v110 M220 190 l-18 -12 M220 210 l18 -12" stroke-opacity=".8"/>
+<circle cx="380" cy="165" r="38"/><circle cx="394" cy="155" r="32" fill="rgba(35,58,54,1)" stroke="none"/><path d="M372 140 l4 8 l8 2 l-8 2 l-4 8 l-4 -8 l-8 -2 l8 -2z" stroke-opacity=".8"/>
+<path d="M350 330 q30 -50 60 0 q-30 20 -60 0z M380 330 v24" stroke-opacity=".8"/>
+<path d="M520 400 h300 M540 400 v70 M800 400 v70"/>
+<path d="M600 390 l60 -40 l26 12 l-50 46 z"/><path d="M686 362 l40 -30 M628 380 l-30 18" /><circle cx="672" cy="372" r="8"/>
+<path d="M750 400 v-34 h22 v34 M760 366 v-10 h2 v10 M782 400 v-26 h18 v26" />
+<path d="M800 120 l-80 70 l40 60" /><path d="M740 250 l-30 30 h60 z" fill="rgba(217,180,119,.10)"/><path d="M800 120 v-120" stroke-opacity=".6"/>
+<path d="M60 0 q12.6 63.0 3.6 135.0" stroke-opacity=".7"/>
+<path d="M61.3 15.0 q-9.3 -3.6 -15.5 5.4" stroke-opacity=".6"/>
+<path d="M61.3 15.0 q9.3 -3.6 15.5 5.4" stroke-opacity=".6"/>
+<path d="M62.2 30.0 q-10.8 -3.6 -18.1 6.3" stroke-opacity=".6"/>
+<path d="M62.2 30.0 q10.8 -3.6 18.1 6.3" stroke-opacity=".6"/>
+<path d="M62.9 45.0 q-12.4 -3.6 -20.7 7.2" stroke-opacity=".6"/>
+<path d="M62.9 45.0 q12.4 -3.6 20.7 7.2" stroke-opacity=".6"/>
+<path d="M63.2 60.0 q-14.0 -3.6 -23.3 8.1" stroke-opacity=".6"/>
+<path d="M63.2 60.0 q14.0 -3.6 23.3 8.1" stroke-opacity=".6"/>
+<path d="M63.2 75.0 q-12.6 -3.6 -20.9 7.3" stroke-opacity=".6"/>
+<path d="M63.2 75.0 q12.6 -3.6 20.9 7.3" stroke-opacity=".6"/>
+<path d="M62.9 90.0 q-11.0 -3.6 -18.3 6.4" stroke-opacity=".6"/>
+<path d="M62.9 90.0 q11.0 -3.6 18.3 6.4" stroke-opacity=".6"/>
+<path d="M62.2 105.0 q-9.4 -3.6 -15.7 5.5" stroke-opacity=".6"/>
+<path d="M62.2 105.0 q9.4 -3.6 15.7 5.5" stroke-opacity=".6"/>
+<path d="M61.3 120.0 q-7.9 -3.6 -13.1 4.6" stroke-opacity=".6"/>
+<path d="M61.3 120.0 q7.9 -3.6 13.1 4.6" stroke-opacity=".6"/>
+</g>
+<rect width="900" height="600" fill="url(#b)"/>
+<text x="872" y="580" text-anchor="end" font-family="Georgia,serif" font-style="italic" font-size="15" letter-spacing="2" fill="rgba(217,180,119,.55)">illustration · 示意</text>
+</svg>
