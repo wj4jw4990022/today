@@ -39,7 +39,7 @@ function draw() {
     return '<div style="margin-bottom:56px"><div class="h" style="font-size:28px;margin-bottom:8px">' + Z.esc(c) + '</div><div class="list">' +
       items.filter(function (i) { return i.cat === c; }).map(function (i) {
         var p = Z.isPlaceholder(i.price) ? '' : '<div class="pr">$' + Z.esc(String(i.price).replace(/^\$/, '')) + '</div>';
-        return '<div class="m">' + Z.photo(i.image, i.name) + '<div class="mt"><b>' + Z.esc(i.name) + '</b><span>' + Z.esc(i.desc) + '</span></div>' + p + '</div>';
+        return '<div class="m">' + Z.photo(Z.itemImg(i), i.name) + '<div class="mt"><b>' + Z.esc(i.name) + '</b><span>' + Z.esc(i.desc) + '</span></div>' + p + '</div>';
       }).join('') + '</div></div>';
   }).join('');
 }

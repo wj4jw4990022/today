@@ -178,3 +178,8 @@ img{max-width:100%;display:block}
  .fx{flex-direction:column;padding:26px 22px}.fx .la .fl{font-size:56px;position:static}
  .cards{grid-template-columns:1fr}.cx>.ph{height:210px!important}.cx .tn{height:52px}
 }
+
+/* 社群圖示按鈕 */
+.soc a.si{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border:1px solid var(--line);color:var(--accent2);transition:border-color .2s,background .2s}
+.soc a.si svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.soc a.si:hover{border-color:var(--accent2);background:rgba(127,127,127,.08)}

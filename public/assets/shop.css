@@ -26,9 +26,12 @@
 .sp-g:hover{background:var(--lit1)}
 .sp-g.off{background:transparent;color:var(--mute);border-color:var(--line);pointer-events:none}
 .sp-cta .ev-ghost{padding:13px 26px}
-.sp-soc{display:flex;flex-wrap:wrap;gap:16px;margin-top:22px;font-size:12px;letter-spacing:.2em;color:var(--mute)}
+.sp-soc{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-top:22px;font-size:12px;letter-spacing:.2em;color:var(--mute)}
 .sp-soc a{border-bottom:1px solid var(--line)}.sp-soc a:hover{color:var(--gold)}
 .sp-soc .soc{display:contents}.sp-soc .soc a{color:var(--mute)}
+.sp-soc .soc a.si,.sp-isoc .soc a.si{color:var(--gold);border:1px solid rgba(var(--gold-rgb),.4)}
+.sp-soc .soc a.si:hover,.sp-isoc .soc a.si:hover{border-color:var(--gold);background:rgba(var(--gold-rgb),.08)}
+.sp-isoc .soc{display:flex;gap:8px;margin-top:12px}
 
 .sp-info{display:grid;grid-template-columns:var(--cols,1.6fr 1fr 1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .sp-info>div{padding:30px 40px;border-right:1px solid var(--line)}.sp-info>div:last-child{border-right:0}

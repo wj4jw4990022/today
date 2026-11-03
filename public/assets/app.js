@@ -9,7 +9,7 @@
     });
   };
   Z.isPlaceholder = function (s) { return !s || /^\s*(待補|\[.*\])\s*$/.test(String(s)); };
-  Z.safeUrl = function (u) { return /^https?:\/\//i.test(u || '') || /^\/img\/[\w-]+$/.test(u || '') ? u : ''; }; // 本站上傳的圖片是 /img/編號
+  Z.safeUrl = function (u) { return /^https?:\/\//i.test(u || '') || /^\/img\/[\w-]+$/.test(u || '') || /^assets\/illus\/[\w\/-]+\.svg$/.test(u || '') ? u : ''; }; // 本站上傳的圖片是 /img/編號；assets/illus/ 是示意插畫
 
   /* ---------- API ---------- */
   function unwrap(j) { if (!j.ok) throw new Error(j.error || '發生錯誤'); return j.data; }
@@ -152,6 +152,16 @@
     return 'assets/illus/' + k + '.svg';
   };
   Z.mainImg = function (s) { return Z.safeUrl(s.image) || Z.illus(s); };
+  /* 商品／服務項目還沒上傳圖片時，依品名配對示意插畫（assets/illus/items/，1:1）；配對不到就不顯示圖 */
+  var ITEM_ILLUS = [[/牛肉麵/, 'noodle'], [/義大利麵|麵/, 'pasta'], [/乳捲|蛋糕捲/, 'roll'], [/蛋糕|甜點/, 'cake'], [/水餃|餃/, 'dumpling'], [/外套|罩衫/, 'coat'], [/上衣|T恤|襯衫/, 'top'], [/包|飾品|配件/, 'bag'],
+    [/剪髮|剪/, 'cut'], [/染/, 'dye'], [/燙/, 'perm'], [/設計/, 'design'], [/諮詢/, 'consult'], [/刺青|紋身/, 'tattoo'], [/手串|手鍊/, 'bracelet'], [/擺件|擺飾/, 'ornament'], [/水晶|原礦|礦/, 'crystal'],
+    [/肩頸/, 'neck'], [/足部|腳/, 'foot'], [/推拿|按摩|整復/, 'massage'], [/場地/, 'venue'], [/講座|課程/, 'lecture'], [/聚會|派對/, 'party'], [/禮服|婚紗(?!攝)/, 'gown'], [/寫真/, 'portrait'], [/攝影|拍攝/, 'camera']];
+  Z.itemImg = function (i) {
+    var u = Z.safeUrl(i.image); if (u) return u;
+    var ts = [String(i.name || ''), String(i.cat || '')]; // 先比對品名，比對不到再看分類
+    for (var n = 0; n < ts.length; n++) for (var k = 0; k < ITEM_ILLUS.length; k++) if (ITEM_ILLUS[k][0].test(ts[n])) return 'assets/illus/items/' + ITEM_ILLUS[k][1] + '.svg';
+    return '';
+  };
   Z.fail = function (el, msg) { el.innerHTML = '<div class="msg err">' + Z.esc(msg || '資料載入失敗，請稍後再試。') + '</div>'; };
 
   Z.init = function (active, fn) {
@@ -193,9 +203,15 @@
     if (m === 'tel') return c.phone ? '<a class="' + cls + '" href="tel:' + Z.esc(String(c.phone).replace(/[^0-9+#]/g, '')) + '">' + Z.esc(t) + '</a>' : '';
     return s.open ? '<a class="' + cls + '" href="booking.html?shop=' + encodeURIComponent(s.id) + '">' + Z.esc(t) + '</a>' : '<span class="btn sm off">暫停' + Z.esc(t) + '</span>';
   };
+  /* 社群連結：圖示按鈕（通用線條圖示，滑鼠移上去顯示名稱） */
+  var SOC_ICON = {
+    ig: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8.5h4l1.6-2.5h6.8L17 8.5h4V19H3z"/><circle cx="12" cy="13.3" r="3.6"/></svg>',
+    fb: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10.5v9H4v-9zM7 19.5h9.6a2 2 0 0 0 2-1.6l1.2-5.6a2 2 0 0 0-2-2.4H14V6.6a2.1 2.1 0 0 0-3.9-1.1L7 10.5"/></svg>',
+    line: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H10l-5 4v-4H4z"/><path d="M8 10.5h8" /></svg>'
+  };
   Z.social = function (s) {
     var c = s.contact || {}, out = [];
-    [['ig', 'IG', 'Instagram'], ['fb', 'FB', 'Facebook'], ['line', 'LINE', 'LINE']].forEach(function (x) { var u = Z.safeUrl(c[x[0]]); if (u) out.push('<a href="' + Z.esc(u) + '" target="_blank" rel="noopener" aria-label="' + x[2] + '">' + x[1] + '</a>'); });
+    [['ig', 'Instagram'], ['fb', 'Facebook'], ['line', 'LINE']].forEach(function (x) { var u = Z.safeUrl(c[x[0]]); if (u && /^https?:/.test(u)) out.push('<a class="si" href="' + Z.esc(u) + '" target="_blank" rel="noopener" aria-label="' + x[1] + '" title="' + x[1] + '">' + SOC_ICON[x[0]] + '</a>'); });
     return out.length ? '<div class="soc">' + out.join('') + '</div>' : '';
   };
   /* 漢口樓層頁的店家卡片（版型 B）：大圖輪播（可滑動／左右鍵）＋縮圖列＋一句話介紹＋按鈕；整張卡片都可點 */

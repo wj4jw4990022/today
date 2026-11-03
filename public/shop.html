@@ -99,7 +99,7 @@ if (id === 'p') location.replace('huangpu.html');
     } else if (!Z.isPlaceholder(shop.hours)) info += '<div data-r="3"><span class="ev-caps">Hours　營業時間</span><p>' + E(shop.hours) + '</p></div>';
     var map = Z.safeUrl(Z.t('漢口總店|地圖連結', ''));
     info += '<div><span class="ev-caps">Location　位置</span><p>' + E(Z.t('漢口總店|地址', '高雄市三民區漢口街 200 號')) + '<br>' + E(shop.floor) + '</p>' + (map ? '<a class="go" href="' + E(map) + '" target="_blank" rel="noopener">Google 地圖 →</a>' : '') + '</div>';
-    if (tel || Z.social(shop)) info += '<div data-r="5"><span class="ev-caps">Contact　聯絡</span><p>' + (c.phone ? E(c.phone) : '') + '</p>' + (tel ? '<a class="go" href="tel:' + E(tel) + '">撥打電話 →</a>' : '') + '</div>';
+    if (tel || Z.social(shop)) info += '<div data-r="5"><span class="ev-caps">Contact　聯絡</span><p>' + (c.phone ? E(c.phone) : '') + '</p>' + (tel ? '<a class="go" href="tel:' + E(tel) + '">撥打電話 →</a>' : '') + '<div class="sp-isoc">' + Z.social(shop) + '</div></div>';
     el('info').innerHTML = info;
     var nH = /data-r="3"/.test(info) ? 1 : 0, nAll = (info.match(/<div( data-r="\d")?><span class="ev-caps">/g) || []).length;
     el('info').style.setProperty('--cols', (nH ? '1.6fr ' : '') + Array(nAll - nH + 1).join('1fr ').trim());
@@ -111,9 +111,9 @@ if (id === 'p') location.replace('huangpu.html');
       el('ititle').textContent = shop.itemsTitle || '服務項目';
       var cats = []; its.forEach(function (i) { if (i.cat && cats.indexOf(i.cat) < 0) cats.push(i.cat); });
       el('cats').innerHTML = cats.length > 1 ? '<button type="button" class="on" data-cat="">全部</button>' + cats.map(function (x) { return '<button type="button" data-cat="' + E(x) + '">' + E(x) + '</button>'; }).join('') : '';
-      var pics = its.some(function (i) { return Z.safeUrl(i.image); });
+      var pics = its.some(function (i) { return Z.itemImg(i); });
       el('items').innerHTML = its.map(function (i) {
-        var u = Z.safeUrl(i.image);
+        var u = Z.itemImg(i);
         return '<div class="sp-mi" data-cat="' + E(i.cat || '') + '">' + (pics ? '<div class="th">' + (u ? '<img src="' + E(u) + '" alt="' + E(i.name) + '" loading="lazy">' : '') + '</div>' : '') +
           '<div class="x"><b>' + E(i.name) + '</b>' + (Z.isPlaceholder(i.desc) || !i.desc ? '' : '<span>' + E(i.desc) + '</span>') + '</div>' + (i.price ? '<div class="pr">' + E(i.price) + '</div>' : '') + '</div>';
       }).join('');
