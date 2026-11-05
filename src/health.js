@@ -61,7 +61,7 @@ export async function publicMenu(c, preview) {
     upgrade: { size: { LIGHT: num(st['份量加價_LIGHT'], 0), BALANCE: num(st['份量加價_BALANCE'], 0), POWER: num(st['份量加價_POWER'], 0) }, main: { 雞胸: num(st['主菜加價_雞胸'], 0), 雞腿排: num(st['主菜加價_雞腿排'], 0), 牛排: num(st['主菜加價_牛排'], 0) } },
     days: num(st['每期天數'], 30), pause: { times: num(st['暫停每期次數'], 1), days: num(st['暫停最多天數'], 7) },
     referral: { 8: num(st['新會員折扣_8餐'], 0), 12: num(st['新會員折扣_12餐'], 0), 20: num(st['新會員折扣_20餐'], 0) }, // 新會員用推薦碼的第一期折扣
-    cutoff: String(st['截單時間'] || '20:00')
+    cutoff: String(st['截單時間'] || '20:00'), memberOpen: isTrue(st['會員系統開放'])
   };
 }
 

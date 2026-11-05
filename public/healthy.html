@@ -23,7 +23,7 @@
 <script src="assets/app.js"></script>
 <script>
 /* 健康餐頁（版面 B）。價格、營養、方案來自後台「健康餐」；頁面文字來自「頁面內容 › 健康餐頁」。
-   會員系統上線前，訂閱相關按鈕都顯示「即將開放」且不能點（MEMBER_OPEN 之後改由後台設定決定）。 */
+   會員系統上線前，訂閱相關按鈕都顯示「即將開放」且不能點（由健康餐設定「會員系統開放」決定）。 */
 var E = Z.esc, MEMBER_OPEN = false, ORDER = ['LIGHT', 'BALANCE', 'POWER'];
 var COL = { '紅': '#C9483A', '黃': '#E0B33A', '綠': '#3F7A4F', '橙': '#D9822B', '紫': '#7A4A8A', '白': '#D8D8CC', '棕': '#8A5A3B' };
 var M = null, sel = '';
@@ -65,7 +65,7 @@ function heroPic() { return '<div class="hb-pic hb-main" data-ci="健康餐|主�
 function uniq(a, k) { var o = []; a.forEach(function (x) { if (o.indexOf(x[k]) < 0) o.push(x[k]); }); return o; }
 
 function draw(d) {
-  M = d; var top = document.getElementById('hhero'), h = document.getElementById('hx'), sb = document.getElementById('sbar');
+  M = d; MEMBER_OPEN = !!(d && d.memberOpen); var top = document.getElementById('hhero'), h = document.getElementById('hx'), sb = document.getElementById('sbar');
   var open = d && d.open && d.items && d.items.length;
   top.innerHTML = (d && d.preview ? '<div style="background:#8A5E2E;color:#FBF8F1;text-align:center;font-size:12px;letter-spacing:.14em;padding:6px">後台預覽：健康餐頁面尚未對外開放，一般訪客只會看到「即將推出」</div>' : '') + hero(d || {}, open);
   if (!open) { h.innerHTML = ''; sb.style.display = 'none'; document.body.classList.remove('sb'); return; }

@@ -192,6 +192,25 @@ await t('本週蔬菜：新增、解析顏色與克數、依日期選本週', as
 await t('同一週再存＝覆蓋，不重複', async () => { const n = (await q('SELECT * FROM weekly_veg')).length; assert((await post({ ...A, action: 'adminSaveVeg', veg: { start: day2(-3), fixed: '花椰菜 60g', r1: '青花筍', r2: '' } })).ok); assert.equal((await q('SELECT * FROM weekly_veg')).length, n); assert.equal((await get({ action: 'healthMenu' })).data.veg.rotating[0].name, '青花筍'); assert.equal((await q('SELECT updated_by FROM weekly_veg WHERE week_start=?', day2(-3)))[0].updated_by, 'boss@x.com'); });
 await t('蔬菜驗證：日期必填、不可全空；可刪除', async () => { assert(!(await post({ ...A, action: 'adminSaveVeg', veg: { start: '', fixed: 'a' } })).ok); assert(!(await post({ ...A, action: 'adminSaveVeg', veg: { start: day2(9), fixed: '', r1: '', r2: '' } })).ok); const n = (await q('SELECT * FROM weekly_veg')).length; assert((await post({ ...A, action: 'adminDeleteVeg', start: day2(5) })).ok); assert.equal((await q('SELECT * FROM weekly_veg')).length, n - 1); });
 await t('設定：總管理員可改值；不存在的項目被拒', async () => { assert((await post({ ...A, action: 'adminSaveHealthSetting', key: '方案12餐_總價', value: '2000' })).ok); assert.equal((await get({ action: 'healthMenu' })).data.plans.find((p) => p.meals === 12).total, 2000); assert(!(await post({ ...A, action: 'adminSaveHealthSetting', key: '不存在', value: '1' })).ok); });
+await t('會員資料表（0005）：中文欄位讀寫、手機與 Email 不可重複、同一時段只能預約一份（取消的不算）', async () => {
+  const { Db } = await import('../src/db.js'); const d = new Db(db);
+  await d.insert('會員', { 會員ID: 'M1', LINEID: 'U1', 姓名: '王小明', 手機: '0912345678', Email: 'a@x.com', Email比對: 'a@x.com', 推薦碼: 'AAA111', 註冊時間: 'now', 曾訂閱: false });
+  const m = await d.first('會員', { 會員ID: 'M1' }); assert.equal(m['手機'], '0912345678'); assert.equal(m['曾訂閱'], false); assert.equal(m['狀態'], '正常');
+  await assert.rejects(d.insert('會員', { 會員ID: 'M2', LINEID: 'U2', 手機: '0912345678', 推薦碼: 'BBB222', 註冊時間: 'now' }));
+  await assert.rejects(d.insert('會員', { 會員ID: 'M3', LINEID: 'U3', Email比對: 'a@x.com', 推薦碼: 'CCC333', 註冊時間: 'now' }));
+  await assert.rejects(d.insert('會員', { 會員ID: 'M4', LINEID: 'U1', 推薦碼: 'DDD444', 註冊時間: 'now' }));
+  await d.insert('會員', { 會員ID: 'M5', LINEID: 'U5', 推薦碼: 'EEE555', 註冊時間: 'now' }); await d.insert('會員', { 會員ID: 'M6', LINEID: 'U6', 推薦碼: 'FFF666', 註冊時間: 'now' }); // 還沒填手機、Email 的可以有很多位
+  await d.insert('訂閱', { 訂閱ID: 'S1', 會員ID: 'M1', 方案餐數: 12, 剩餘餐數: 12, 方案金額: 1980, 實付金額: 1880, 推薦折扣: 100, 建立時間: 'now' });
+  assert.equal((await d.first('訂閱', { 訂閱ID: 'S1' }))['狀態'], '待付款');
+  const r = { 會員ID: 'M1', 訂閱ID: 'S1', 日期: '2026-11-20', 時段: '中午', 份量: 'LIGHT', 主菜: '雞胸', 建立時間: 'now' };
+  await d.insert('預約', { ...r, 預約ID: 'R1' }); await assert.rejects(d.insert('預約', { ...r, 預約ID: 'R2' }));
+  await d.update('預約', (await d.first('預約', { 預約ID: 'R1' }))._row, { 狀態: '已取消' }); await d.insert('預約', { ...r, 預約ID: 'R3' }); await d.insert('預約', { ...r, 預約ID: 'R4', 時段: '晚上' });
+  await d.insert('錢包紀錄', { 紀錄ID: 'W1', 會員ID: 'M1', 時間: 'now', 類型: '推薦獎勵', 金額: 100, 可退現金: false, 狀態: '已入帳' });
+  assert.equal((await d.first('錢包紀錄', { 紀錄ID: 'W1' }))['可退現金'], false);
+  for (const tb of ['配送點', '推薦紀錄', '補償紀錄', '會員登入', 'Email驗證碼']) assert.deepEqual(await d.all(tb), []);
+  assert.equal((await q("SELECT value FROM health_settings WHERE key='會員系統開放'"))[0].value, 'FALSE');
+  await q("DELETE FROM reservations"); await q("DELETE FROM subscriptions"); await q("DELETE FROM wallet_ledger"); await q("DELETE FROM members");
+});
 await t('健康餐頁未開放時：一般訪客看不到品項；總管理員在後台預覽看得到完整內容，單店管理員不行', async () => {
   await q("UPDATE health_settings SET value='FALSE' WHERE key='健康餐頁面開放'");
   const g = (await get({ action: 'healthMenu' })).data; assert.equal(g.open, false); assert(!g.items);
