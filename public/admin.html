@@ -734,7 +734,7 @@ function vHealth() {
     '<div class="sub">' + tabs.map(function (t) { return '<button class="chip' + (t[0] === htab ? ' on' : '') + '" data-htab="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div><div id="sp"><div class="skel">載入中…</div></div>';
   call('adminHealthList').then(function (r) {
     cache.h = r;
-    $('hopen').innerHTML = '<div class="msg" style="margin:8px 0 18px">' + (r.open ? '健康餐頁面<b>已對外開放</b>。' : '健康餐頁面<b>尚未對外開放</b>，一般訪客看不到選單與價格。' + (me.all ? '確認上架後，到「規則與價格」把「健康餐頁面開放」改成 TRUE。' : '')) + ' <a href="healthy.html" target="_blank" rel="noopener" style="text-decoration:underline">查看前台頁面</a></div>';
+    $('hopen').innerHTML = '<div class="msg" style="margin:8px 0 18px">' + (r.open ? '健康餐頁面<b>已對外開放</b>。' : '健康餐頁面<b>尚未對外開放</b>，一般訪客看不到選單與價格。' + (me.all ? '確認上架後，到「規則與價格」把「健康餐頁面開放」改成 TRUE。開放前可到「頁面內容 › 健康餐頁」預覽完整版面。' : '')) + ' <a href="healthy.html" target="_blank" rel="noopener" style="text-decoration:underline">查看前台頁面</a></div>';
     ({ items: hItems, addons: hAddons, veg: hVeg, settings: hSet })[htab](r);
   }).catch(err);
 }
@@ -908,7 +908,7 @@ function vContent(pi, tab) {
     var go = window._pcGo; window._pcGo = null; var gi = go ? d.pages.map(function (p) { return p.id; }).indexOf(go) : -1;
     PC = { pages: d.pages, base: {}, cur: {}, pageOf: {}, fld: {}, history: d.history, pi: gi >= 0 ? gi : (pi || 0), tab: tab || 'edit', ready: false, fidx: 0 };
     d.pages.forEach(function (p, i) { p.sections.forEach(function (s) { s.fields.forEach(function (f) { if (PC.fld[f.key]) return; PC.fld[f.key] = f; PC.pageOf[f.key] = i; var v = d.values[f.key] || { text: '', image: '' }, e = pcEff(f, { text: v.text, image: v.image });
-      if (f.type !== 'image' && !f.opt && !v.text) e.text = f.def; PC.base[f.key] = { text: e.text, image: e.image }; PC.cur[f.key] = { text: e.text, image: e.image }; }); }); });
+      if (f.type !== 'image' && !f.opt && !v.text) e.text = f.def; if (f.type !== 'image' && f.opt && !d.values[f.key] && f.def) e.text = f.def; /* 選填欄位從未設定＝顯示預設文字 */ PC.base[f.key] = { text: e.text, image: e.image }; PC.cur[f.key] = { text: e.text, image: e.image }; }); }); });
     $('pg').innerHTML = '<div class="pc"><div class="pcn" id="pcNav"></div><div id="pcMain"></div><div class="pcv"><div class="pvtop mb-only"><button type="button" class="btn sm line" data-pvclose="1">‹ 返回編輯</button><b>前台預覽（含未儲存的修改）</b></div><div class="vbar"><div class="seg" id="pcDev"><button type="button" data-dev="pc" class="on">電腦</button><button type="button" data-dev="mob">手機</button></div><a class="sd" id="pcOpen" target="_blank" rel="noopener">在新分頁開啟前台 ↗</a></div><div class="pcfw" id="pcFw"><iframe id="pcFrame" title="前台預覽"></iframe></div><div class="sd dk-only">點預覽裡的文字或圖片，左邊會跳到對應欄位；點左邊欄位，預覽會框出位置。</div></div></div><button type="button" class="pvfab mb-only" data-pvopen="pc">看預覽 ›</button>';
     pcNav(); $('pcFrame').onload = function () { PC.ready = true; pcSend(); }; pcShow(); pcScale();
   }).catch(err);

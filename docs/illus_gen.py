@@ -142,3 +142,20 @@ S['huangpu'] = (LIGHT, floor(LIGHT) + '''
 for k, (c, body) in S.items():
     open(f'{OUT}/{k}.svg', 'w').write(frame(body, c))
 print(sorted(S))
+
+# ---- 健康餐餐盒示意（方形給品項卡、3:2 給頁首），2026-11-05 加 ----
+def bento(w, h):
+    s = min(w, h) / 600.0; ox = (w - 600 * s) / 2; oy = (h - 600 * s) / 2
+    circ = ''.join('<circle cx="%d" cy="%d" r="%d"%s/>' % (x, y, 14 + (i % 3) * 5, ' opacity=".7"' if i % 2 else '') for i, (x, y) in enumerate([(350,200),(400,230),(450,200),(360,280),(430,290),(380,350),(450,370),(350,410),(420,420)]))
+    body = ('<rect x="110" y="150" width="380" height="300" fill="rgba(217,180,119,.08)"/><path d="M300 150v300M110 300h190"/>'
+            '<ellipse cx="205" cy="225" rx="62" ry="40"/><path d="M160 225q45 -30 90 0" opacity=".6"/>'
+            '<circle cx="185" cy="375" r="36"/><circle cx="185" cy="375" r="14" fill="rgba(217,180,119,.35)"/>'
+            '<path d="M240 360q20 -24 40 0M232 400q24 -20 48 0" opacity=".7"/>' + circ)
+    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d">' % (w, h, w, h) +
+            '<defs><radialGradient id="g" cx="78%" cy="12%" r="110%"><stop offset="0" stop-color="#33504A"/><stop offset=".45" stop-color="#233A36"/><stop offset="1" stop-color="#1B2E2B"/></radialGradient></defs>' +
+            '<rect width="%d" height="%d" fill="url(#g)"/>' % (w, h) +
+            '<g transform="translate(%.1f %.1f) scale(%.3f)" fill="none" stroke="#D9B477" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">%s</g>' % (ox, oy, s, body) +
+            '<text x="%d" y="%d" text-anchor="end" font-family="Georgia,serif" font-style="italic" font-size="15" letter-spacing="2" fill="rgba(217,180,119,.55)">illustration · 示意</text></svg>' % (w - 28, h - 20))
+
+open(os.path.join(OUT, 'bento.svg'), 'w').write(bento(600, 600))
+open(os.path.join(OUT, 'bento-wide.svg'), 'w').write(bento(900, 600))

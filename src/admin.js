@@ -152,7 +152,7 @@ export const adminOps = {
         if (f.type === 'url' && text && !httpsOnly(text)) throw new UserError('「' + f.label + '」必須是 https 開頭的網址');
         if (!f.opt && !text) text = ''; // 非選填欄位清空＝回到預設文字
       }
-      const effOld = f.type !== 'image' && !f.opt ? (old.text || f.def) : old.text, effNew = f.type !== 'image' && !f.opt ? (text || f.def) : text;
+      const effOld = f.type !== 'image' && !f.opt ? (old.text || f.def) : f.type !== 'image' && f.opt && !cur[f.key] ? f.def : old.text, effNew = f.type !== 'image' && !f.opt ? (text || f.def) : text;
       if (effNew === effOld && image === old.image_url) continue; // 與目前前台顯示的一樣就不算修改
       stmts.push(c.env.DB.prepare('INSERT INTO site_content (page, block, field, text, image_url) VALUES (?,?,?,?,?) ON CONFLICT(page, field) DO UPDATE SET text=excluded.text, image_url=excluded.image_url').bind(pg, '', fd, text, image));
       stmts.push(c.env.DB.prepare('INSERT INTO content_history (batch, key, label, old_text, new_text, old_image, new_image, changed_by, changed_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(batch, f.key, f.label, old.text, text, old.image_url, image, a.email, at));

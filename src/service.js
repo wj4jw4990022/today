@@ -45,7 +45,7 @@ export async function publicData(c) {
   (await c.db.all('內容')).forEach((r) => { rows[r['頁面'] + '|' + r['欄位']] = r; });
   Object.keys(FIELD_BY_KEY).forEach((k) => { // 預設值 + 後台填寫的內容；留白的選填欄位保持空白（前台不顯示）
     const f = FIELD_BY_KEY[k], r = rows[k], txt = r ? String(r['內容'] || '') : '';
-    content[k] = f.type === 'image' ? { text: '', image: r ? String(r['圖片網址'] || '') : '' } : { text: f.opt ? txt : (txt || f.def), image: '' };
+    content[k] = f.type === 'image' ? { text: '', image: r ? String(r['圖片網址'] || '') : '' } : { text: f.opt ? (r ? txt : f.def) : (txt || f.def), image: '' }; // 選填欄位：從未設定＝預設文字；存成空白＝前台不顯示
   });
   const sp = shops.filter((x) => x.id === 'p')[0]; // 黃埔頁的電話、營業時間以店家資料為準
   if (sp) { content['黃埔二店|電話'] = { text: sp.contact.phone || '', image: '' }; content['黃埔二店|營業時間'] = { text: Z_hoursOrEmpty(sp), image: '' }; }

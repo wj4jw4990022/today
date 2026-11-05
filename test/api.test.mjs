@@ -54,6 +54,12 @@ await t('頁面內容：清空必填欄位＝回到預設；清空選填欄位�
   const c = (await get({ action: 'public' })).data.content; assert.equal(c['首頁|標語上句'].text, '兩個據點，兩種日子。'); assert.equal(c['首頁|品牌故事'].text, '');
   assert(!(await post({ ...A, action: 'adminSavePageContent', changes: [{ key: '首頁|標語下句', text: '請選擇你要前往的地方' }] })).ok);
 });
+await t('頁面內容：有預設文字的選填欄位（健康餐常見問題）＝未設定顯示預設；存成空白就不顯示', async () => {
+  const c = (await get({ action: 'public' })).data.content; assert.equal(c['健康餐|問題1'].text, '可以改期或取消某一餐嗎？'); assert.equal(c['健康餐|問題5'].text, '');
+  assert(!(await post({ ...A, action: 'adminSavePageContent', changes: [{ key: '健康餐|問題1', text: '可以改期或取消某一餐嗎？' }] })).ok); // 跟預設一樣＝沒有變更
+  assert((await post({ ...A, action: 'adminSavePageContent', changes: [{ key: '健康餐|問題1', text: '' }] })).ok);
+  assert.equal((await get({ action: 'public' })).data.content['健康餐|問題1'].text, '');
+});
 await t('頁面內容：不認得的欄位、壞網址、壞圖片被拒；多行與清單欄位保留換行', async () => {
   assert(!(await post({ ...A, action: 'adminSavePageContent', changes: [{ key: '亂寫|欄位', text: 'x' }] })).ok);
   assert(!(await post({ ...A, action: 'adminSavePageContent', changes: [{ key: '漢口總店|地圖連結', text: 'javascript:1' }] })).ok);
@@ -186,6 +192,14 @@ await t('本週蔬菜：新增、解析顏色與克數、依日期選本週', as
 await t('同一週再存＝覆蓋，不重複', async () => { const n = (await q('SELECT * FROM weekly_veg')).length; assert((await post({ ...A, action: 'adminSaveVeg', veg: { start: day2(-3), fixed: '花椰菜 60g', r1: '青花筍', r2: '' } })).ok); assert.equal((await q('SELECT * FROM weekly_veg')).length, n); assert.equal((await get({ action: 'healthMenu' })).data.veg.rotating[0].name, '青花筍'); assert.equal((await q('SELECT updated_by FROM weekly_veg WHERE week_start=?', day2(-3)))[0].updated_by, 'boss@x.com'); });
 await t('蔬菜驗證：日期必填、不可全空；可刪除', async () => { assert(!(await post({ ...A, action: 'adminSaveVeg', veg: { start: '', fixed: 'a' } })).ok); assert(!(await post({ ...A, action: 'adminSaveVeg', veg: { start: day2(9), fixed: '', r1: '', r2: '' } })).ok); const n = (await q('SELECT * FROM weekly_veg')).length; assert((await post({ ...A, action: 'adminDeleteVeg', start: day2(5) })).ok); assert.equal((await q('SELECT * FROM weekly_veg')).length, n - 1); });
 await t('設定：總管理員可改值；不存在的項目被拒', async () => { assert((await post({ ...A, action: 'adminSaveHealthSetting', key: '方案12餐_總價', value: '2000' })).ok); assert.equal((await get({ action: 'healthMenu' })).data.plans.find((p) => p.meals === 12).total, 2000); assert(!(await post({ ...A, action: 'adminSaveHealthSetting', key: '不存在', value: '1' })).ok); });
+await t('健康餐頁未開放時：一般訪客看不到品項；總管理員在後台預覽看得到完整內容，單店管理員不行', async () => {
+  await q("UPDATE health_settings SET value='FALSE' WHERE key='健康餐頁面開放'");
+  const g = (await get({ action: 'healthMenu' })).data; assert.equal(g.open, false); assert(!g.items);
+  const pv = await post({ ...A, action: 'adminHealthPreview' }); assert(pv.ok && pv.data.open && pv.data.preview && pv.data.items.length > 0 && pv.data.referral);
+  assert(!(await post({ ...B, action: 'adminHealthPreview' })).ok); assert(!(await post({ action: 'adminHealthPreview' })).ok);
+  await q("UPDATE health_settings SET value='TRUE' WHERE key='健康餐頁面開放'");
+  const o = (await get({ action: 'healthMenu' })).data; assert(o.open && !o.preview);
+});
 await t('健康餐只有總管理員：單店（h1）管理員看不到、也不能改', async () => { const l = await post({ ...B, action: 'adminHealthList' }); assert(!l.ok && l.error.includes('總管理員'), JSON.stringify(l)); assert(!(await post({ ...B, action: 'adminSaveHealthSetting', key: '每期天數', value: '31' })).ok); assert(!(await post({ ...B, action: 'adminSaveVeg', veg: { start: day2(-1), fixed: 'a' } })).ok); assert(!(await post({ ...B, action: 'adminSaveAddon', item: { type: '飲品', name: 'x', price: '1', on: true } })).ok); assert(!(await post({ ...B, action: 'adminUploadImage', target: 'health:HM-L-CB', data: Buffer.from([0xff, 0xd8, 0xff, 0xe0]).toString('base64') })).ok); assert((await post({ ...A, action: 'adminHealthList' })).ok); });
 await t('別店（非 h1）的管理員不能動健康餐', async () => { await db.prepare("INSERT INTO admins (email,scope) VALUES ('ponly@x.com','p')").run(); const P = { idToken: 'test:ponly@x.com' }; assert(!(await post({ ...P, action: 'adminHealthList' })).ok); assert(!(await post({ ...P, action: 'adminSaveAddon', item: { type: '飲品', name: 'x', price: '1', on: true } })).ok); });
 await t('沒有權限的人被拒（健康餐）', async () => { assert(!(await post({ ...N, action: 'adminHealthList' })).ok); assert(!(await post({ ...N, action: 'adminSaveAddon', item: { type: '飲品', name: 'x', price: '1', on: true } })).ok); });

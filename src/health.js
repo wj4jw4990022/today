@@ -38,9 +38,9 @@ async function currentVeg(c) {
 }
 
 /* ---------- 前台：菜單 ---------- */
-export async function publicMenu(c) {
+export async function publicMenu(c, preview) {
   const st = await settings(c);
-  if (!isTrue(st['健康餐頁面開放'])) return { open: false }; // 還沒開放：不對外提供任何價格與品項
+  if (!preview && !isTrue(st['健康餐頁面開放'])) return { open: false }; // 還沒開放：不對外提供任何價格與品項
   const items = (await c.db.all('健康餐品項', { 店家ID: SHOP })).filter((r) => isTrue(r['顯示'])).sort(byOrder).map((r) => ({
     id: r['品項ID'], size: r['份量'], main: r['主菜'], mainDesc: r['主菜內容'], rice: num(r['飯克數'], 0), vegG: num(r['蔬菜克數'], 0),
     kcal: num(r['熱量'], 0), protein: num(r['蛋白質'], 0), carb: num(r['碳水'], 0), fat: num(r['脂肪'], 0),
@@ -57,14 +57,18 @@ export async function publicMenu(c) {
     return { meals: n, total, per };
   }).filter((p) => p.total > 0);
   return {
-    open: true, items, addons, veg, plans,
+    open: true, preview: !!preview && !isTrue(st['健康餐頁面開放']), items, addons, veg, plans,
     upgrade: { size: { LIGHT: num(st['份量加價_LIGHT'], 0), BALANCE: num(st['份量加價_BALANCE'], 0), POWER: num(st['份量加價_POWER'], 0) }, main: { 雞胸: num(st['主菜加價_雞胸'], 0), 雞腿排: num(st['主菜加價_雞腿排'], 0), 牛排: num(st['主菜加價_牛排'], 0) } },
-    days: num(st['每期天數'], 30), pause: { times: num(st['暫停每期次數'], 1), days: num(st['暫停最多天數'], 7) }
+    days: num(st['每期天數'], 30), pause: { times: num(st['暫停每期次數'], 1), days: num(st['暫停最多天數'], 7) },
+    referral: { 8: num(st['新會員折扣_8餐'], 0), 12: num(st['新會員折扣_12餐'], 0), 20: num(st['新會員折扣_20餐'], 0) }, // 新會員用推薦碼的第一期折扣
+    cutoff: String(st['截單時間'] || '20:00')
   };
 }
 
 /* ---------- 後台 ---------- */
 export const healthOps = {
+  /** 後台「頁面內容」預覽用：頁面還沒對外開放時，總管理員也能看到完整版面 */
+  async adminHealthPreview(c, p, a) { needAll(a); return publicMenu(c, true); },
   async adminHealthList(c, p, a) {
     needAll(a); // 健康餐只有總管理員可以看與修改
     const st = await settings(c);
