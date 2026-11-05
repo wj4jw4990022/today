@@ -88,7 +88,8 @@
     shops.forEach(function (s) { var f = String(s.floor).split(' ')[0]; if (!by[f]) { by[f] = { f: f, shops: [] }; floors.push(by[f]); } by[f].shops.push(s); });
     floors.sort(function (a, b) { return parseInt(a.f, 10) - parseInt(b.f, 10); });
 
-    document.getElementById('count').textContent = Z.t('漢口總店|說明', '一棟樓，{n} 間店。由一樓往上逛，每一層都有不同的日子。').replace('{n}', shops.length);
+    var cnt = document.getElementById('count'); cnt.setAttribute('data-n', shops.length); // 之後 Z.bind 填入後台文字時也會換掉 {n}
+    cnt.textContent = Z.t('漢口總店|說明', '一棟樓，{n} 間店。由一樓往上逛，每一層都有不同的日子。').replace(/\{n\}/g, shops.length);
     var st = shops.map(Z.hoursState).filter(Boolean), open = st.filter(function (x) { return x.state === 'open'; }).length;
     document.getElementById('nowrow').style.display = st.length ? '' : 'none';
     document.getElementById('nowtxt').innerHTML = '<b>' + open + '</b> / ' + shops.length + ' 間營業中';

@@ -130,7 +130,7 @@
       if (el.hasAttribute('data-link')) {
         var u = Z.safeUrl(v.text), lb = c[el.getAttribute('data-label')];
         if (u) { el.href = u; el.target = '_blank'; el.rel = 'noopener'; el.style.display = ''; if (lb && lb.text) el.textContent = lb.text; } else el.style.display = 'none';
-      } else if (!Z.isPlaceholder(v.text)) el.textContent = v.text;
+      } else if (!Z.isPlaceholder(v.text)) el.textContent = el.hasAttribute('data-n') ? String(v.text).replace(/\{n\}/g, el.getAttribute('data-n')) : v.text; // data-n：把文字裡的 {n} 換成數字（例如漢口頁店數）
     });
     document.querySelectorAll('[data-ci]').forEach(function (el) {
       if (!el.hasAttribute('data-ph')) el.setAttribute('data-ph', el.innerHTML);
