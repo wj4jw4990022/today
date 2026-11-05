@@ -29,9 +29,17 @@ export const MailTemplate = {
  * 之後有自訂網域，改成直接呼叫 Resend 等寄信服務，只需要改這個函式。
  */
 export async function sendMail(env, m) {
-  if (!env.MAIL_RELAY_URL || !env.MAIL_RELAY_KEY) { console.log('未設定寄信中繼，略過寄信：' + m.subject); return false; }
-  const r = await fetch(env.MAIL_RELAY_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ key: env.MAIL_RELAY_KEY, ...m }), redirect: 'follow' });
-  if (!r.ok) throw new Error('寄信中繼回應 ' + r.status);
+  if (!env.MAIL_RELAY_URL || !env.MAIL_RELAY_KEY) {
+    console.warn('未設定寄信中繼，略過寄信（缺 ' + [!env.MAIL_RELAY_URL && 'MAIL_RELAY_URL', !env.MAIL_RELAY_KEY && 'MAIL_RELAY_KEY'].filter(Boolean).join('、') + '）：' + m.subject);
+    return false;
+  }
+  const r = await fetch(String(env.MAIL_RELAY_URL).trim(), { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ key: String(env.MAIL_RELAY_KEY).trim(), ...m }), redirect: 'follow' });
+  const t = await r.text();
+  let j = null; try { j = JSON.parse(t); } catch (e) {}
+  // Apps Script 出錯時常回 200 + 錯誤頁或 {ok:false}，只看狀態碼會以為成功
+  if (!j) throw new Error('寄信中繼回應不是預期格式（HTTP ' + r.status + '）：' + t.replace(/\s+/g, ' ').slice(0, 200));
+  if (!j.ok) throw new Error('寄信中繼拒絕寄信：' + (j.error || '未知原因') + (j.error === 'forbidden' ? '（MAIL_RELAY_KEY 與 Apps Script 的 RELAY_KEY 不一致）' : ''));
+  console.log('寄信成功：' + m.subject + ' → ' + m.to);
   return true;
 }
 

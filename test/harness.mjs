@@ -13,7 +13,7 @@ export async function setup() {
   env.MAIL_RELAY_URL = 'https://relay.test/m'; env.MAIL_RELAY_KEY = 'k';
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (u, o) => {
-    if (String(u).startsWith('https://relay.test/')) { mails.push(JSON.parse(o.body)); return new Response('ok'); }
+    if (String(u).startsWith('https://relay.test/')) { mails.push(JSON.parse(o.body)); return new Response(JSON.stringify({ ok: true })); }
     if (String(u).startsWith('https://api.line.me/')) { pushes.push(JSON.parse(o.body)); return new Response('{}'); }
     return realFetch(u, o);
   };
