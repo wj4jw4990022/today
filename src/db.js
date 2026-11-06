@@ -21,6 +21,7 @@ const T = {
   錢包紀錄: { t: 'wallet_ledger', c: { 紀錄ID: 'rec_id', 會員ID: 'member_id', 時間: 'at', 類型: 'type', 金額: 'amount', 可退現金: 'refundable', 付款方式: 'pay_method', 轉帳末五碼: 'transfer_last5', 對應ID: 'ref_id', 經手人員: 'handled_by', 狀態: 'status', 備註: 'note' }, b: ['可退現金'], n: ['金額'] },
   配送點: { t: 'delivery_points', c: { 配送點ID: 'point_id', 名稱: 'name', 地址: 'address', 距離公里: 'distance_km', 可配送時段: 'slots', 啟用: 'enabled', 備註: 'note' }, b: ['啟用'], n: ['距離公里'] },
   推薦紀錄: { t: 'referrals', c: { 紀錄ID: 'rec_id', 推薦人會員ID: 'referrer_id', 新會員ID: 'new_member_id', 新會員訂閱ID: 'new_sub_id', 新會員已取餐數: 'picked_count', 獎勵金額: 'reward', 狀態: 'status', 發放日期: 'granted_at', 計入月份: 'count_month', 取消原因: 'cancel_reason', 備註: 'note' }, b: [], n: ['新會員已取餐數', '獎勵金額'] },
+  付款申請: { t: 'pay_requests', c: { 申請ID: 'req_id', 會員ID: 'member_id', 類型: 'kind', 金額: 'amount', 餐數: 'meals', 推薦碼: 'code', 付款方式: 'method', 末五碼: 'last5', 狀態: 'status', 建立時間: 'created_at', 處理人員: 'handled_by', 處理時間: 'handled_at', 備註: 'note' }, b: [], n: ['金額', '餐數'] },
   補償紀錄: { t: 'compensations', c: { 紀錄ID: 'rec_id', 預約ID: 'res_id', 會員ID: 'member_id', 原因: 'reason', 處理方式: 'action', 處理人員: 'handled_by', 時間: 'at', 備註: 'note' }, b: [], n: [] }
 };
 const q = (s) => '"' + s + '"';

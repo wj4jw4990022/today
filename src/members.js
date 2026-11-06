@@ -82,6 +82,47 @@ function summary(m, wal, sub) {
   };
 }
 
+/** 用錢包購買（或續訂）方案；推薦碼只限第一次訂閱，新會員得紅利。by＝經手人（店員 Email 或「會員」） */
+export async function buyPlan(c, m, p, by) {
+    const a = { email: by };
+    const st = await settings(c), meals = num(p.meals, 0);
+    const price = num(st['方案' + meals + '餐_總價'], 0);
+    if (!price) throw new UserError('請選擇方案');
+    const subs = await c.db.all('訂閱', { 會員ID: m['會員ID'] }), old = currentSub(subs);
+    if (old && old['狀態'] !== '使用中') throw new UserError('方案暫停中，不能續訂');
+    const wal = walletOf(await ledgerOf(c, m['會員ID']));
+    if (wal.total < price) throw new UserError('錢包餘額不足：還差 ' + (price - wal.total).toLocaleString() + ' 元，請先儲值');
+    let referrer = null; const code = clean(p.code, 10).toUpperCase();
+    if (code) {
+      if (m['曾訂閱'] || subs.length || old) throw new UserError('推薦碼只限第一次訂閱使用');
+      referrer = await c.db.first('會員', { 推薦碼: code });
+      if (!referrer || referrer['狀態'] !== '正常') throw new UserError('找不到這個推薦碼');
+      if (referrer['會員ID'] === m['會員ID'] || (referrer['手機'] && referrer['手機'] === m['手機'])) throw new UserError('不能使用自己的推薦碼');
+      if (await c.db.first('推薦紀錄', { 新會員ID: m['會員ID'] })) throw new UserError('這位會員已經用過推薦碼');
+    }
+    const days = num(st['每期天數'], 30), start = todayStr(), subId = 'S' + Date.now().toString(36).toUpperCase() + rid(3);
+    // 續訂：舊期剩下的餐數與可結算金額（實付－已用掉的單點價）都帶到新一期；未吃完的預約改掛新一期
+    let carry = 0, carryMeals = 0;
+    if (old) {
+      const used = await consumedOf(c, old['訂閱ID']);
+      carry = (Number(old['實付金額']) || 0) - used.value; carryMeals = Number(old['剩餘餐數']) || 0;
+      await c.db.update('訂閱', old._row, { 狀態: '已續訂', 結算金額: carry, 結算方式: '併入續訂', 剩餘餐數: 0, 備註: (old['備註'] ? old['備註'] + '；' : '') + '續訂到 ' + subId + '（帶過去 ' + carryMeals + ' 餐、' + carry + ' 元）' });
+    }
+    await c.db.insert('訂閱', { 訂閱ID: subId, 會員ID: m['會員ID'], 方案餐數: meals, 剩餘餐數: meals + carryMeals, 方案金額: price, 推薦折扣: 0, 實付金額: price + carry, 付款方式: '錢包', 收款確認人員: a.email, 收款時間: nowStamp(), 開始日: start, 到期日: addDays(start, days - 1), 狀態: '使用中', 續訂來源訂閱ID: old ? old['訂閱ID'] : '', 建立時間: nowStamp(), 備註: old ? '續訂：含舊期 ' + carryMeals + ' 餐、可結算 ' + carry + ' 元' : '' });
+    if (old) await c.env.DB.prepare("UPDATE reservations SET sub_id = ? WHERE sub_id = ? AND status IN ('已預約','已鎖定')").bind(subId, old['訂閱ID']).run();
+    await ledger(c, m['會員ID'], '購買方案', -price, { 對應ID: subId, 經手人員: a.email, 備註: (old ? '續訂 ' : '') + meals + ' 餐方案' });
+    const upd = { 曾訂閱: true };
+    let bonus = 0;
+    if (referrer) {
+      bonus = num(st['新會員折扣_' + meals + '餐'], 0);
+      upd['推薦人會員ID'] = referrer['會員ID'];
+      await c.db.insert('推薦紀錄', { 紀錄ID: 'R' + Date.now().toString(36).toUpperCase() + rid(3), 推薦人會員ID: referrer['會員ID'], 新會員ID: m['會員ID'], 新會員訂閱ID: subId, 新會員已取餐數: 0, 獎勵金額: num(st['推薦人獎勵'], 0), 狀態: '等待中' });
+      if (bonus > 0) await ledger(c, m['會員ID'], '推薦紅利', bonus, { 可退現金: false, 對應ID: subId, 經手人員: '系統', 備註: '使用推薦碼 ' + code });
+    }
+    await c.db.update('會員', m._row, upd);
+    return { ok: true, subId, bonus };
+  }
+
 export const memberOps = {
   /** 會員清單（含錢包餘額與目前方案）；q＝姓名、手機、Email、會員編號關鍵字 */
   async adminMemberList(c, p, a) {
@@ -145,46 +186,7 @@ export const memberOps = {
     await ledger(c, m['會員ID'], '儲值', amt, { 付款方式: method, 轉帳末五碼: method === '轉帳' ? last5 : '', 經手人員: a.email, 備註: custom ? '自訂金額：' + reason : '' });
     return { ok: true };
   },
-  /** 用錢包購買方案；推薦碼只限第一次訂閱，新會員得紅利 */
-  async adminBuyPlan(c, p, a) {
-    needAll(a);
-    const m = await member(c, p.memberId), st = await settings(c), meals = num(p.meals, 0);
-    const price = num(st['方案' + meals + '餐_總價'], 0);
-    if (!price) throw new UserError('請選擇方案');
-    const subs = await c.db.all('訂閱', { 會員ID: m['會員ID'] }), old = currentSub(subs);
-    if (old && old['狀態'] !== '使用中') throw new UserError('方案暫停中，不能續訂');
-    const wal = walletOf(await ledgerOf(c, m['會員ID']));
-    if (wal.total < price) throw new UserError('錢包餘額不足：還差 ' + (price - wal.total).toLocaleString() + ' 元，請先儲值');
-    let referrer = null; const code = clean(p.code, 10).toUpperCase();
-    if (code) {
-      if (m['曾訂閱'] || subs.length || old) throw new UserError('推薦碼只限第一次訂閱使用');
-      referrer = await c.db.first('會員', { 推薦碼: code });
-      if (!referrer || referrer['狀態'] !== '正常') throw new UserError('找不到這個推薦碼');
-      if (referrer['會員ID'] === m['會員ID'] || (referrer['手機'] && referrer['手機'] === m['手機'])) throw new UserError('不能使用自己的推薦碼');
-      if (await c.db.first('推薦紀錄', { 新會員ID: m['會員ID'] })) throw new UserError('這位會員已經用過推薦碼');
-    }
-    const days = num(st['每期天數'], 30), start = todayStr(), subId = 'S' + Date.now().toString(36).toUpperCase() + rid(3);
-    // 續訂：舊期剩下的餐數與可結算金額（實付－已用掉的單點價）都帶到新一期；未吃完的預約改掛新一期
-    let carry = 0, carryMeals = 0;
-    if (old) {
-      const used = await consumedOf(c, old['訂閱ID']);
-      carry = (Number(old['實付金額']) || 0) - used.value; carryMeals = Number(old['剩餘餐數']) || 0;
-      await c.db.update('訂閱', old._row, { 狀態: '已續訂', 結算金額: carry, 結算方式: '併入續訂', 剩餘餐數: 0, 備註: (old['備註'] ? old['備註'] + '；' : '') + '續訂到 ' + subId + '（帶過去 ' + carryMeals + ' 餐、' + carry + ' 元）' });
-    }
-    await c.db.insert('訂閱', { 訂閱ID: subId, 會員ID: m['會員ID'], 方案餐數: meals, 剩餘餐數: meals + carryMeals, 方案金額: price, 推薦折扣: 0, 實付金額: price + carry, 付款方式: '錢包', 收款確認人員: a.email, 收款時間: nowStamp(), 開始日: start, 到期日: addDays(start, days - 1), 狀態: '使用中', 續訂來源訂閱ID: old ? old['訂閱ID'] : '', 建立時間: nowStamp(), 備註: old ? '續訂：含舊期 ' + carryMeals + ' 餐、可結算 ' + carry + ' 元' : '' });
-    if (old) await c.env.DB.prepare("UPDATE reservations SET sub_id = ? WHERE sub_id = ? AND status IN ('已預約','已鎖定')").bind(subId, old['訂閱ID']).run();
-    await ledger(c, m['會員ID'], '購買方案', -price, { 對應ID: subId, 經手人員: a.email, 備註: (old ? '續訂 ' : '') + meals + ' 餐方案' });
-    const upd = { 曾訂閱: true };
-    let bonus = 0;
-    if (referrer) {
-      bonus = num(st['新會員折扣_' + meals + '餐'], 0);
-      upd['推薦人會員ID'] = referrer['會員ID'];
-      await c.db.insert('推薦紀錄', { 紀錄ID: 'R' + Date.now().toString(36).toUpperCase() + rid(3), 推薦人會員ID: referrer['會員ID'], 新會員ID: m['會員ID'], 新會員訂閱ID: subId, 新會員已取餐數: 0, 獎勵金額: num(st['推薦人獎勵'], 0), 狀態: '等待中' });
-      if (bonus > 0) await ledger(c, m['會員ID'], '推薦紅利', bonus, { 可退現金: false, 對應ID: subId, 經手人員: '系統', 備註: '使用推薦碼 ' + code });
-    }
-    await c.db.update('會員', m._row, upd);
-    return { ok: true, subId, bonus };
-  },
+  async adminBuyPlan(c, p, a) { needAll(a); return buyPlan(c, await member(c, p.memberId), p, a.email); },
   /** 人工調整：正數加、負數減；必填原因；預設算紅利（不可退），更正儲值登錄錯誤時可勾「可退現金」 */
   async adminWalletAdjust(c, p, a) {
     needAll(a);

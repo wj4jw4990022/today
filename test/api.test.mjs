@@ -412,4 +412,37 @@ await t('會員功能只有總管理員', async () => { assert(!(await post({ ..
   await q("UPDATE health_settings SET value='20:00' WHERE key='截單時間'");
 }
 
+/* ===== 會員自己訂閱、付款申請、收款確認 ===== */
+{
+  const { startSession } = await import('../src/line.js'); const { Db } = await import('../src/db.js'); const cx = { env: S.env, db: new Db(S.env.DB) };
+  const Z1 = (await M({ action: 'adminSaveMember', member: { name: '自助', phone: '0933555001' } })).memberId;
+  const Z2 = (await M({ action: 'adminSaveMember', member: { name: '推薦者', phone: '0933555002' } })).memberId;
+  const code2 = (await M({ action: 'adminMemberGet', memberId: Z2 })).code;
+  const ck = 'zm=' + await startSession(cx, 'Uself', 'z'); await q("UPDATE member_sessions SET member_id=? WHERE line_id='Uself'", Z1);
+  const P = (o) => S.postc(o, ck);
+  await t('錢包不足不能直接買；送出「儲值並購買」申請（金額＝方案－餘額）；一次只能一筆', async () => {
+    await post({ ...A, action: 'adminTopup', memberId: Z1, amount: 1000, method: '現金' });
+    assert(!(await P({ action: 'payBuy', meals: 12 })).ok);
+    assert(!(await P({ action: 'payRequest', kind: '儲值並購買', meals: 12, method: '轉帳' })).ok, '要末五碼');
+    const r = await P({ action: 'payRequest', kind: '儲值並購買', meals: 12, code: code2, method: '轉帳', last5: '54321' }); assert(r.ok, r.error);
+    const info = (await P({ action: 'payInfo' })).data; assert.equal(info.pending.amount, 980); assert(info.howto['轉帳'].includes('請洽門市'));
+    assert(!(await P({ action: 'payRequest', kind: '儲值', amount: 1000, method: '門市付現' })).ok);
+  });
+  await t('店員確認收款：入帳並開通方案、推薦碼生效', async () => {
+    const l = await M({ action: 'adminPayList' }); const rq = l.pending.find((x) => x.memberId === Z1); assert(rq && rq.codeOwner === '推薦者');
+    assert(!(await post({ ...B, action: 'adminPayHandle', reqId: rq.id, ok: true })).ok);
+    const r = await post({ ...A, action: 'adminPayHandle', reqId: rq.id, ok: true }); assert(r.ok, r.error); assert(r.data.msg.includes('已開通'));
+    const g = await M({ action: 'adminMemberGet', memberId: Z1 }); assert.equal(g.sub.meals, 12); assert.equal(g.wallet.cash, 0); assert.equal(g.wallet.bonus, 100);
+    assert.equal((await q('SELECT status FROM referrals WHERE new_member_id=?', Z1))[0].status, '等待中');
+  });
+  await t('只儲值申請、未收到作廢不動錢包；會員可取消申請；錢包夠時直接續訂', async () => {
+    assert((await P({ action: 'payRequest', kind: '儲值', amount: 3000, method: 'LINE Pay' })).ok);
+    const id = (await M({ action: 'adminPayList' })).pending[0].id; const before = (await M({ action: 'adminMemberGet', memberId: Z1 })).wallet.total;
+    assert((await post({ ...A, action: 'adminPayHandle', reqId: id, ok: false })).ok); assert.equal((await M({ action: 'adminMemberGet', memberId: Z1 })).wallet.total, before);
+    assert((await P({ action: 'payRequest', kind: '儲值', amount: 3000, method: '門市付現' })).ok); assert((await P({ action: 'payCancel' })).ok); assert(!(await P({ action: 'payInfo' })).data.pending);
+    await post({ ...A, action: 'adminTopup', memberId: Z1, amount: 2000, method: '現金' });
+    const r = await P({ action: 'payBuy', meals: 8 }); assert(r.ok, r.error); assert.equal((await M({ action: 'adminMemberGet', memberId: Z1 })).sub.left, 20);
+  });
+}
+
 summary(); await S.dispose(); process.exit(process.exitCode || 0);
