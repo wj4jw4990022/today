@@ -46,7 +46,7 @@
 <script src="assets/app.js"></script>
 <script>
 /* 健康餐會員（2026-11-06，草圖 m33）：LINE 登入 → 第一次填資料 → 會員中心。登入狀態存在 cookie（伺服器端）。 */
-var E = Z.esc, ME = null, EDIT = false, MINE = null, PI = null, PS = { meals: 0, method: '轉帳', mode: 'buy', amt: 0 };
+var E = Z.esc, ME = null, EDIT = false, MINE = null, PI = null, PS = { meals: 0, method: '轉帳', mode: 'buy', amt: 0, code: '', l5: '' };
 function money(n) { return '$' + Number(n || 0).toLocaleString('en-US'); }
 function err() { var m = /[?&]err=([^&]+)/.exec(location.search); return m ? '<div class="mb-err">' + E(decodeURIComponent(m[1])) + '</div>' : ''; }
 var TERMS = '<div class="mb-terms"><b>會員條款（草稿，待法律確認）</b><br>1. 訂閱方案每期 30 天，請在期間內預約使用。<br>2. 期間結束還有沒用完的餐：到期前續訂，剩下的餐併入下一期；沒有續訂，已用的餐以單點價格計算後，餘額轉為店內消費金，會員也可以申請退還現金。中途取消也照這個方式計算。<br>3. 預約須在前一天截單時間前完成；截單後不能修改或取消。沒有來取餐，照常扣一餐；因店家原因（送錯、延誤、品質問題）不扣餐數。<br>4. 錢包中的儲值金可申請退還現金；紅利（推薦獲得）只能用於消費，不能退還現金。<br>5. 推薦碼限朋友第一次訂閱使用；店家發現作弊時，可以取消並收回紅利。<br>6. 手機號碼是辨認會員身分的依據，修改請洽門市。<br><br><b>隱私權政策（草稿，待法律確認）</b><br>我們蒐集您的姓名、手機、Email 與 LINE 識別碼，只用於會員服務、訂餐聯繫與通知；不會提供給推薦人、合作店家或其他第三方。您可以隨時洽門市查詢、更正或要求刪除資料（有未結算的方案或錢包餘額時，須先結算）。</div>';
@@ -95,10 +95,10 @@ function vPlan() {
   if (!plan) return '';
   var need = plan.total - w.total, renew = !!PI.sub, howto = PI.howto[PS.method] || '';
   var pay = '<div class="hb-cap" style="margin-top:16px">付款方式</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px">' + ['轉帳', 'LINE Pay', '門市付現'].map(function (m) { return '<button type="button" data-pm="' + m + '" ' + ch(PS.method === m) + '>' + (m === '門市付現' ? '到門市付現' : m) + '</button>'; }).join('') + '</div>' +
-    '<div class="mb-note" style="margin:6px 0 12px;white-space:pre-line">' + E(howto) + '</div>' + (PS.method === '轉帳' ? '<div class="mb-f"><label>轉帳末五碼</label><input id="p-l5" inputmode="numeric" maxlength="5"></div>' : '');
+    '<div class="mb-note" style="margin:6px 0 12px;white-space:pre-line">' + E(howto) + '</div>' + (PS.method === '轉帳' ? '<div class="mb-f"><label>轉帳末五碼</label><input id="p-l5" inputmode="numeric" maxlength="5" value="' + E(PS.l5) + '"></div>' : '');
   var body = PS.mode === 'buy'
     ? '<div class="pl3">' + PI.plans.map(function (p) { return '<button type="button" data-pp="' + p.meals + '" class="' + (p.meals === plan.meals ? 'on' : '') + '">' + p.meals + ' 餐<b>' + money(p.total) + '</b>每餐 ' + (p.per || Math.round(p.total / p.meals)) + '</button>'; }).join('') + '</div>' +
-      (!renew && !PI.ever ? '<div class="mb-f"><label>朋友的推薦碼（選填，第一次訂閱得紅利）</label><input id="p-code" maxlength="6" style="text-transform:uppercase"></div>' : '') +
+      (!renew && !PI.ever ? '<div class="mb-f"><label>朋友的推薦碼（選填，第一次訂閱得紅利）</label><input id="p-code" maxlength="6" style="text-transform:uppercase" value="' + E(PS.code) + '"></div>' : '') +
       '<div class="mb-row"><span>' + (renew ? '續訂 ' : '') + plan.meals + ' 餐方案</span><span>' + money(plan.total) + '</span></div><div class="mb-row"><span>錢包餘額</span><span>' + money(w.total) + '</span></div>' +
       (renew ? '<div class="mb-row"><span>續訂後</span><span>新一期今天起 ' + PI.days + ' 天，共 ' + (plan.meals + PI.sub.left) + ' 餐</span></div>' : '') +
       (need <= 0 ? '<button class="hb-btn g" style="display:block;width:100%;margin-top:14px" data-pbuy>用錢包' + (renew ? '續訂' : '購買') + '</button>'
@@ -136,12 +136,14 @@ document.addEventListener('click', function (e) {
     else if (pb.hasAttribute('data-pa')) PS.amt = Number(pb.getAttribute('data-pa'));
     else if (pb.hasAttribute('data-pmode')) PS.mode = pb.getAttribute('data-pmode');
     else if (pb.hasAttribute('data-pcx')) { if (confirm('取消這筆付款申請？')) Z.post({ action: 'payCancel' }).then(load).catch(function (er) { alert(er.message); }); return; }
-    else if (pb.hasAttribute('data-pbuy')) { if (!confirm('用錢包' + (PI.sub ? '續訂 ' : '購買 ') + PS.meals + ' 餐方案？')) return; pb.disabled = true; Z.post({ action: 'payBuy', meals: PS.meals, code: v('p-code') }).then(function () { PI = null; load(); }).catch(function (er) { pb.disabled = false; say('p-msg', er.message); }); return; }
-    else if (pb.hasAttribute('data-preq')) { pb.disabled = true; Z.post({ action: 'payRequest', kind: PS.mode === 'buy' ? '儲值並購買' : '儲值', meals: PS.meals, amount: PS.amt, code: v('p-code'), method: PS.method, last5: v('p-l5') }).then(function () { PI = null; load(); }).catch(function (er) { pb.disabled = false; say('p-msg', er.message); }); return; }
+    else if (pb.hasAttribute('data-pbuy')) { if (!confirm('用錢包' + (PI.sub ? '續訂 ' : '購買 ') + PS.meals + ' 餐方案？')) return; pb.disabled = true; Z.post({ action: 'payBuy', meals: PS.meals, code: PS.code }).then(function () { PI = null; PS.code = ''; load(); }).catch(function (er) { pb.disabled = false; say('p-msg', er.message); }); return; }
+    else if (pb.hasAttribute('data-preq')) { pb.disabled = true; Z.post({ action: 'payRequest', kind: PS.mode === 'buy' ? '儲值並購買' : '儲值', meals: PS.meals, amount: PS.amt, code: PS.code, method: PS.method, last5: PS.l5 }).then(function () { PI = null; load(); }).catch(function (er) { pb.disabled = false; say('p-msg', er.message); }); return; }
     draw(); return;
   }
   if (t.id === 'cp') { try { navigator.clipboard.writeText(ME.code); t.textContent = '已複製'; } catch (x) { prompt('推薦碼', ME.code); } }
 });
+// 輸入框的內容記在 PS，畫面重畫（例如切換付款方式）時不會被清掉
+document.addEventListener('input', function (e) { if (e.target.id === 'p-code') PS.code = e.target.value.trim().toUpperCase(); if (e.target.id === 'p-l5') PS.l5 = e.target.value.trim(); });
 Z.init('healthy', load);
 </script>
 </body>
