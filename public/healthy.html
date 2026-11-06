@@ -45,7 +45,7 @@ function sizeCards() {
       (pct ? '<div class="hb-bl"><span>蛋白質佔熱量</span><span>' + pct + '%</span></div><div class="hb-bar"><i style="width:' + Math.min(pct, 100) + '%"></i></div>' : '') +
       '<div class="ds">' + E(i.mainDesc || i.main) + '・黑米五穀飯 ' + E(i.rice) + 'g・溏心蛋 1 顆・蔬菜 ' + E(i.vegG) + 'g' + (i.desc ? '<br>' + E(i.desc) : '') + '</div>' +
       '<div class="pr"><div><b>' + money(i.price) + '</b><small>元／單點</small></div>' + (M.plans.length ? '<div class="sub">訂閱升級<br>' + (i.upg ? '+' + money(i.upg) + ' 元／餐' : '基本餐，不加價') + '</div>' : '') + '</div>' +
-      '<div class="act"><span>' + Z.ct('健康餐|單點按鈕', '線上單點即將開放') + '</span></div></div></div>';
+      '<div class="act">' + (MEMBER_OPEN ? '<a href="order.html?item=' + encodeURIComponent(i.id) + '">訂這個 →</a>' : '<span>' + Z.ct('健康餐|單點按鈕', '線上單點即將開放') + '</span>') + '</div></div></div>';
   }).join('');
 }
 
@@ -57,7 +57,7 @@ function hero(d, open) {
   h += '<p>' + (intro ? Z.ct('健康餐|介紹', '') : '一套配方、' + sizes.length + ' 種份量。主菜可選' + E(mains.join('、')) + '，搭配黑米五穀飯、溏心蛋與蔬菜，每一盒都標示熱量、蛋白質、碳水與脂肪。') + '</p>' +
     '<div class="hb-stats" style="grid-template-columns:repeat(' + (minPer ? 4 : 3) + ',1fr)"><div><b>' + sizes.length + '</b><span>種份量</span></div><div><b>' + mains.length + '</b><span>種主菜</span></div><div><b>' + E(vegG) + 'g</b><span>每盒蔬菜</span></div>' + (minPer ? '<div><b>' + money(minPer) + '</b><span>訂閱每餐起</span></div>' : '') + '</div>' +
     '<div class="hb-ctas">' + (d.plans.length ? (MEMBER_OPEN ? '<a class="hb-btn g" href="member.html">' + Z.ct('健康餐|主按鈕', '加入會員・訂閱') + '</a>' : '<span class="hb-btn g off">' + Z.ct('健康餐|主按鈕', '加入會員・訂閱') + '<small>' + Z.ct('健康餐|訂閱按鈕', '即將開放') + '</small></span>') : '') +
-    '<a class="hb-btn" href="#menu">' + Z.ct('健康餐|次按鈕', '看菜單') + '</a></div>' +
+    (MEMBER_OPEN ? '<a class="hb-btn" href="order.html">訂餐</a>' : '') + '<a class="hb-btn" href="#all">' + Z.ct('健康餐|次按鈕', '看菜單') + '</a></div>' +
     (Z.t('健康餐|頁首備註', '') ? '<div class="hb-cap">' + Z.ct('健康餐|頁首備註', '') + '</div>' : '') + '</div>' + heroPic() + '</section>';
   return h;
 }
@@ -82,6 +82,12 @@ function draw(d) {
   // 菜單
   x += '<section class="hb-sec" id="menu">' + sh('Menu', '健康餐|菜單標題', '選主菜，看三種份量', mains.length > 1 ? '<div class="hb-tabs" id="mains">' + mains.map(function (m) { return '<button type="button" class="' + (m === sel ? 'on' : '') + '" data-m="' + E(m) + '">' + E(m) + '</button>'; }).join('') + '</div>' : '') +
     '<div class="hb-sizes" id="sizes">' + sizeCards() + '</div><div class="hb-note">營養標示不含醬汁與加購飲品。' + (v && v.rotating.length ? '輪替蔬菜每週不同，數字為平均估算值。' : '') + '過敏原：' + E(allergen.join('；')) + '。完整過敏原資訊請洽店員。</div></section>';
+
+  // 全部便當（可篩選；按「訂這個」進入訂餐畫面）
+  x += '<section class="hb-sec" id="all">' + sh('All Boxes', '健康餐|全部標題', '全部便當') +
+    '<div class="hb-flt"><b>主菜</b>' + ['全部'].concat(mains).map(function (m) { return '<button type="button" data-gm="' + E(m) + '" class="' + (m === GF.m ? 'on' : '') + '">' + E(m) + '</button>'; }).join('') + '</div>' +
+    '<div class="hb-flt"><b>份量</b>' + ['全部'].concat(sizes).map(function (m) { return '<button type="button" data-gs="' + E(m) + '" class="' + (m === GF.s ? 'on' : '') + '">' + E(m) + '</button>'; }).join('') + '</div>' +
+    '<div class="hb-gal" id="gal">' + galCards() + '</div></section>';
 
   // 每一盒都有
   x += '<section class="hb-sec">' + sh('Every Box', '健康餐|每盒標題', '每一盒都有') + '<div class="hb-inc">' +
@@ -131,6 +137,35 @@ function draw(d) {
   if (d.plans.length) { sb.innerHTML = '<div class="t"><b>月訂閱 每餐 ' + money(minPer) + ' 元起</b>' + Z.ct('健康餐|手機列說明', '前一天 20:00 前預約') + '</div><a href="#plans">看方案</a>'; sb.style.display = ''; document.body.classList.add('sb'); }
   else { sb.style.display = 'none'; document.body.classList.remove('sb'); }
 }
+var GF = { m: '全部', s: '全部' };
+function galCards() {
+  var list = M.items.filter(function (i) { return (GF.m === '全部' || i.main === GF.m) && (GF.s === '全部' || i.size === GF.s); }).sort(function (a, b) { return so(a.size) - so(b.size) || String(a.main).localeCompare(String(b.main)); });
+  if (!list.length) return '<p class="hb-note">沒有符合的便當</p>';
+  return list.map(function (i) {
+    return '<div class="hb-gc"><button type="button" class="hb-pic" data-gz="' + E(i.id) + '">' + img(i.image, 'assets/illus/bento.svg', i.name || (i.size + ' ' + i.main)) + '</button><div class="bd">' +
+      '<div class="nm"><b>' + E(i.size) + '・' + E(i.main) + '</b><span>' + money(i.price) + '</span></div>' +
+      '<div class="hb-mac"><div><b>' + i.kcal + '</b>大卡</div><div><b>' + i.protein + 'g</b>蛋白質</div><div><b>' + i.carb + 'g</b>碳水</div><div><b>' + i.fat + 'g</b>脂肪</div></div>' +
+      (MEMBER_OPEN ? '<a class="hb-btn" href="order.html?item=' + encodeURIComponent(i.id) + '">訂這個</a>' : '<span class="hb-btn off">' + Z.ct('健康餐|單點按鈕', '線上單點即將開放') + '</span>') + '</div></div>';
+  }).join('');
+}
+function zoom(id) {
+  var i = M.items.filter(function (x) { return x.id === id; })[0]; if (!i) return;
+  var d = document.createElement('div'); d.className = 'hb-zoom';
+  d.innerHTML = '<div class="in"><div class="hb-pic">' + img(i.image, 'assets/illus/bento.svg', i.name) + '</div><div class="tx"><div class="hb-en">' + E(i.size) + '</div><h3>' + E(i.name || (i.size + ' ' + i.main)) + '</h3>' +
+    '<div class="hb-mac"><div><b>' + i.kcal + '</b>大卡</div><div><b>' + i.protein + 'g</b>蛋白質</div><div><b>' + i.carb + 'g</b>碳水</div><div><b>' + i.fat + 'g</b>脂肪</div></div>' +
+    '<p>' + E(i.mainDesc || i.main) + '・黑米五穀飯 ' + E(i.rice) + 'g・溏心蛋 1 顆・蔬菜 ' + E(i.vegG) + 'g' + (i.desc ? '<br>' + E(i.desc) : '') + '</p><p><b>' + money(i.price) + ' 元</b>／單點' + (i.upg ? '・訂閱 +' + money(i.upg) + ' 元' : '・訂閱基本餐') + '</p>' +
+    (MEMBER_OPEN ? '<a class="hb-btn g" href="order.html?item=' + encodeURIComponent(i.id) + '">訂這個</a> ' : '') + '<button type="button" class="hb-btn" data-gx>關閉</button></div></div>';
+  d.addEventListener('click', function (e) { if (e.target === d || e.target.hasAttribute('data-gx')) d.remove(); });
+  document.body.appendChild(d);
+}
+document.addEventListener('click', function (e) {
+  var b = e.target.closest && e.target.closest('[data-gm],[data-gs],[data-gz]'); if (!b || !M) return;
+  if (b.hasAttribute('data-gz')) { zoom(b.getAttribute('data-gz')); return; }
+  if (b.hasAttribute('data-gm')) GF.m = b.getAttribute('data-gm'); else GF.s = b.getAttribute('data-gs');
+  document.querySelectorAll('[data-gm]').forEach(function (c) { c.classList.toggle('on', c.getAttribute('data-gm') === GF.m); });
+  document.querySelectorAll('[data-gs]').forEach(function (c) { c.classList.toggle('on', c.getAttribute('data-gs') === GF.s); });
+  document.getElementById('gal').innerHTML = galCards();
+});
 function vegCell(y, sub, cls) { return '<div' + (cls ? ' class="' + cls + '"' : '') + '><i style="background:' + (COL[y.color] || '#9AA58F') + '"></i>' + E(y.name) + '<small>' + E(sub) + '</small></div>'; }
 
 document.addEventListener('click', function (e) {

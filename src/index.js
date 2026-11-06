@@ -4,9 +4,10 @@ import { publicData, availability, book, contact, adminOf } from './service.js';
 import { adminOps } from './admin.js';
 import { healthOps, publicMenu } from './health.js';
 import { memberOps } from './members.js';
-import { handleLine, memberApi, mergeOps } from './line.js';
+import { handleLine, memberApi, mergeOps, memberOfReq } from './line.js';
+import { orderOps, orderMemberApi, runCutoff } from './orders.js';
 
-const OPS = { ...adminOps, ...healthOps, ...memberOps, ...mergeOps };
+const OPS = { ...adminOps, ...healthOps, ...memberOps, ...mergeOps, ...orderOps };
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 const json = (o, status) => new Response(JSON.stringify(o), { status: status || 200, headers: JSON_HEADERS });
 
@@ -25,6 +26,7 @@ async function handleApi(request, c) {
       case 'book': return json({ ok: true, data: await book(c, p) });
       case 'contact': return json({ ok: true, data: await contact(c, p) });
       case 'memberMe': case 'memberRegister': case 'memberUpdate': return json({ ok: true, data: await memberApi(c, request, p) });
+      case 'orderInfo': case 'orderCreate': case 'orderCancel': return json({ ok: true, data: await orderMemberApi[p.action](c, await memberOfReq(c, request), p) });
       default: {
         if (String(p.action).indexOf('admin') !== 0) throw new UserError('未知的操作');
         const a = await adminOf(c, p.idToken), fn = OPS[p.action];
@@ -69,6 +71,8 @@ async function seoRewrite(res, c, url) {
 }
 
 export default {
+  /** 排程（wrangler.jsonc 的 triggers）：每 5 分鐘處理一次截單 */
+  async scheduled(event, env, ctx) { ctx.waitUntil(runCutoff({ env, db: new Db(env.DB) }).catch((e) => console.error('截單失敗', e && e.stack || e))); },
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const c = { env, db: new Db(env.DB), later: (p) => ctx.waitUntil(p.catch((e) => console.error(e))) };

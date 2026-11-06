@@ -55,7 +55,7 @@ export async function startSession(c, lineId, lineName) {
   await c.db.insert('會員登入', { 憑證: await sha(t), 會員ID: m ? m.member_id : '', 建立時間: nowStamp(), 到期: Date.now() + DAYS * 86400000, LINEID: lineId, LINE名稱: clean(lineName, 60) });
   return t;
 }
-async function sessionOf(c, req) {
+export async function sessionOf(c, req) {
   const t = cookieOf(req, COOKIE); if (!t) return null;
   const s = await c.db.first('會員登入', { 憑證: await sha(t) });
   if (!s || Number(s['到期']) < Date.now()) return null;
@@ -75,6 +75,16 @@ function meView(m, led, subs) {
 function checkPhone(p) { p = clean(p, 20).replace(/[\s-]/g, ''); if (!/^09\d{8}$/.test(p)) throw new UserError('手機請填 09 開頭的 10 碼數字'); return p; }
 function checkEmail(e) { e = clean(e, 120); if (e && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw new UserError('Email 格式不正確'); return e; }
 async function emailTaken(c, en, selfId) { return en && (await c.db.all('會員', { Email比對: en })).some((x) => x['會員ID'] !== selfId && x['狀態'] !== '已刪除'); }
+
+/** 目前登入的會員（已完成註冊、不是待合併）；沒有就丟錯 */
+export async function memberOfReq(c, req) {
+  const s = await sessionOf(c, req);
+  if (!s) throw new UserError('請先用 LINE 登入');
+  const m = s['會員ID'] && await c.db.first('會員', { 會員ID: s['會員ID'] });
+  if (!m || m['狀態'] === '已刪除') throw new UserError('請先完成會員註冊');
+  if (m['狀態'] === '待合併') throw new UserError('資料合併審核中，合併完成後才能訂餐');
+  return m;
+}
 
 /** 前台會員 API（action 以 member 開頭；用 cookie 判斷是誰） */
 export async function memberApi(c, request, p) {

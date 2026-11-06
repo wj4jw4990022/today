@@ -302,4 +302,71 @@ await t('會員功能只有總管理員', async () => { assert(!(await post({ ..
   });
 }
 
+/* ===== 訂餐（訂閱＋單點、截單、取餐、推薦紅利） ===== */
+{
+  const { runCutoff } = await import('../src/orders.js'); const { startSession } = await import('../src/line.js'); const { Db } = await import('../src/db.js');
+  const cx = { env: S.env, db: new Db(S.env.DB) };
+  await q("UPDATE health_items SET visible=1"); await q("UPDATE health_items SET price=190 WHERE item_id='HM-L-CB'"); await q("UPDATE health_settings SET value='23:59' WHERE key='截單時間'"); await q("UPDATE health_settings SET value='2' WHERE key='晚上份數上限'");
+  await q("UPDATE health_settings SET value='TRUE' WHERE key='松露醬開放'");
+  const nd = (n) => { let k = n; while (dow(day(k)) === 3) k++; return day(k); }; // 跳過週三
+  const D1 = nd(1), D2 = nd(D1 === day(1) ? 2 : 3);
+  // 推薦人 R、新會員 X（用 R 的推薦碼買 12 餐）
+  const R = (await M({ action: 'adminSaveMember', member: { name: '推薦人', phone: '0911000001' } })).memberId;
+  const X = (await M({ action: 'adminSaveMember', member: { name: '訂餐人', phone: '0911000002' } })).memberId;
+  const rcode = (await M({ action: 'adminMemberGet', memberId: R })).code;
+  await post({ ...A, action: 'adminTopup', memberId: X, amount: 3100, method: '現金' });
+  await post({ ...A, action: 'adminBuyPlan', memberId: X, meals: 12, code: rcode });
+  const ck = 'zm=' + await startSession(cx, 'Uorder', 'X');
+  await q("UPDATE members SET line_id='Uorder' WHERE member_id=?", X); await q("UPDATE member_sessions SET member_id=? WHERE line_id='Uorder'", X);
+  const O = (o) => S.postc(o, ck);
+  await t('訂餐資料：有方案、日期列不含公休與已截單日', async () => { const r = await O({ action: 'orderInfo' }); assert(r.ok, r.error); assert(r.data.sub && r.data.sub.left === 12); assert(!r.data.days.some((d) => d.date <= day(0))); assert(r.data.days.find((d) => d.wd === 3).closed); });
+  let r1;
+  await t('訂閱訂餐：扣 1 餐；同時段不能再用方案；公休、今天被拒', async () => {
+    const r = await O({ action: 'orderCreate', date: D1, slot: '中午', itemId: 'HM-B-CB', sauce: 'AD-S-OIL', addons: ['AD-D-PSM'], kind: '訂閱' }); assert(r.ok, r.error); r1 = r.data.resId;
+    assert.equal((await O({ action: 'orderInfo' })).data.sub.left, 11);
+    assert(!(await O({ action: 'orderCreate', date: D1, slot: '中午', itemId: 'HM-L-CB', sauce: 'AD-S-OIL', kind: '訂閱' })).ok);
+    let w = 1; while (dow(day(w)) !== 3) w++; assert(!(await O({ action: 'orderCreate', date: day(w), slot: '中午', itemId: 'HM-L-CB', sauce: 'AD-S-OIL', kind: '訂閱' })).ok);
+    assert(!(await O({ action: 'orderCreate', date: day(0), slot: '中午', itemId: 'HM-L-CB', sauce: 'AD-S-OIL', kind: '訂閱' })).ok);
+  });
+  await t('單點：多份、當下從錢包扣（先扣紅利）；份數上限擋下', async () => {
+    const before = (await O({ action: 'orderInfo' })).data.wallet; assert.equal(before.bonus, 100);
+    const r = await O({ action: 'orderCreate', date: D1, slot: '晚上', itemId: 'HM-L-CB', sauce: 'AD-S-OIL', kind: '單點', qty: 2 }); assert(r.ok, r.error);
+    const w = (await O({ action: 'orderInfo' })).data.wallet; assert.equal(w.total, before.total - 380, JSON.stringify(await q("SELECT type,amount,note FROM wallet_ledger WHERE member_id=?", X))); assert.equal(w.bonus, 0);
+    assert(!(await O({ action: 'orderCreate', date: D1, slot: '晚上', itemId: 'HM-L-CB', sauce: 'AD-S-OIL', kind: '單點', qty: 1 })).ok, '晚上上限 2');
+    assert((await O({ action: 'orderCancel', resId: r.data.resId })).ok);
+    const w2 = (await O({ action: 'orderInfo' })).data.wallet; assert.equal(w2.total, before.total); assert.equal(w2.bonus, 100, '紅利退回紅利');
+  });
+  await t('取消訂閱預約加回餐數；截單後不能取消', async () => {
+    const r = await O({ action: 'orderCreate', date: D2, slot: '中午', itemId: 'HM-L-CB', sauce: 'AD-S-OIL', kind: '訂閱' }); assert(r.ok, r.error);
+    assert.equal((await O({ action: 'orderInfo' })).data.sub.left, 10); assert((await O({ action: 'orderCancel', resId: r.data.resId })).ok); assert.equal((await O({ action: 'orderInfo' })).data.sub.left, 11);
+  });
+  await t('截單：升級＋加購從錢包扣；錢包不足改回基本餐', async () => {
+    await q("UPDATE reservations SET date=? WHERE res_id=?", day(0), r1); await runCutoff(cx);
+    const row = (await q('SELECT * FROM reservations WHERE res_id=?', r1))[0]; assert.equal(row.status, '已鎖定'); assert.equal(row.charge_status, '已扣款');
+    assert((await q("SELECT * FROM wallet_ledger WHERE ref_id=? AND type='升級加購扣款'", r1))[0].amount === -80);
+    assert(!(await O({ action: 'orderCancel', resId: r1 })).ok);
+    const poor = (await O({ action: 'orderCreate', date: D2, slot: '晚上', itemId: 'HM-X', sauce: 'AD-S-TRF', kind: '訂閱' })); assert(poor.ok, poor.error);
+    const bal = (await O({ action: 'orderInfo' })).data.wallet.total; await post({ ...A, action: 'adminWalletAdjust', memberId: X, amount: -bal, reason: 't', refundable: true }).catch(() => {});
+    await q("INSERT INTO wallet_ledger (rec_id,member_id,at,type,amount,refundable,status) VALUES ('Wz',?, 'x','人工調整',?,1,'已入帳')", X, -((await O({ action: 'orderInfo' })).data.wallet.total));
+    await q("UPDATE reservations SET date=? WHERE res_id=?", day(0), poor.data.resId); await runCutoff(cx);
+    const pr = (await q('SELECT * FROM reservations WHERE res_id=?', poor.data.resId))[0]; assert.equal(pr.charge_status, '餘額不足改回基本餐'); assert.equal(pr.size, 'LIGHT'); assert.equal(pr.upgrade_amount, 0);
+  });
+  await t('後台當日：備餐統計與名單；取餐標記；補償要原因並加回餐數', async () => {
+    const d = await M({ action: 'adminDay', date: day(0) }); assert(d.locked); assert(d.prep.length >= 1 && d.list.length >= 2); assert(d.drinks.some((x) => x.name === '高蛋白豆漿'));
+    assert(!(await post({ ...A, action: 'adminMarkPickup', resId: r1, status: '店家補償' })).ok);
+    const left0 = (await O({ action: 'orderInfo' })).data.sub.left;
+    const other = d.list.find((x) => x.id !== r1);
+    assert((await post({ ...A, action: 'adminMarkPickup', resId: other.id, status: '店家補償', reason: '送錯' })).ok);
+    assert.equal((await O({ action: 'orderInfo' })).data.sub.left, left0 + 1);
+    assert((await post({ ...A, action: 'adminMarkPickup', resId: r1, status: '已取餐' })).ok);
+  });
+  await t('新會員取餐滿 3 餐 → 推薦人得 100 紅利', async () => {
+    for (let i = 0; i < 2; i++) { const r = await post({ ...A, action: 'adminOrderCreate', memberId: X, date: nd(4 + i * 2), slot: '中午', itemId: 'HM-L-CB', sauce: 'AD-S-OIL', kind: '訂閱' }); assert(r.ok, r.error); await q("UPDATE reservations SET date=?, slot=? WHERE res_id=?", day(0), '晚上' + i, r.data.resId); await runCutoff(cx); assert((await post({ ...A, action: 'adminMarkPickup', resId: r.data.resId, status: '已取餐' })).ok); }
+    const ref = (await q('SELECT * FROM referrals WHERE new_member_id=?', X))[0]; assert.equal(ref.status, '已發放'); assert.equal(ref.picked_count, 3);
+    assert.equal((await M({ action: 'adminMemberGet', memberId: R })).wallet.bonus, 100);
+  });
+  await t('沒登入不能訂；單店管理員不能代訂', async () => { assert(!(await S.postc({ action: 'orderCreate' }, '')).ok); assert(!(await post({ ...B, action: 'adminDay' })).ok); });
+  await q("UPDATE health_settings SET value='20:00' WHERE key='截單時間'");
+}
+
 summary(); await S.dispose(); process.exit(process.exitCode || 0);

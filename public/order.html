@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>訂餐｜致日子健康餐</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#1E332F">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=Noto+Serif+TC:wght@500;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap" media="print" onload="this.media='all'">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/health.css">
+<style>
+*{border-radius:0!important}
+.ow{max-width:1120px;margin:0 auto;padding:44px 40px 90px}
+.oh{font-family:'Noto Serif TC',serif;font-weight:500;font-size:30px;letter-spacing:.12em;margin:4px 0 18px}
+.op{font-size:14px;line-height:2;color:var(--mute);margin:0 0 14px}
+.adm{background:#FBF3E3;border:1px solid #e3cf9a;padding:12px 16px;font-size:14px;margin-bottom:18px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.stp{display:flex;margin:0 0 22px;border:1px solid var(--line);background:#fff}.stp div{flex:1;padding:10px 6px;text-align:center;font-size:12px;color:var(--mute);border-right:1px solid var(--line)}.stp div:last-child{border:0}.stp .dn{color:var(--gold)}
+.ord{display:grid;grid-template-columns:1.5fr 1fr;gap:26px;align-items:start}
+.oc{background:var(--card);border:1px solid var(--line);padding:22px;margin-bottom:16px}
+.cap{font-size:12px;letter-spacing:.18em;color:var(--mute);margin:0 0 10px}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:14px}
+.days button,.chs button,.pick button{font:inherit;cursor:pointer;color:var(--ink)}
+.days button{border:1px solid var(--line);background:#fff;text-align:center;padding:8px 2px;font-size:12px;line-height:1.5}.days b{display:block;font-size:15px;font-weight:500}.days .on{background:var(--dark);color:#EFE8DA;border-color:var(--dark)}.days button[disabled]{opacity:.38;cursor:not-allowed}
+.chs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 6px}.chs button{padding:8px 14px;border:1px solid var(--line);background:#fff;font-size:13px}.chs .on{background:var(--gold);border-color:var(--gold);color:#fff}.chs button[disabled]{opacity:.38;cursor:not-allowed}
+.pick{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.pick button{border:1px solid var(--line);background:#fff;padding:8px;font-size:12px;text-align:center;line-height:1.6}.pick .on{outline:2px solid var(--gold);outline-offset:-2px}.pick .im{aspect-ratio:1/1;background:#E9E4D8;margin-bottom:6px;overflow:hidden}.pick .im img{width:100%;height:100%;object-fit:cover;display:block}
+.pv{aspect-ratio:1/1;background:#E9E4D8;margin-bottom:12px;overflow:hidden}.pv img{width:100%;height:100%;object-fit:cover;display:block}
+.row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}.row span:last-child{text-align:right}
+.go{display:block;width:100%;text-align:center;padding:14px;background:var(--gold);color:#fff;letter-spacing:.3em;font:inherit;font-size:14px;border:0;margin-top:14px;cursor:pointer}.go[disabled]{opacity:.45;cursor:not-allowed}
+.sticky{position:sticky;top:16px}
+.err{border:1px solid #9a3b2b;color:#9a3b2b;background:#fff;padding:10px 14px;margin:10px 0 0;font-size:14px}
+.okb{border:1px solid var(--gold);background:#fff;padding:26px;text-align:center}
+.qty{display:flex;align-items:center;gap:0}.qty button{width:40px;height:38px;border:1px solid var(--line);background:#fff;font:inherit;font-size:18px;cursor:pointer}.qty span{width:50px;text-align:center;border-top:1px solid var(--line);border-bottom:1px solid var(--line);height:38px;line-height:38px}
+.mac{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:10px 0;font-size:11px;color:var(--mute);text-align:center}.mac div{padding:6px 0}.mac b{display:block;font-size:15px;color:var(--ink);font-weight:500}
+@media(max-width:760px){.ow{padding:22px 14px 120px}.ord{grid-template-columns:1fr}.sticky{position:static}.days{grid-template-columns:repeat(7,minmax(46px,1fr));overflow-x:auto}.stp div{font-size:11px;padding:8px 2px}.oc{padding:16px}}
+</style>
+</head>
+<body class="hk hx">
+<div class="hb-dk"><div id="nav"></div></div>
+<main id="main"><div class="ow" id="ow"><p class="op">載入中…</p></div></main>
+<div id="foot"></div>
+<script src="assets/config.js"></script>
+<script src="assets/demo-data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+/* 訂餐（唯一的訂餐入口，草圖 m37）。會員：LINE 登入（cookie）。店員代訂：order.html?admin=1&member=會員ID（沿用後台的 Google 登入）。
+   ?item=便當ID：預先選好便當；?change=預約ID：改期（新的訂好後取消舊的）。 */
+var E = Z.esc, Q = new URLSearchParams(location.search), ADMIN = Q.get('admin') === '1', MID = Q.get('member') || '', CHANGE = Q.get('change') || '';
+var TOK = ''; try { TOK = sessionStorage.getItem('zt') || ''; } catch (e) {}
+var D = null, S = { date: '', slot: '', main: '', item: Q.get('item') || '', sauce: '', drinks: [], kind: '', qty: 1 }, DONE = null, ERR = '';
+var WD = ['日', '一', '二', '三', '四', '五', '六'];
+function money(n) { return '$' + Number(n || 0).toLocaleString('en-US'); }
+function api(action, body) { return Z.post(Object.assign(ADMIN ? { action: 'admin' + action.charAt(0).toUpperCase() + action.slice(1), idToken: TOK, memberId: MID } : { action: action }, body || {})); }
+function pic(u, alt) { return '<img src="' + E(Z.safeUrl(u) || 'assets/illus/bento.svg') + '" alt="' + E(alt) + '" loading="lazy">'; }
+function md(d) { var p = d.split('-'); return Number(p[1]) + '/' + Number(p[2]); }
+function item() { return D.items.filter(function (i) { return i.id === S.item; })[0]; }
+
+function calc() {
+  var it = item(); if (!it) return null;
+  var sauce = D.sauces.filter(function (s) { return s.id === S.sauce; })[0], add = (sauce ? sauce.price : 0) + S.drinks.reduce(function (s, id) { var d = D.drinks.filter(function (x) { return x.id === id; })[0]; return s + (d ? d.price : 0); }, 0);
+  if (S.kind === '訂閱') return { meals: 1, later: it.upg + add, now: 0 };
+  return { meals: 0, later: 0, now: (it.price + add) * S.qty };
+}
+function draw() {
+  var o = document.getElementById('ow');
+  if (DONE) { o.innerHTML = '<div class="okb"><div class="hb-en">Thank you</div><div class="oh">訂好了</div><p class="op">' + E(DONE) + '</p><a class="hb-btn g" href="order.html' + (ADMIN ? '?admin=1&member=' + encodeURIComponent(MID) : '') + '">再訂一餐</a> <a class="hb-btn" href="' + (ADMIN ? 'admin.html' : 'member.html') + '">' + (ADMIN ? '回後台' : '回會員頁') + '</a></div>'; return; }
+  var it = item(), c = calc(), day = D.days.filter(function (d) { return d.date === S.date; })[0];
+  var mains = []; D.items.forEach(function (i) { if (mains.indexOf(i.main) < 0) mains.push(i.main); });
+  if (!S.main) S.main = it ? it.main : mains[0];
+  var order = ['LIGHT', 'BALANCE', 'POWER'], list = D.items.filter(function (i) { return i.main === S.main; }).sort(function (a, b) { return order.indexOf(a.size) - order.indexOf(b.size); });
+  var canSub = D.sub && D.sub.status === '使用中' && D.sub.left > 0 && (!S.date || (S.date >= D.sub.start && S.date <= D.sub.end));
+  if (!S.kind || (S.kind === '訂閱' && !canSub)) S.kind = canSub ? '訂閱' : '單點';
+  if (S.kind === '訂閱') S.qty = 1;
+  var h = (ADMIN ? '<div class="adm"><span>店員代訂模式　會員：<b>' + E(D.member.name) + '・' + E(D.member.id) + '</b>（' + (D.sub ? '剩 ' + D.sub.left + '/' + D.sub.meals + ' 餐・' : '') + '錢包 ' + money(D.wallet.total) + '）</span><a href="admin.html" style="text-decoration:underline">回後台</a></div>' : '') +
+    '<div class="hb-en">Order</div><div class="oh">' + (CHANGE ? '改期' : '訂餐') + '</div>' +
+    (CHANGE ? '<p class="op">選好新的日期與便當後確認，原本的預約會自動取消。</p>' : '') +
+    '<div class="stp"><div class="' + (S.date && S.slot ? 'dn' : '') + '">① 日期時段' + (S.date && S.slot ? ' ✓' : '') + '</div><div class="' + (it ? 'dn' : '') + '">② 選便當' + (it ? ' ✓' : '') + '</div><div class="' + (S.sauce ? 'dn' : '') + '">③ 醬汁加購</div><div class="dn">④ 付款方式</div><div>⑤ 確認</div></div>' +
+    '<div class="ord"><div>' +
+    '<div class="oc"><div class="cap">① 日期與時段（前一天 ' + E(D.cutoff) + ' 截單）</div><div class="days">' + D.days.map(function (d) { return '<button type="button" data-d="' + d.date + '" class="' + (d.date === S.date ? 'on' : '') + '"' + (d.closed ? ' disabled' : '') + '><b>' + md(d.date) + '</b>' + (d.closed ? '公休' : '週' + WD[d.wd]) + '</button>'; }).join('') + '</div>' +
+    (day ? '<div class="chs">' + day.slots.map(function (s) { var full = s.left !== null && s.left < 1; return '<button type="button" data-s="' + s.slot + '" class="' + (s.slot === S.slot ? 'on' : '') + '"' + (full ? ' disabled' : '') + '>' + s.slot + ' ' + E(s.pickup) + (s.left === null ? '' : full ? '・已滿' : '・剩 ' + s.left + ' 份') + '</button>'; }).join('') + '</div>' : '<p class="op" style="margin:0">請先選日期</p>') + '</div>' +
+    '<div class="oc"><div class="cap">② 選便當</div><div class="chs" style="margin-bottom:12px">' + mains.map(function (m) { return '<button type="button" data-m="' + E(m) + '" class="' + (m === S.main ? 'on' : '') + '">' + E(m) + '</button>'; }).join('') + '</div>' +
+    '<div class="pick">' + list.map(function (i) { return '<button type="button" data-i="' + E(i.id) + '" class="' + (i.id === S.item ? 'on' : '') + '"><div class="im">' + pic(i.image, i.size + ' ' + i.main) + '</div>' + E(i.size) + '<br>' + i.kcal + ' 大卡・' + i.protein + 'g<br>' + (S.kind === '訂閱' ? (i.upg ? '方案 +' + i.upg : '方案基本餐') : '單點 ' + money(i.price)) + '</button>'; }).join('') + '</div></div>' +
+    '<div class="oc"><div class="cap">③ 醬汁（' + (D.sauces.some(function (s) { return !s.price; }) ? '免費選一杯' : '選一杯') + '）</div><div class="chs">' + D.sauces.map(function (s) { return '<button type="button" data-sa="' + E(s.id) + '" class="' + (s.id === S.sauce ? 'on' : '') + '">' + E(s.name) + (s.price ? ' +' + s.price : '') + '</button>'; }).join('') + '</div>' +
+    (D.drinks.length ? '<div class="cap" style="margin-top:16px">加購飲品（可複選）</div><div class="chs">' + D.drinks.map(function (d) { return '<button type="button" data-dr="' + E(d.id) + '" class="' + (S.drinks.indexOf(d.id) >= 0 ? 'on' : '') + '">' + E(d.name) + ' +' + d.price + '</button>'; }).join('') + '</div>' : '') +
+    '<div class="cap" style="margin-top:16px">④ 這一餐用</div><div class="chs"><button type="button" data-k="訂閱" class="' + (S.kind === '訂閱' ? 'on' : '') + '"' + (canSub ? '' : ' disabled') + '>訂閱方案（扣 1 餐）' + (D.sub ? '' : '・沒有方案') + '</button><button type="button" data-k="單點" class="' + (S.kind === '單點' ? 'on' : '') + '">單點（錢包付）</button></div>' +
+    (S.kind === '單點' ? '<div class="cap" style="margin-top:14px">份數</div><div class="qty"><button type="button" data-q="-1">−</button><span>' + S.qty + '</span><button type="button" data-q="1">＋</button></div>' : '') + '</div>' +
+    '</div><div class="sticky"><div class="oc">' + (it ? '<div class="pv">' + pic(it.image, it.size + ' ' + it.main) + '</div><div style="font-family:\'Noto Serif TC\',serif;font-size:20px">' + E(it.size) + '・' + E(it.main) + '</div>' +
+      '<div class="mac"><div><b>' + it.kcal + '</b>大卡</div><div><b>' + it.protein + 'g</b>蛋白質</div><div><b>' + it.carb + 'g</b>碳水</div><div><b>' + it.fat + 'g</b>脂肪</div></div>' : '<div class="pv">' + pic('', '') + '</div><p class="op">請選便當</p>') +
+    '<div class="cap" style="margin-top:6px">⑤ 確認</div>' +
+    '<div class="row"><span>取餐</span><span>' + (S.date && S.slot ? md(S.date) + '（' + WD[day.wd] + '）' + S.slot + '・門市自取 ' + E(day.slots.filter(function (s) { return s.slot === S.slot; })[0].pickup) : '—') + '</span></div>' +
+    '<div class="row"><span>醬汁・加購</span><span>' + E((D.sauces.filter(function (s) { return s.id === S.sauce; })[0] || {}).name || '—') + (S.drinks.length ? '＋' + S.drinks.map(function (id) { return (D.drinks.filter(function (d) { return d.id === id; })[0] || {}).name; }).join('、') : '') + '</span></div>' +
+    (c ? (S.kind === '訂閱' ? '<div class="row"><span>扣餐數</span><span>1 餐（剩 ' + (D.sub.left - 1) + ' 餐）</span></div><div class="row"><span>截單時錢包扣</span><span>' + money(c.later) + '</span></div>' : '<div class="row"><span>單點 ×' + S.qty + '</span><span>現在從錢包扣 ' + money(c.now) + '</span></div>') : '') +
+    '<div class="row"><span>錢包餘額</span><span>' + money(D.wallet.total) + (D.wallet.bonus ? '（紅利 ' + money(D.wallet.bonus) + '）' : '') + '</span></div>' +
+    (c && S.kind === '單點' && c.now > D.wallet.total ? '<div class="err">錢包不足，請先到門市儲值</div>' : '') +
+    (c && S.kind === '訂閱' && c.later > D.wallet.total ? '<div class="err">錢包不足 ' + money(c.later) + '：截單時會改回基本餐、取消加購</div>' : '') +
+    '<button class="go" id="go"' + (S.date && S.slot && it && S.sauce ? '' : ' disabled') + '>確認' + (CHANGE ? '改期' : '訂餐') + '</button>' + (ERR ? '<div class="err">' + E(ERR) + '</div>' : '') +
+    '<p class="op" style="font-size:12px;margin:10px 0 0">前一天 ' + E(D.cutoff) + ' 前可以在會員頁改期或取消' + (S.kind === '單點' ? '（單點取消會退回錢包）' : '（加回餐數）') + '；之後鎖定。</p></div></div></div>' +
+    (D.mine.length ? '<div class="oc" style="margin-top:10px"><div class="cap">已經訂的餐</div>' + D.mine.map(function (r) { return '<div class="row"><span>' + md(r.date) + ' ' + r.slot + '・' + E(r.size + ' ' + r.main) + (r.qty > 1 ? ' ×' + r.qty : '') + '</span><span>' + E(r.kind) + '・' + E(r.status) + '</span></div>'; }).join('') + '</div>' : '');
+  o.innerHTML = h;
+}
+function login() {
+  try { localStorage.setItem('zr_after', location.pathname + location.search); } catch (e) {}
+  document.getElementById('ow').innerHTML = '<div class="hb-en">Order</div><div class="oh">訂餐</div><p class="op">訂餐需要會員登入。</p><a class="hb-btn g" href="/api/line/login">用 LINE 登入</a> <a class="hb-btn" href="healthy.html">看菜單</a>';
+}
+function load() {
+  return api('orderInfo').then(function (d) {
+    D = d;
+    if (S.item && !item()) S.item = '';
+    if (!S.sauce) { var f = D.sauces.filter(function (s) { return !s.price; })[0] || D.sauces[0]; if (f) S.sauce = f.id; }
+    if (!S.date) { var f2 = D.days.filter(function (x) { return !x.closed; })[0]; if (f2) S.date = f2.date; }
+    draw();
+  }).catch(function (e) {
+    if (!ADMIN && /登入|註冊/.test(e.message)) { if (/登入/.test(e.message)) return login(); location.href = 'member.html'; return; }
+    document.getElementById('ow').innerHTML = '<div class="err">' + E(e.message) + '</div>';
+  });
+}
+document.addEventListener('click', function (e) {
+  var b = e.target.closest && e.target.closest('button'); if (!b || !D || b.disabled) return;
+  if (b.hasAttribute('data-d')) { S.date = b.getAttribute('data-d'); S.slot = ''; }
+  else if (b.hasAttribute('data-s')) S.slot = b.getAttribute('data-s');
+  else if (b.hasAttribute('data-m')) { S.main = b.getAttribute('data-m'); }
+  else if (b.hasAttribute('data-i')) S.item = b.getAttribute('data-i');
+  else if (b.hasAttribute('data-sa')) S.sauce = b.getAttribute('data-sa');
+  else if (b.hasAttribute('data-dr')) { var id = b.getAttribute('data-dr'), k = S.drinks.indexOf(id); if (k < 0) S.drinks.push(id); else S.drinks.splice(k, 1); }
+  else if (b.hasAttribute('data-k')) S.kind = b.getAttribute('data-k');
+  else if (b.hasAttribute('data-q')) S.qty = Math.max(1, Math.min(20, S.qty + Number(b.getAttribute('data-q'))));
+  else if (b.id === 'go') {
+    b.disabled = true; ERR = '';
+    var body = { date: S.date, slot: S.slot, itemId: S.item, sauce: S.sauce, addons: S.drinks, kind: S.kind, qty: S.qty };
+    var make = function () { return api('orderCreate', body); };
+    make().catch(function (er) { if (CHANGE && /已經用方案訂過/.test(er.message)) return api('orderCancel', { resId: CHANGE }).then(function () { CHANGE = 'done'; return make(); }); throw er; })
+      .then(function () { return CHANGE && CHANGE !== 'done' ? api('orderCancel', { resId: CHANGE }) : null; })
+      .then(function () { var it = item(); DONE = md(S.date) + ' ' + S.slot + '・' + it.size + ' ' + it.main + (S.kind === '單點' ? ' ×' + S.qty + '（單點）' : '（訂閱）') + '。門市自取。'; draw(); })
+      .catch(function (er) { ERR = er.message; draw(); });
+    return;
+  } else return;
+  ERR = ''; draw();
+});
+Z.init('healthy', function () { if (ADMIN && !TOK) { document.getElementById('ow').innerHTML = '<div class="err">請從後台「預約與備餐」進入代訂。</div>'; return; } load(); });
+</script>
+</body>
+</html>

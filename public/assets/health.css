@@ -134,3 +134,14 @@ body.hx{--bg:#F2EEE4;--ink:#1F2B27;--mute:#5B6660;--line:#D6CDBA;--accent:#8A5E2
  .hb-sbar a{padding:12px 18px;background:#D9B477;color:#1A1712;font-size:13px;letter-spacing:.2em;font-weight:500;white-space:nowrap}
  body.hx.sb{padding-bottom:68px}
 }
+
+/* 全部便當（2026-11-06） */
+.hb-flt{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 14px}.hb-flt b{font-size:12px;letter-spacing:.18em;color:var(--mute);font-weight:400;margin-right:6px}
+.hb-flt button{font:inherit;font-size:13px;padding:7px 16px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}.hb-flt button.on{background:var(--gold);border-color:var(--gold);color:var(--on)}
+.hb-gal{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:22px}
+.hb-gc{background:var(--card);border:1px solid var(--line);display:flex;flex-direction:column}.hb-gc>.hb-pic{border:0;padding:0;cursor:zoom-in;display:block;width:100%}
+.hb-gc .bd{padding:16px 18px 18px;display:flex;flex-direction:column;gap:10px;flex:1}.hb-gc .nm{display:flex;justify-content:space-between;align-items:baseline}.hb-gc .nm b{font-size:15px;font-weight:500}.hb-gc .nm span{font-family:'Cormorant Garamond',serif;font-size:26px}
+.hb-gc .hb-btn{margin-top:auto;padding:11px}
+.hb-zoom{position:fixed;inset:0;background:rgba(19,35,31,.72);z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}
+.hb-zoom .in{background:var(--bg);max-width:860px;width:100%;display:grid;grid-template-columns:1fr 1fr;max-height:92vh;overflow:auto}.hb-zoom .tx{padding:26px}.hb-zoom h3{font-family:'Noto Serif TC',serif;font-weight:500;font-size:22px;margin:6px 0 12px}.hb-zoom p{font-size:14px;line-height:2;color:var(--mute)}
+@media(max-width:760px){.hb-gal{grid-template-columns:1fr 1fr;gap:10px}.hb-gc .bd{padding:10px}.hb-gc .nm{flex-direction:column}.hb-gc .nm span{font-size:20px}.hb-zoom .in{grid-template-columns:1fr}}
