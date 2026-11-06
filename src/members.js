@@ -10,7 +10,7 @@ import { needAll } from './service.js';
  * 所有操作只有總管理員可以用。
  */
 
-async function settings(c) {
+export async function settings(c) {
   const m = {};
   (await c.db.all('健康餐設定')).forEach((r) => { m[r['設定項目']] = r['值']; });
   return m;
@@ -52,15 +52,17 @@ async function member(c, memberId) {
   return m;
 }
 const ledgerOf = (c, memberId) => c.db.all('錢包紀錄', { 會員ID: memberId });
-const currentSub = (subs) => subs.filter((s) => ACTIVE.indexOf(s['狀態']) >= 0).sort((a, b) => b._row - a._row)[0] || null;
+export const currentSub = (subs) => subs.filter((s) => ACTIVE.indexOf(s['狀態']) >= 0).sort((a, b) => b._row - a._row)[0] || null;
 async function ledger(c, memberId, type, amount, o) {
   await c.db.insert('錢包紀錄', Object.assign({ 紀錄ID: 'W' + Date.now().toString(36).toUpperCase() + rid(3), 會員ID: memberId, 時間: nowStamp(), 類型: type, 金額: amount, 可退現金: true, 狀態: '已入帳' }, o || {}));
 }
 
-async function newIds(c) {
-  const d = todayStr().slice(2).replace(/-/g, '');
+/** 會員編號：ZR＋5 位流水號（ZR00001 起），推薦碼 6 碼英數字。兩者都不重複、不能修改 */
+export async function newIds(c) {
+  const r = await c.env.DB.prepare("SELECT MAX(CAST(SUBSTR(member_id, 3) AS INTEGER)) AS n FROM members WHERE member_id GLOB 'ZR[0-9]*'").first();
+  let n = (r && r.n) || 0;
   for (let i = 0; i < 20; i++) {
-    const id = 'M' + d + '-' + rid(4);
+    const id = 'ZR' + String(n + 1 + i).padStart(5, '0');
     let code = ''; for (let j = 0; j < 6; j++) code += CODE_CH[Math.floor(Math.random() * CODE_CH.length)];
     if (!(await c.db.first('會員', { 會員ID: id })) && !(await c.db.first('會員', { 推薦碼: code }))) return { id, code };
   }
@@ -81,7 +83,7 @@ export const memberOps = {
     needAll(a);
     const st = await settings(c), kw = clean(p.q, 60).toLowerCase();
     const [ms, led, subs] = await Promise.all([c.db.all('會員'), c.db.all('錢包紀錄'), c.db.all('訂閱')]);
-    const list = ms.filter((m) => m['狀態'] !== '已刪除').filter((m) => !kw || [m['姓名'], m['手機'], m['Email'], m['會員ID'], m['推薦碼']].some((v) => String(v).toLowerCase().indexOf(kw) >= 0))
+    const list = ms.filter((m) => m['狀態'] !== '已刪除' && m['狀態'] !== '待合併').filter((m) => !kw || [m['姓名'], m['手機'], m['Email'], m['會員ID'], m['推薦碼']].some((v) => String(v).toLowerCase().indexOf(kw) >= 0))
       .sort((x, y) => y._row - x._row)
       .map((m) => summary(m, walletOf(led.filter((r) => r['會員ID'] === m['會員ID'])), currentSub(subs.filter((s) => s['會員ID'] === m['會員ID']))));
     const plans = [8, 12, 20].map((n) => ({ meals: n, total: num(st['方案' + n + '餐_總價'], 0), bonus: num(st['新會員折扣_' + n + '餐'], 0) })).filter((x) => x.total > 0);
@@ -107,6 +109,7 @@ export const memberOps = {
     if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new UserError('Email 格式不正確');
     const en = email ? normEmail(email) : '';
     const all = (await c.db.all('會員')).filter((m) => m['會員ID'] !== v.memberId && m['狀態'] !== '已刪除');
+    const dupW = all.find((m) => m['待合併手機'] === phone); if (dupW) throw new UserError('這支手機有一筆 LINE 會員在「待合併」，請先處理');
     const dupP = all.find((m) => m['手機'] === phone); if (dupP) throw new UserError('這支手機已經是會員（' + dupP['姓名'] + '・' + dupP['會員ID'] + '）');
     const dupE = en && all.find((m) => m['Email比對'] === en); if (dupE) throw new UserError('這個 Email 已經是會員（' + dupE['姓名'] + '・' + dupE['會員ID'] + '）');
     const vals = { 姓名: name, 手機: phone, Email: email, Email比對: en, 備註: note };

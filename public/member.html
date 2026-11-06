@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>健康餐會員｜致日子</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#1E332F">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500&family=Noto+Serif+TC:wght@500;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap" media="print" onload="this.media='all'">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/health.css">
+<style>
+*{border-radius:0!important}
+.mb-wrap{max-width:1080px;margin:0 auto;padding:56px 40px 80px}
+.mb-err{border:1px solid #9a3b2b;color:#9a3b2b;background:#fff;padding:12px 16px;margin-bottom:20px;font-size:14px}
+.mb-card{background:var(--card);border:1px solid var(--line);padding:32px}
+.mb-two{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
+.mb-line{text-decoration:none;display:flex;align-items:center;justify-content:center;gap:12px;background:#06C755;color:#fff;font-weight:500;letter-spacing:.2em;padding:16px;border:0;width:100%;font:inherit;font-size:15px}
+.mb-line i{display:inline-block;width:22px;height:22px;border:2px solid #fff;font-style:normal;font-size:11px;line-height:18px;text-align:center}
+.mb-h{font-family:'Noto Serif TC',serif;font-weight:500;font-size:30px;letter-spacing:.12em;margin:6px 0 14px}
+.mb-p{font-size:14px;line-height:2;color:var(--mute);margin:0 0 18px}
+.mb-f{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.mb-f label{font-size:12px;letter-spacing:.16em;color:var(--mute)}
+.mb-f input{font:inherit;font-size:16px;border:0;border-bottom:1px solid var(--line);background:transparent;padding:8px 0;color:var(--ink)}
+.mb-ck{font-size:14px;display:flex;gap:8px;align-items:center;margin:6px 0}
+.mb-note{border-left:3px solid var(--gold);background:#FBF3E3;padding:12px 16px;font-size:13px;line-height:1.9;margin:16px 0}
+.mb-kp{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0}
+.mb-kp div{border:1px solid var(--line);background:#fff;padding:14px 16px;font-size:12px;letter-spacing:.12em;color:var(--mute)}
+.mb-kp b{display:block;font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:500;color:var(--ink);letter-spacing:0}
+.mb-row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line);font-size:14px}
+.mb-tag{font-size:11px;letter-spacing:.15em;border:1px solid var(--gold);color:var(--gold);padding:2px 8px}
+.mb-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:24px}
+@media(max-width:760px){.mb-wrap{padding:28px 14px}.mb-two,.mb-grid{grid-template-columns:1fr;gap:20px}.mb-kp{grid-template-columns:1fr 1fr}.mb-h{font-size:24px}.mb-card{padding:20px}}
+.mb-ld{font-size:14px;color:var(--mute);padding:40px 0}
+.mb-terms{font-size:13px;line-height:2;color:var(--mute);border:1px solid var(--line);background:#fff;padding:14px 18px;margin:10px 0;max-height:240px;overflow:auto}
+</style>
+</head>
+<body class="hk hx">
+<div class="hb-dk"><div id="nav"></div></div>
+<main id="main"><div class="mb-wrap" id="mb"><div class="mb-ld">載入中…</div></div></main>
+<div id="foot"></div>
+<script src="assets/config.js"></script>
+<script src="assets/demo-data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+/* 健康餐會員（2026-11-06，草圖 m33）：LINE 登入 → 第一次填資料 → 會員中心。登入狀態存在 cookie（伺服器端）。 */
+var E = Z.esc, ME = null, EDIT = false;
+function money(n) { return '$' + Number(n || 0).toLocaleString('en-US'); }
+function err() { var m = /[?&]err=([^&]+)/.exec(location.search); return m ? '<div class="mb-err">' + E(decodeURIComponent(m[1])) + '</div>' : ''; }
+var TERMS = '<div class="mb-terms"><b>會員條款（草稿，待法律確認）</b><br>1. 訂閱方案每期 30 天，請在期間內預約使用。<br>2. 期間結束還有沒用完的餐：到期前續訂，剩下的餐併入下一期；沒有續訂，已用的餐以單點價格計算後，餘額轉為店內消費金，會員也可以申請退還現金。中途取消也照這個方式計算。<br>3. 預約須在前一天截單時間前完成；截單後不能修改或取消。沒有來取餐，照常扣一餐；因店家原因（送錯、延誤、品質問題）不扣餐數。<br>4. 錢包中的儲值金可申請退還現金；紅利（推薦獲得）只能用於消費，不能退還現金。<br>5. 推薦碼限朋友第一次訂閱使用；店家發現作弊時，可以取消並收回紅利。<br>6. 手機號碼是辨認會員身分的依據，修改請洽門市。<br><br><b>隱私權政策（草稿，待法律確認）</b><br>我們蒐集您的姓名、手機、Email 與 LINE 識別碼，只用於會員服務、訂餐聯繫與通知；不會提供給推薦人、合作店家或其他第三方。您可以隨時洽門市查詢、更正或要求刪除資料（有未結算的方案或錢包餘額時，須先結算）。</div>';
+
+function vLogin() {
+  return err() + '<div class="mb-two"><div><div class="hb-en">Member</div><div class="mb-h">健康餐會員</div>' +
+    '<p class="mb-p">用 LINE 登入就能成為會員：查看方案與剩餘餐數、錢包與紅利、自己的推薦碼。<br>預約餐點目前請洽門市或 LINE 官方帳號，由店員代訂。</p></div>' +
+    '<div class="mb-card">' + (ME.lineReady ? '<a class="mb-line" href="/api/line/login"><i>L</i>用 LINE 登入</a>' : '<span class="mb-line" style="opacity:.5">LINE 登入準備中</span>') +
+    '<p class="mb-p" style="margin:14px 0 0;font-size:12px">登入時 LINE 會詢問是否加入「致日子」官方帳號好友，加入後可收到取餐與訂閱通知。</p></div></div>';
+}
+function vRegister() {
+  return err() + '<div class="mb-two" style="align-items:start"><div><div class="hb-en">Welcome</div><div class="mb-h">嗨，' + E(ME.lineName || '你好') + '</div>' +
+    '<p class="mb-p">第一次登入，請填寫基本資料。<br>如果您<b>之前已經在門市建立過會員</b>（店員幫您儲值或買過方案），請填一樣的手機號碼，店員確認後會把資料合併到這個 LINE 帳號。</p></div>' +
+    '<div class="mb-card"><div class="mb-f"><label>姓名</label><input id="r-name" maxlength="30"></div>' +
+    '<div class="mb-f"><label>手機</label><input id="r-phone" inputmode="tel" maxlength="12" placeholder="09xxxxxxxx"></div>' +
+    '<div class="mb-f"><label>Email（選填）</label><input id="r-email" type="email" maxlength="120"></div>' + TERMS +
+    '<label class="mb-ck"><input type="checkbox" id="r-t1"> 我同意會員條款</label><label class="mb-ck"><input type="checkbox" id="r-t2"> 我同意隱私權政策</label>' +
+    '<div id="r-msg"></div><div style="margin-top:18px"><button class="hb-btn g" style="display:block;width:100%" id="r-go">完成註冊</button></div></div></div>';
+}
+function vCenter() {
+  var w = ME.wallet, s = ME.sub;
+  var note = ME.pending ? '<div class="mb-note"><b>資料合併審核中</b>：這支手機在門市已有會員資料（錢包、方案）。店員確認是本人後會合併，合併前錢包與方案暫時顯示為 0。若急需使用，請到門市或傳 LINE 給我們。</div>'
+    : ME.needPhone ? '<div class="mb-note"><b>請補填手機</b>：店員確認您和門市的另一位會員不是同一人，請在「修改資料」填寫您自己的手機。</div>' : '';
+  var prof = EDIT ? '<div class="mb-f"><label>姓名</label><input id="e-name" value="' + E(ME.name) + '"></div><div class="mb-f"><label>Email（選填）</label><input id="e-email" type="email" value="' + E(ME.email) + '"></div>' +
+      (ME.needPhone ? '<div class="mb-f"><label>手機</label><input id="e-phone" inputmode="tel"></div>' : '<p class="mb-p" style="font-size:12px;margin:0 0 10px">手機修改請洽門市。</p>') +
+      '<div id="e-msg"></div><div style="display:flex;gap:10px"><button class="hb-btn g" id="e-go" style="flex:1">儲存</button><button class="hb-btn" id="e-x" style="flex:1">取消</button></div>'
+    : '<div class="mb-row"><span>手機</span><span>' + (ME.phone ? E(ME.phone) + (ME.phoneOk ? '' : ' <span class="mb-tag">待核對</span>') : '—') + '</span></div><div class="mb-row"><span>Email</span><span>' + (E(ME.email) || '—') + '</span></div><div style="margin-top:14px"><button class="hb-btn" style="display:block;width:100%" id="e-open">修改資料</button></div>';
+  return err() + '<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px"><div><div class="hb-en">My page</div><div class="mb-h" style="margin-bottom:0">' + E(ME.name) + '</div></div><div class="mb-p" style="margin:0">' + E(ME.id) + '・LINE 已綁定・<a href="/api/line/logout" style="text-decoration:underline">登出</a></div></div>' + note +
+    '<div class="mb-kp"><div>錢包總餘額<b>' + money(w.total) + '</b></div><div>可退現金<b>' + money(w.cash) + '</b></div><div>紅利<b>' + money(w.bonus) + '</b></div><div>本期剩餘<b>' + (s ? s.left + '/' + s.meals : '—') + '</b></div></div>' +
+    '<div class="mb-grid"><div class="mb-card"><div class="hb-cap">我的方案</div>' +
+    (s ? '<div class="mb-row"><span>目前方案</span><span>' + s.meals + ' 餐（' + E(s.status) + '）</span></div><div class="mb-row"><span>期間</span><span>' + E(s.start) + ' ～ ' + E(s.end) + '</span></div><div class="mb-row"><span>剩餘</span><span>' + s.left + ' 餐</span></div>'
+       : '<div class="mb-row"><span>目前方案</span><span>尚無</span></div><div class="mb-row"><span>購買方式</span><span>到門市儲值後由店員開通</span></div>') +
+    '<div class="hb-cap" style="margin-top:22px">錢包紀錄</div>' + (ME.ledger.length ? ME.ledger.map(function (r) { return '<div class="mb-row"><span>' + E(r.at.slice(5)) + '　' + E(r.type) + '</span><span>' + (r.amount >= 0 ? '+' : '−') + Math.abs(r.amount).toLocaleString('en-US') + (r.amount > 0 && !r.refundable ? ' <span class="mb-tag">紅利</span>' : '') + '</span></div>'; }).join('') : '<div class="mb-row"><span>還沒有紀錄</span><span></span></div>') + '</div>' +
+    '<div class="mb-card"><div class="hb-cap">我的推薦碼</div>' + (ME.pending ? '<p class="mb-p">合併完成後顯示。</p>' :
+      '<div style="font-family:\'Cormorant Garamond\',serif;font-size:40px;letter-spacing:.2em;margin:10px 0">' + E(ME.code) + '</div><button class="hb-btn" style="display:block;width:100%" id="cp">複製推薦碼</button>' +
+      '<p class="mb-p" style="margin:14px 0 0;font-size:13px">朋友第一次訂閱時使用，朋友得紅利；朋友取餐滿 ' + ME.referrerMeals + ' 餐，您得紅利 ' + ME.referrerBonus + ' 元。紅利只能消費，不能退現金。</p>') +
+    '<div class="hb-cap" style="margin-top:20px">個人資料</div>' + prof + '</div></div>';
+}
+function draw() { document.getElementById('mb').innerHTML = !ME.login ? vLogin() : !ME.registered ? vRegister() : vCenter(); }
+function load() { return Z.post({ action: 'memberMe' }).then(function (d) { ME = d; draw(); }).catch(function (e) { Z.fail(document.getElementById('mb'), e.message); }); }
+function v(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
+function say(id, m) { document.getElementById(id).innerHTML = '<div class="mb-err" style="margin:10px 0 0">' + E(m) + '</div>'; }
+document.addEventListener('click', function (e) {
+  var t = e.target;
+  if (t.id === 'r-go') { t.disabled = true; Z.post({ action: 'memberRegister', name: v('r-name'), phone: v('r-phone'), email: v('r-email'), agreeTerms: document.getElementById('r-t1').checked, agreePrivacy: document.getElementById('r-t2').checked }).then(load).catch(function (er) { t.disabled = false; say('r-msg', er.message); }); }
+  if (t.id === 'e-open') { EDIT = true; draw(); }
+  if (t.id === 'e-x') { EDIT = false; draw(); }
+  if (t.id === 'e-go') Z.post({ action: 'memberUpdate', name: v('e-name'), email: v('e-email'), phone: v('e-phone') }).then(function () { EDIT = false; return load(); }).catch(function (er) { say('e-msg', er.message); });
+  if (t.id === 'cp') { try { navigator.clipboard.writeText(ME.code); t.textContent = '已複製'; } catch (x) { prompt('推薦碼', ME.code); } }
+});
+Z.init('healthy', load);
+</script>
+</body>
+</html>

@@ -4,8 +4,9 @@ import { publicData, availability, book, contact, adminOf } from './service.js';
 import { adminOps } from './admin.js';
 import { healthOps, publicMenu } from './health.js';
 import { memberOps } from './members.js';
+import { handleLine, memberApi, mergeOps } from './line.js';
 
-const OPS = { ...adminOps, ...healthOps, ...memberOps };
+const OPS = { ...adminOps, ...healthOps, ...memberOps, ...mergeOps };
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 const json = (o, status) => new Response(JSON.stringify(o), { status: status || 200, headers: JSON_HEADERS });
 
@@ -23,6 +24,7 @@ async function handleApi(request, c) {
     switch (p.action) {
       case 'book': return json({ ok: true, data: await book(c, p) });
       case 'contact': return json({ ok: true, data: await contact(c, p) });
+      case 'memberMe': case 'memberRegister': case 'memberUpdate': return json({ ok: true, data: await memberApi(c, request, p) });
       default: {
         if (String(p.action).indexOf('admin') !== 0) throw new UserError('未知的操作');
         const a = await adminOf(c, p.idToken), fn = OPS[p.action];
@@ -71,6 +73,7 @@ export default {
     const url = new URL(request.url);
     const c = { env, db: new Db(env.DB), later: (p) => ctx.waitUntil(p.catch((e) => console.error(e))) };
     if (url.pathname === '/api') return handleApi(request, c);
+    if (url.pathname.startsWith('/api/line/')) { try { return await handleLine(request, c, url); } catch (e) { console.error(e && e.stack || e); return Response.redirect(url.origin + '/member.html?err=' + encodeURIComponent('LINE 登入發生錯誤，請再試一次'), 302); } }
     const m = /^\/img\/([\w-]+)$/.exec(url.pathname);
     if (m) return handleImage(request, c, m[1]);
     const res = await env.ASSETS.fetch(request);

@@ -111,7 +111,7 @@ function draw(d) {
           (MEMBER_OPEN ? '<a class="hb-btn' + (low ? ' g' : '') + '" href="member.html?plan=' + p.meals + '">選擇 ' + p.meals + ' 餐</a>' : '<span class="hb-btn off' + (low ? ' g' : '') + '">' + Z.ct('健康餐|訂閱按鈕', '即將開放') + '</span>') + '</div>';
       }).join('') + '</div>' +
       (up.length ? '<div class="hb-upg"><b>方案以 ' + E(base ? base.size + ' ' + base.main : '基本餐') + ' 計價，升級每餐另加：</b>' + up.map(function (u) { return '<span>' + E(u) + '</span>'; }).join('') + '</div>' : '') +
-      (rfs.some(Boolean) ? '<div class="hb-note">有推薦碼的新會員，第一期可折抵 ' + rfs.map(money).join('／') + ' 元（' + d.plans.map(function (p) { return p.meals; }).join('／') + ' 餐）。</div>' : '') +
+      (rfs.some(Boolean) ? '<div class="hb-note">用朋友推薦碼第一次訂閱，可得紅利 ' + rfs.map(money).join('／') + ' 元（' + d.plans.map(function (p) { return p.meals; }).join('／') + ' 餐，紅利只能消費）。</div>' : '') +
       (Z.t('健康餐|訂閱備註', '') ? '<div class="hb-note">' + Z.ct('健康餐|訂閱備註', '') + '</div>' : '') + '</section>';
   }
 

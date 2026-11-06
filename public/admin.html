@@ -734,7 +734,7 @@ function vHealth() {
   if (!tabs.some(function (t) { return t[0] === htab; })) htab = 'members';
   $('pg').innerHTML = '<div class="cap">健康餐</div><div class="h" style="font-size:28px;margin-bottom:6px">健康餐管理</div><div id="hopen"></div>' +
     '<div class="sub">' + tabs.map(function (t) { return '<button class="chip' + (t[0] === htab ? ' on' : '') + '" data-htab="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div><div id="sp"><div class="skel">載入中…</div></div>';
-  if (htab === 'members') { $('hopen').innerHTML = '<div class="msg" style="margin:8px 0 18px">會員系統<b>尚未對外開放</b>：會員由店員在這裡建立、儲值、用錢包購買方案；會員還不能自己登入（LINE 串好後開放）。</div>'; mLoad(); return; }
+  if (htab === 'members') { $('hopen').innerHTML = '<div class="msg" style="margin:8px 0 18px">會員可以用 LINE 在 <a href="member.html" target="_blank" rel="noopener" style="text-decoration:underline">會員頁</a> 註冊；儲值與購買方案由店員在這裡操作。健康餐頁的「加入會員」按鈕要到「規則與價格」把「會員系統開放」改成 TRUE 才會出現。</div>'; mLoad(); return; }
   call('adminHealthList').then(function (r) {
     cache.h = r;
     $('hopen').innerHTML = '<div class="msg" style="margin:8px 0 18px">' + (r.open ? '健康餐頁面<b>已對外開放</b>。' : '健康餐頁面<b>尚未對外開放</b>，一般訪客看不到選單與價格。' + (me.all ? '確認上架後，到「規則與價格」把「健康餐頁面開放」改成 TRUE。開放前可到「頁面內容 › 健康餐頁」預覽完整版面。' : '')) + ' <a href="healthy.html" target="_blank" rel="noopener" style="text-decoration:underline">查看前台頁面</a></div>';
@@ -803,8 +803,8 @@ document.addEventListener('click', function (e) {
 var MS = { sel: '', q: '', amt: 0, custom: false, plan: 12, panel: '' };
 function money(n) { return '$' + Number(n || 0).toLocaleString(); }
 function mLoad() {
-  Promise.all([call('adminMemberList', { q: MS.q }), MS.sel ? call('adminMemberGet', { memberId: MS.sel }).catch(function () { MS.sel = ''; return null; }) : Promise.resolve(null)]).then(function (r) {
-    cache.ml = r[0]; cache.mg = r[1];
+  Promise.all([call('adminMemberList', { q: MS.q }), call('adminMergeList'), MS.sel ? call('adminMemberGet', { memberId: MS.sel }).catch(function () { MS.sel = ''; return null; }) : Promise.resolve(null)]).then(function (r) {
+    cache.ml = r[0]; cache.mm = r[1]; cache.mg = r[2];
     if (!MS.amt) MS.amt = r[0].topup[0] || 0;
     mDraw();
   }).catch(err);
@@ -852,17 +852,24 @@ function mDraw() {
   var list = '<div style="display:flex;gap:8px;margin-bottom:12px"><div class="field" style="flex:1"><input id="m-q" placeholder="搜尋姓名、手機、Email、會員編號" value="' + E(MS.q) + '"></div><button class="btn sm" data-mpanel="new">＋ 新增會員</button></div>' +
     (L.members.length ? L.members.map(mRow).join('') : '<p class="sd">' + (MS.q ? '找不到符合的會員' : '還沒有會員，按「＋ 新增會員」建立第一位。') + '</p>');
   var right = MS.panel === 'new' ? mForm(null) : g ? mDetail(g, L) : '<div class="msg">請從左邊選一位會員，或按「＋ 新增會員」。</div>';
-  $('sp').innerHTML = '<div class="mwrap"><div class="mlist">' + list + '</div><div>' + right + '</div></div>';
+  var mm = cache.mm || [], merge = mm.length ? '<div class="card" style="gap:12px;border-color:#8A5E2E;background:#FBF3E3"><div class="cap" style="color:#8A5E2E">待合併　' + mm.length + ' 筆</div><div class="tw"><table><tr><th>LINE 新會員</th><th>門市會員（手機相同）</th><th></th></tr>' + mm.map(function (x) { var st = x.store; return '<tr><td><b>' + E(x.name) + '</b>　' + E(x.id) + '<br><span class="sd">' + E(x.lineNote) + '・' + E(String(x.at).slice(5, 16)) + ' 註冊<br>' + E(x.phone) + (x.email ? '・' + E(x.email) : '') + '</span></td><td>' + (st ? '<b>' + E(st.name) + '</b>　' + E(st.id) + '<br><span class="sd">錢包 ' + money(st.wallet) + (st.sub ? '・使用中 ' + E(st.sub) + ' 餐' : '') + '<br>建立 ' + E(String(st.since).slice(5, 10)) + '</span>' : '<span class="sd">找不到（可能已改手機）</span>') + '</td><td style="white-space:nowrap">' + (st ? '<button class="btn sm" data-mmerge="' + E(x.id) + '">確認是本人・合併</button><br><br>' : '') + '<button class="btn sm line" data-mreject="' + E(x.id) + '">不是同一人</button></td></tr>'; }).join('') + '</table></div><p class="sd" style="margin:0">合併後：LINE 帳號綁到門市會員，錢包、方案、推薦碼都沿用門市資料；LINE 新建的空白帳號刪除。請先核對身分（例如請會員報姓名與手機，或到門市出示 LINE）。不是同一人：LINE 會員改為一般會員，請他自己補填手機。</p></div>' : '';
+  $('sp').innerHTML = merge + '<div class="mwrap"><div class="mlist">' + list + '</div><div>' + right + '</div></div>';
 }
 function mVal(id) { var el = $(id); return el ? el.value.trim() : ''; }
 function mDo(req, msg) { return req.then(function (r) { toast(msg); return r; }).catch(function (er) { toast(er.message); throw er; }); }
 document.addEventListener('click', function (e) {
   var t = e.target, b;
-  if (!document.querySelector('.mwrap')) return;
+  if (!document.querySelector('.mwrap') && !t.closest('[data-mmerge],[data-mreject]')) return;
   if ((b = t.closest('[data-msel]'))) { MS.sel = b.getAttribute('data-msel'); MS.panel = ''; mLoad(); if (innerWidth < 760) scrollTo(0, 0); return; }
   if ((b = t.closest('[data-mpanel]'))) { MS.panel = b.getAttribute('data-mpanel'); mDraw(); if (MS.panel) { var f = document.querySelector('.mwrap input#mf-name,#ma-amt,#mr-amt'); if (f) f.focus(); } return; }
   if ((b = t.closest('[data-mamt]'))) { var v = b.getAttribute('data-mamt'); MS.custom = v === 'custom'; if (!MS.custom) MS.amt = Number(v); mDraw(); return; }
   if ((b = t.closest('[data-mplan]'))) { MS.plan = Number(b.getAttribute('data-mplan')); mDraw(); return; }
+  if ((b = t.closest('[data-mmerge],[data-mreject]'))) {
+    var mg = b.hasAttribute('data-mmerge'), mid = b.getAttribute(mg ? 'data-mmerge' : 'data-mreject');
+    if (!confirm(mg ? '確認已核對身分，把這個 LINE 帳號合併到門市會員？' : '確認不是同一人？LINE 會員會改為一般會員，請他自己補填手機。')) return;
+    mDo(call('adminMerge', { memberId: mid, merge: mg }), mg ? '已合併' : '已設為不同人').then(function (r) { if (mg) MS.sel = r.memberId; mLoad(); }).catch(function () {});
+    return;
+  }
   if ((b = t.closest('[data-msave]'))) {
     var id = b.getAttribute('data-msave');
     mDo(call('adminSaveMember', { member: { memberId: id, name: mVal('mf-name'), phone: mVal('mf-phone'), email: mVal('mf-email'), note: mVal('mf-note') } }), id ? '已儲存會員資料' : '已建立會員').then(function (r) { MS.sel = r.memberId; MS.panel = ''; mLoad(); }).catch(function () {});
