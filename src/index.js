@@ -3,8 +3,9 @@ import { UserError, clean } from './util.js';
 import { publicData, availability, book, contact, adminOf } from './service.js';
 import { adminOps } from './admin.js';
 import { healthOps, publicMenu } from './health.js';
+import { memberOps } from './members.js';
 
-const OPS = { ...adminOps, ...healthOps };
+const OPS = { ...adminOps, ...healthOps, ...memberOps };
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 const json = (o, status) => new Response(JSON.stringify(o), { status: status || 200, headers: JSON_HEADERS });
 

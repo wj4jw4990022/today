@@ -223,4 +223,45 @@ await t('健康餐只有總管理員：單店（h1）管理員看不到、也不
 await t('別店（非 h1）的管理員不能動健康餐', async () => { await db.prepare("INSERT INTO admins (email,scope) VALUES ('ponly@x.com','p')").run(); const P = { idToken: 'test:ponly@x.com' }; assert(!(await post({ ...P, action: 'adminHealthList' })).ok); assert(!(await post({ ...P, action: 'adminSaveAddon', item: { type: '飲品', name: 'x', price: '1', on: true } })).ok); });
 await t('沒有權限的人被拒（健康餐）', async () => { assert(!(await post({ ...N, action: 'adminHealthList' })).ok); assert(!(await post({ ...N, action: 'adminSaveAddon', item: { type: '飲品', name: 'x', price: '1', on: true } })).ok); });
 
+/* ===== 會員與錢包（後台代建，2026-11-06） ===== */
+await q("INSERT OR REPLACE INTO health_settings (key,value) VALUES ('新會員折扣_8餐','50'),('新會員折扣_12餐','100'),('新會員折扣_20餐','150'),('推薦人獎勵','100'),('方案12餐_總價','1980')");
+const M = async (o) => (await post({ ...A, ...o })).data;
+let m1, m2;
+await t('店員新增會員：會員編號與 6 碼推薦碼、手機與 Email 不可重複', async () => {
+  const r = await post({ ...A, action: 'adminSaveMember', member: { name: '王小明', phone: '0912-345-678', email: 'Wang.X+a@gmail.com' } }); assert(r.ok, r.error); m1 = r.data.memberId;
+  const row = (await q('SELECT * FROM members WHERE member_id=?', m1))[0]; assert(row && row.line_id === null && /^[A-HJ-NP-Z2-9]{6}$/.test(row.referral_code) && row.phone === '0912345678' && row.email_norm === 'wangx@gmail.com');
+  assert(!(await post({ ...A, action: 'adminSaveMember', member: { name: 'x', phone: '0912345678' } })).ok);
+  assert(!(await post({ ...A, action: 'adminSaveMember', member: { name: 'x', phone: '0912000111', email: 'wangx@gmail.com' } })).ok);
+  assert(!(await post({ ...A, action: 'adminSaveMember', member: { name: 'x', phone: '123' } })).ok);
+  m2 = (await M({ action: 'adminSaveMember', member: { name: '陳美玲', phone: '0933222111' } })).memberId; assert(m2 && m2 !== m1);
+});
+await t('儲值：固定金額可以、非固定金額被拒；自訂金額要原因且有上限；轉帳要末五碼', async () => {
+  assert(!(await post({ ...A, action: 'adminTopup', memberId: m1, amount: 2500, method: '現金' })).ok);
+  assert(!(await post({ ...A, action: 'adminTopup', memberId: m1, amount: 2500, custom: true, method: '現金' })).ok);
+  assert(!(await post({ ...A, action: 'adminTopup', memberId: m1, amount: 20000, custom: true, reason: 'x', method: '現金' })).ok);
+  assert(!(await post({ ...A, action: 'adminTopup', memberId: m1, amount: 1400, method: '轉帳' })).ok);
+  const r = await post({ ...A, action: 'adminTopup', memberId: m1, amount: 1400, method: '轉帳', last5: '12345' }); assert(r.ok, r.error);
+  assert((await post({ ...A, action: 'adminTopup', memberId: m1, amount: 600, custom: true, reason: '會員要求', method: '現金' })).ok);
+  const g = await M({ action: 'adminMemberGet', memberId: m1 }); assert.equal(g.wallet.total, 2000); assert.equal(g.wallet.cash, 2000); assert.equal(g.ledger[0].by, 'boss@x.com');
+});
+await t('用錢包購買方案：餘額不足被拒；推薦碼不能用自己的；成功後新會員得紅利、推薦紀錄等待中', async () => {
+  const me = (await M({ action: 'adminMemberGet', memberId: m1 }));
+  assert(!(await post({ ...A, action: 'adminBuyPlan', memberId: m1, meals: 20 })).ok);
+  assert(!(await post({ ...A, action: 'adminBuyPlan', memberId: m1, meals: 12, code: me.code })).ok);
+  const code2 = (await M({ action: 'adminMemberGet', memberId: m2 })).code;
+  const r = await post({ ...A, action: 'adminBuyPlan', memberId: m1, meals: 12, code: code2 }); assert(r.ok, r.error); assert.equal(r.data.bonus, 100);
+  const g = await M({ action: 'adminMemberGet', memberId: m1 }); assert.equal(g.wallet.cash, 20); assert.equal(g.wallet.bonus, 100); assert.equal(g.sub.left, 12); assert.equal(g.sub.status, '使用中');
+  const ref = (await q('SELECT * FROM referrals WHERE new_member_id=?', m1))[0]; assert(ref && ref.status === '等待中' && ref.reward === 100);
+  assert(!(await post({ ...A, action: 'adminBuyPlan', memberId: m1, meals: 8 })).ok, '使用中不能再買');
+});
+await t('紅利不能退現金；扣款先扣紅利；人工調整要原因', async () => {
+  assert(!(await post({ ...A, action: 'adminRefundCash', memberId: m1, amount: 50, method: '現金', reason: 'x' })).ok);
+  assert((await post({ ...A, action: 'adminRefundCash', memberId: m1, amount: 20, method: '現金', reason: '會員要求' })).ok);
+  assert(!(await post({ ...A, action: 'adminWalletAdjust', memberId: m1, amount: 30 })).ok);
+  assert((await post({ ...A, action: 'adminWalletAdjust', memberId: m1, amount: -30, reason: '收回部分紅利' })).ok);
+  const g = await M({ action: 'adminMemberGet', memberId: m1 }); assert.equal(g.wallet.cash, 0); assert.equal(g.wallet.bonus, 70);
+});
+await t('會員清單可搜尋，含錢包與方案', async () => { const l = await M({ action: 'adminMemberList', q: '0912345' }); assert.equal(l.members.length, 1); assert.equal(l.members[0].sub.meals, 12); assert(l.topup.includes(1980) && l.customMax === 10000); });
+await t('會員功能只有總管理員', async () => { assert(!(await post({ ...B, action: 'adminMemberList' })).ok); assert(!(await post({ ...B, action: 'adminTopup', memberId: m1, amount: 1400, method: '現金' })).ok); assert(!(await post({ ...N, action: 'adminSaveMember', member: { name: 'x', phone: '0912999888' } })).ok); });
+
 summary(); await S.dispose(); process.exit(process.exitCode || 0);
