@@ -522,4 +522,39 @@ await t('測試按鈕：已用餐＋1 扣餐並觸發推薦紅利', async () => 
   });
 }
 
+/* ===== 配送點與免運門檻 ===== */
+{
+  const { runCutoff } = await import('../src/orders.js'); const { Db } = await import('../src/db.js'); const cx = { env: S.env, db: new Db(S.env.DB) };
+  await q("UPDATE health_settings SET value='23:59' WHERE key='截單時間'");
+  const nd = (n) => { let k = n; while (dow(day(k)) === 3) k++; return day(k); };
+  let near, far;
+  await t('配送點：新增、超過 8 公里擋下、只有總管理員', async () => {
+    assert(!(await post({ ...A, action: 'adminSavePoint', point: { name: '遠方', km: 9, slots: ['中午'], on: true } })).ok);
+    assert(!(await post({ ...B, action: 'adminSavePoint', point: { name: 'x', km: 1, slots: ['中午'], on: true } })).ok);
+    near = (await M({ action: 'adminSavePoint', point: { name: 'A 大樓', address: '高雄市三民區', km: 1.5, slots: ['中午'], on: true } })).id;
+    far = (await M({ action: 'adminSavePoint', point: { name: 'B 公司', km: 6, slots: ['中午', '晚上'], on: true } })).id;
+    const l = await M({ action: 'adminPoints' }); assert.equal(l.points.find((x) => x.id === near).min, 3); assert.equal(l.points.find((x) => x.id === far).min, 10);
+  });
+  const W = (await M({ action: 'adminSaveMember', member: { name: '配送人', phone: '0933888001' } })).memberId;
+  await post({ ...A, action: 'adminTopup', memberId: W, amount: 5000, method: '現金' });
+  const od = (o) => post({ ...A, action: 'adminOrderCreate', memberId: W, itemId: 'HM-L-CB', sauce: 'AD-S-OIL', kind: '單點', ...o });
+  await t('配送預約：時段要可配送；截單時達門檻維持配送、未達改自取', async () => {
+    assert(!(await od({ date: nd(1), slot: '晚上', pickup: '配送', pointId: near })).ok, 'A 大樓晚上不送');
+    const a = (await od({ date: nd(1), slot: '中午', pickup: '配送', pointId: near, qty: 3 })).data.resId;
+    const b = (await od({ date: nd(1), slot: '中午', pickup: '配送', pointId: far, qty: 2 })).data.resId;
+    const info = await post({ ...A, action: 'adminOrderInfo', memberId: W }); assert.equal(info.data.pointCount[nd(1) + '|中午|' + near], 3);
+    await q("UPDATE reservations SET date=? WHERE res_id IN (?,?)", day(0), a, b); await runCutoff(cx);
+    const ra = (await q('SELECT * FROM reservations WHERE res_id=?', a))[0], rb = (await q('SELECT * FROM reservations WHERE res_id=?', b))[0];
+    assert.equal(ra.pickup, '配送'); assert.equal(rb.pickup, '自取'); assert(rb.note.includes('未達 10 份'));
+    const d = await M({ action: 'adminDay', date: day(0) }); assert(d.points.some((x) => x.name === 'A 大樓' && x.n === 3));
+  });
+  await t('停用配送點：還沒截單的配送預約改自取', async () => {
+    const c1 = (await od({ date: nd(3), slot: '中午', pickup: '配送', pointId: near })).data.resId;
+    const r = await post({ ...A, action: 'adminSavePoint', point: { id: near, name: 'A 大樓', km: 1.5, slots: ['中午'], on: false } }); assert.equal(r.data.moved, 1);
+    assert.equal((await q('SELECT pickup FROM reservations WHERE res_id=?', c1))[0].pickup, '自取');
+    assert(!(await od({ date: nd(3), slot: '中午', pickup: '配送', pointId: near })).ok);
+  });
+  await q("UPDATE health_settings SET value='20:00' WHERE key='截單時間'");
+}
+
 summary(); await S.dispose(); process.exit(process.exitCode || 0);

@@ -25,6 +25,22 @@ function rules(st) {
     refN: num(st['推薦發放取餐數'], 3), refCap: num(st['推薦每月上限人數'], 10), refReward: num(st['推薦人獎勵'], 0)
   };
 }
+/** 配送門檻：依距離分級（設定「配送門檻_*」「配送最遠公里」）；超過最遠距離回 null */
+export function threshold(st, km) {
+  km = Number(km) || 0; const far = num(st['配送最遠公里'], 8);
+  if (km > far) return null;
+  if (km <= 2) return num(st['配送門檻_2公里內'], 3);
+  if (km <= 5) return num(st['配送門檻_2至5公里'], 5);
+  return num(st['配送門檻_5至8公里'], 10);
+}
+async function points(c, st, all) {
+  return (await c.db.all('配送點')).filter((p) => all || p['啟用']).map((p) => ({ id: p['配送點ID'], name: p['名稱'], address: p['地址'], km: num(p['距離公里'], 0), slots: String(p['可配送時段'] || '中午,晚上').split(/[,，、\s]+/).filter(Boolean), on: !!p['啟用'], note: p['備註'], min: threshold(st, p['距離公里']) }));
+}
+async function pointCounts(c, from, to) {
+  const r = await c.env.DB.prepare("SELECT date, slot, point_id, SUM(qty) AS n FROM reservations WHERE pickup = '配送' AND date >= ? AND date <= ? AND status IN ('已預約','已鎖定','已取餐','未取餐作廢') GROUP BY date, slot, point_id").bind(from, to).all();
+  const m = {}; (r.results || []).forEach((x) => { m[x.date + '|' + x.slot + '|' + x.point_id] = x.n; });
+  return m;
+}
 async function menu(c) {
   const items = (await c.db.all('健康餐品項', { 店家ID: SHOP })).filter((r) => isTrue(r['顯示'])).sort(byOrder);
   const addons = (await c.db.all('加購品項', { 店家ID: SHOP })).filter((r) => isTrue(r['顯示'])).sort(byOrder);
@@ -47,8 +63,14 @@ export async function runCutoff(c) {
   if (!rows.length) return 0;
   const { items } = await menu(c);
   const base = items.find((i) => !num(i['訂閱加價'], 0)) || items[0];
+  // 配送：同一配送點、同一天、同一時段的份數沒達到門檻 → 改門市自取
+  const pts = {}; (await points(c, st, true)).forEach((p) => { pts[p.id] = p; });
+  const grp = {}; rows.filter((r) => r['取餐方式'] === '配送').forEach((r) => { const k = r['日期'] + '|' + r['時段'] + '|' + r['配送點ID']; grp[k] = (grp[k] || 0) + num(r['份數'], 1); });
+  const toSelf = {}; Object.keys(grp).forEach((k) => { const p = pts[k.split('|')[2]]; if (!p || !p.on || p.min === null || grp[k] < p.min) toSelf[k] = p ? (p.on ? '只有 ' + grp[k] + ' 份，未達 ' + p.min + ' 份' : '配送點已停用') : '配送點不存在'; });
   for (const r of rows.sort((a, b) => a._row - b._row)) {
     const upd = { 狀態: '已鎖定', 修改時間: nowStamp() };
+    const gk = r['日期'] + '|' + r['時段'] + '|' + r['配送點ID'];
+    if (r['取餐方式'] === '配送' && toSelf[gk]) Object.assign(upd, { 取餐方式: '自取', 配送點ID: '', 備註: (r['備註'] ? r['備註'] + '；' : '') + '配送改自取（' + (pts[r['配送點ID']] ? pts[r['配送點ID']].name + '：' : '') + toSelf[gk] + '）' });
     if (r['類別'] === '訂閱') {
       const due = num(r['升級差額'], 0) + num(r['加購金額'], 0);
       if (due < 0) { // 整期升級後改訂較便宜的組合：退差額
@@ -101,7 +123,7 @@ async function orderInfo(c, m) {
   await runCutoff(c);
   const st = await settings(c), R = rules(st), { items, addons } = await menu(c);
   const first = addDays(R.lockDate, 1), last = addDays(R.today, R.maxDays);
-  const cnt = await slotCounts(c, first, last), days = [];
+  const cnt = await slotCounts(c, first, last), days = [], pcnt = await pointCounts(c, first, last), pl = await points(c, st, false);
   for (let d = first; d <= last; d = addDays(d, 1)) {
     const closed = R.closed.indexOf(weekday(d)) >= 0;
     days.push({ date: d, wd: weekday(d), closed, slots: SLOTS.map((s) => ({ slot: s, pickup: R.pickup[s], left: R.cap[s] ? Math.max(0, R.cap[s] - (cnt[d + '|' + s] || 0)) : null })) });
@@ -116,11 +138,13 @@ async function orderInfo(c, m) {
     items: items.map((i) => ({ id: i['品項ID'], size: i['份量'], main: i['主菜'], mainDesc: i['主菜內容'], name: i['品名'], desc: i['介紹'], kcal: num(i['熱量'], 0), protein: num(i['蛋白質'], 0), carb: num(i['碳水'], 0), fat: num(i['脂肪'], 0), price: num(i['單點價'], 0), upg: num(i['訂閱加價'], 0), image: imgUrl(i['圖片網址']) })),
     sauces: addons.filter((a) => a['類型'] === '醬汁' && (a['名稱'] !== '松露醬' || isTrue(st['松露醬開放']))).map((a) => ({ id: a['品項ID'], name: a['名稱'], price: isTrue(a['免費']) ? 0 : num(a['加購價'], 0) })),
     drinks: addons.filter((a) => a['類型'] === '飲品' && num(a['加購價'], null) !== null).map((a) => ({ id: a['品項ID'], name: a['名稱'], price: num(a['加購價'], 0), protein: num(a['蛋白質'], 0), image: imgUrl(a['圖片網址']) })),
-    mine: mine.map(resView).sort((a, b) => (a.date + a.slot).localeCompare(b.date + b.slot))
+    mine: mine.map(resView).sort((a, b) => (a.date + a.slot).localeCompare(b.date + b.slot)),
+    points: pl.filter((p) => p.min !== null), pointCount: pcnt,
+    eta: { 中午: String(st['中午預計送達時段'] || ''), 晚上: String(st['晚上預計送達時段'] || '') }
   };
 }
 function resView(r) {
-  return { id: r['預約ID'], date: String(r['日期']), slot: r['時段'], kind: r['類別'], qty: num(r['份數'], 1), size: r['份量'], main: r['主菜'], itemId: r['品項ID'], sauce: r['醬汁'], addons: r['加購項目'], upg: num(r['升級差額'], 0), addonAmt: num(r['加購金額'], 0), paid: num(r['付款金額'], 0), status: r['狀態'], charge: r['扣款狀態'], note: r['備註'] };
+  return { pickup: r['取餐方式'], pointId: r['配送點ID'], id: r['預約ID'], date: String(r['日期']), slot: r['時段'], kind: r['類別'], qty: num(r['份數'], 1), size: r['份量'], main: r['主菜'], itemId: r['品項ID'], sauce: r['醬汁'], addons: r['加購項目'], upg: num(r['升級差額'], 0), addonAmt: num(r['加購金額'], 0), paid: num(r['付款金額'], 0), status: r['狀態'], charge: r['扣款狀態'], note: r['備註'] };
 }
 
 /* ---------- 訂餐 ---------- */
@@ -146,8 +170,15 @@ async function createOrder(c, m, p, by) {
     const used = (await slotCounts(c, date, date))[date + '|' + slot] || 0;
     if (used + qty > R.cap[slot]) throw new UserError('這個時段只剩 ' + Math.max(0, R.cap[slot] - used) + ' 份，請改其他時段');
   }
+  let pickup = '自取', pointId = '';
+  if (p.pickup === '配送') {
+    const pt = (await points(c, st, false)).find((x) => x.id === clean(p.pointId, 30));
+    if (!pt || pt.min === null) throw new UserError('請選擇配送點');
+    if (pt.slots.indexOf(slot) < 0) throw new UserError('「' + pt.name + '」' + slot + '不配送');
+    pickup = '配送'; pointId = pt.id;
+  }
   const resId = 'B' + Date.now().toString(36).toUpperCase() + rid(3), price = num(it['單點價'], 0);
-  const row = { 預約ID: resId, 會員ID: m['會員ID'], 日期: date, 時段: slot, 取餐方式: '自取', 份量: it['份量'], 主菜: it['主菜'], 品項ID: it['品項ID'], 醬汁: sauce['名稱'], 加購項目: drinks.map((d) => d['品項ID']).join(','), 單點原價: price, 類別: kind, 份數: qty, 狀態: '已預約', 建立時間: nowStamp(), 建立者: by, 備註: drinks.length ? '加購：' + drinks.map((d) => d['名稱']).join('、') : '' };
+  const row = { 預約ID: resId, 會員ID: m['會員ID'], 日期: date, 時段: slot, 取餐方式: pickup, 配送點ID: pointId, 份量: it['份量'], 主菜: it['主菜'], 品項ID: it['品項ID'], 醬汁: sauce['名稱'], 加購項目: drinks.map((d) => d['品項ID']).join(','), 單點原價: price, 類別: kind, 份數: qty, 狀態: '已預約', 建立時間: nowStamp(), 建立者: by, 備註: drinks.length ? '加購：' + drinks.map((d) => d['名稱']).join('、') : '' };
   if (kind === '訂閱') {
     const subs = await c.db.all('訂閱', { 會員ID: m['會員ID'] }), sub = currentSub(subs);
     if (!sub || sub['狀態'] !== '使用中') throw new UserError('沒有使用中的方案，可以改用單點');
@@ -275,6 +306,23 @@ export const orderOps = {
     const ref = await c.db.first('推薦紀錄', { 新會員ID: m['會員ID'] });
     return { ok: true, picked: ref ? num(ref['新會員已取餐數'], 0) : null, refStatus: ref ? ref['狀態'] : '' };
   },
+  async adminPoints(c, p, a) { needAll(a); const st = await settings(c); return { points: await points(c, st, true), far: num(st['配送最遠公里'], 8), eta: { 中午: st['中午預計送達時段'] || '', 晚上: st['晚上預計送達時段'] || '' } }; },
+  /** 新增／修改配送點；停用時，還沒截單的配送預約改門市自取 */
+  async adminSavePoint(c, p, a) {
+    needAll(a);
+    const st = await settings(c), v = p.point || {}, name = clean(v.name, 40), km = num(v.km, NaN), slots = (Array.isArray(v.slots) ? v.slots : String(v.slots || '').split(/[,，、\s]+/)).filter((x) => SLOTS.indexOf(x) >= 0);
+    if (!name) throw new UserError('請填寫配送點名稱');
+    if (!(km >= 0)) throw new UserError('請填寫與門市的距離（公里）');
+    if (threshold(st, km) === null) throw new UserError('超過 ' + num(st['配送最遠公里'], 8) + ' 公里不提供配送');
+    if (!slots.length) throw new UserError('請至少選一個可配送時段');
+    const vals = { 名稱: name, 地址: clean(v.address, 120), 距離公里: km, 可配送時段: slots.join(','), 啟用: !!v.on, 備註: clean(v.note, 200) };
+    let id = clean(v.id, 30);
+    if (id) { const hit = await c.db.first('配送點', { 配送點ID: id }); if (!hit) throw new UserError('找不到這個配送點'); await c.db.update('配送點', hit._row, vals); }
+    else { id = 'DP' + Date.now().toString(36).toUpperCase(); await c.db.insert('配送點', Object.assign(vals, { 配送點ID: id })); }
+    let moved = 0;
+    for (const r of (await c.db.all('預約', { 配送點ID: id })).filter((x) => x['狀態'] === '已預約' && (!vals['啟用'] || slots.indexOf(x['時段']) < 0))) { await c.db.update('預約', r._row, { 取餐方式: '自取', 配送點ID: '', 修改時間: nowStamp(), 備註: (r['備註'] ? r['備註'] + '；' : '') + '配送點停用或取消該時段，改門市自取' }); moved++; }
+    return { ok: true, id, moved };
+  },
   async adminSettlePreview(c, p, a) { needAll(a); const sub = currentSub(await c.db.all('訂閱', { 會員ID: clean(p.memberId, 30) })); if (!sub) throw new UserError('沒有使用中的方案'); return settlePreview(c, sub); },
   async adminCancelPlan(c, p, a) {
     needAll(a); await runCutoff(c);
@@ -292,6 +340,7 @@ export const orderOps = {
     for (let d = from; d <= to; d = addDays(d, 1)) strip.push({ date: d, wd: weekday(d), closed: R.closed.indexOf(weekday(d)) >= 0, n: (cnt[d + '|中午'] || 0) + (cnt[d + '|晚上'] || 0) });
     const [rows, ms, adds] = await Promise.all([c.db.all('預約', { 日期: date }), c.db.all('會員'), c.db.all('加購品項', { 店家ID: SHOP })]);
     const name = {}; ms.forEach((x) => { name[x['會員ID']] = x['姓名'] + '（' + x['手機'] + '）'; });
+    const pmap = {}; (await points(c, st, true)).forEach((x) => { pmap[x.id] = x; });
     const an = {}; adds.forEach((x) => { an[x['品項ID']] = x['名稱']; });
     const live = rows.filter((r) => r['狀態'] !== '已取消');
     const prep = {}; const drinks = {};
@@ -305,7 +354,8 @@ export const orderOps = {
       date, wd: weekday(date), locked: date <= R.lockDate, closed: R.closed.indexOf(weekday(date)) >= 0, cutoff: R.cut, cap: R.cap, pickup: R.pickup, strip,
       prep: Object.values(prep).sort((x, y) => (x.slot + x.item).localeCompare(y.slot + y.item)),
       drinks: Object.keys(drinks).map((k) => ({ slot: k.split('|')[0], name: k.split('|')[1], n: drinks[k] })),
-      list: live.map((r) => Object.assign(resView(r), { member: name[r['會員ID']] || r['會員ID'], memberId: r['會員ID'], addonNames: String(r['加購項目'] || '').split(',').filter(Boolean).map((id) => an[id] || id).join('、'), by: r['建立者'] })).sort((x, y) => (x.slot + x.id).localeCompare(y.slot + y.id))
+      points: (function () { const g = {}; live.filter((r) => r['取餐方式'] === '配送' && r['狀態'] !== '店家補償').forEach((r) => { const k = r['時段'] + '|' + r['配送點ID'], pt = pmap[r['配送點ID']] || { name: r['配送點ID'], address: '', min: 0 }; g[k] = g[k] || { slot: r['時段'], name: pt.name, address: pt.address, min: pt.min, n: 0 }; g[k].n += num(r['份數'], 1); }); return Object.values(g); })(),
+      list: live.map((r) => Object.assign(resView(r), { pointName: pmap[r['配送點ID']] ? pmap[r['配送點ID']].name : '', member: name[r['會員ID']] || r['會員ID'], memberId: r['會員ID'], addonNames: String(r['加購項目'] || '').split(',').filter(Boolean).map((id) => an[id] || id).join('、'), by: r['建立者'] })).sort((x, y) => (x.slot + x.id).localeCompare(y.slot + y.id))
     };
   },
   /** 取餐標記：已取餐／未取餐作廢／店家補償（補償要原因；訂閱加回 1 餐、單點退回錢包） */
