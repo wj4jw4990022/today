@@ -209,6 +209,21 @@ export const orderMemberApi = {
 export const orderOps = {
   async adminOrderInfo(c, p, a) { needAll(a); const m = await c.db.first('會員', { 會員ID: clean(p.memberId, 30) }); if (!m || m['狀態'] !== '正常') throw new UserError('找不到這位會員'); return orderInfo(c, m); },
   async adminOrderCreate(c, p, a) { needAll(a); const m = await c.db.first('會員', { 會員ID: clean(p.memberId, 30) }); if (!m || m['狀態'] !== '正常') throw new UserError('找不到這位會員'); return createOrder(c, m, p, a.email); },
+  /** 測試用：直接記一筆「今天已取餐」的訂閱餐（扣 1 餐），用來測試推薦紅利與結算 */
+  async adminTestMeal(c, p, a) {
+    needAll(a);
+    const m = await c.db.first('會員', { 會員ID: clean(p.memberId, 30) }); if (!m) throw new UserError('找不到這位會員');
+    const sub = currentSub(await c.db.all('訂閱', { 會員ID: m['會員ID'] }));
+    if (!sub || sub['狀態'] !== '使用中') throw new UserError('這位會員沒有使用中的方案');
+    if (num(sub['剩餘餐數'], 0) < 1) throw new UserError('方案餐數已用完');
+    const { items } = await menu(c), base = items.find((i) => !num(i['訂閱加價'], 0)) || items[0];
+    const resId = 'T' + Date.now().toString(36).toUpperCase() + rid(3);
+    await c.db.insert('預約', { 預約ID: resId, 會員ID: m['會員ID'], 訂閱ID: sub['訂閱ID'], 日期: todayStr(), 時段: '測試-' + rid(4), 取餐方式: '自取', 份量: base['份量'], 主菜: base['主菜'], 品項ID: base['品項ID'], 醬汁: '', 單點原價: num(base['單點價'], 0), 類別: '訂閱', 份數: 1, 升級差額: 0, 加購金額: 0, 扣款狀態: '已扣款', 狀態: '已取餐', 取餐時間: nowStamp(), 建立時間: nowStamp(), 建立者: a.email, 備註: '測試：已用餐＋1' });
+    await c.env.DB.prepare('UPDATE subscriptions SET remaining = remaining - 1 WHERE sub_id = ? AND remaining > 0').bind(sub['訂閱ID']).run();
+    await checkReferral(c, m['會員ID'], rules(await settings(c)));
+    const ref = await c.db.first('推薦紀錄', { 新會員ID: m['會員ID'] });
+    return { ok: true, picked: ref ? num(ref['新會員已取餐數'], 0) : null, refStatus: ref ? ref['狀態'] : '' };
+  },
   async adminSettlePreview(c, p, a) { needAll(a); const sub = currentSub(await c.db.all('訂閱', { 會員ID: clean(p.memberId, 30) })); if (!sub) throw new UserError('沒有使用中的方案'); return settlePreview(c, sub); },
   async adminCancelPlan(c, p, a) {
     needAll(a); await runCutoff(c);

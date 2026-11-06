@@ -445,4 +445,13 @@ await t('會員功能只有總管理員', async () => { assert(!(await post({ ..
   });
 }
 
+await t('測試按鈕：已用餐＋1 扣餐並觸發推薦紅利', async () => {
+  const a1 = (await M({ action: 'adminSaveMember', member: { name: '甲', phone: '0944000001' } })).memberId, a2 = (await M({ action: 'adminSaveMember', member: { name: '乙', phone: '0944000002' } })).memberId;
+  const code = (await M({ action: 'adminMemberGet', memberId: a1 })).code;
+  await post({ ...A, action: 'adminTopup', memberId: a2, amount: 1400, method: '現金' }); assert((await post({ ...A, action: 'adminBuyPlan', memberId: a2, meals: 8, code })).ok);
+  let r; for (let i = 0; i < 3; i++) { r = await post({ ...A, action: 'adminTestMeal', memberId: a2 }); assert(r.ok, r.error); }
+  assert.equal(r.data.picked, 3); assert.equal(r.data.refStatus, '已發放'); assert.equal((await M({ action: 'adminMemberGet', memberId: a2 })).sub.left, 5); assert.equal((await M({ action: 'adminMemberGet', memberId: a1 })).wallet.bonus, 100);
+  assert(!(await post({ ...B, action: 'adminTestMeal', memberId: a2 })).ok);
+});
+
 summary(); await S.dispose(); process.exit(process.exitCode || 0);
