@@ -495,4 +495,31 @@ await t('測試按鈕：已用餐＋1 扣餐並觸發推薦紅利', async () => 
   await q("UPDATE health_settings SET value='20:00' WHERE key='截單時間'");
 }
 
+/* ===== 申請退款、刪除帳號 ===== */
+{
+  const { startSession } = await import('../src/line.js'); const { Db } = await import('../src/db.js'); const cx = { env: S.env, db: new Db(S.env.DB) };
+  const V = (await M({ action: 'adminSaveMember', member: { name: '退款人', phone: '0933777001' } })).memberId;
+  await post({ ...A, action: 'adminTopup', memberId: V, amount: 1000, method: '現金' });
+  await post({ ...A, action: 'adminWalletAdjust', memberId: V, amount: 50, reason: '紅利' });
+  const ck = 'zm=' + await startSession(cx, 'Uref', 'v'); await q("UPDATE member_sessions SET member_id=? WHERE line_id='Uref'", V); await q("UPDATE members SET line_id='Uref' WHERE member_id=?", V);
+  const P = (o) => S.postc(o, ck);
+  await t('申請退款：不能超過可退現金；轉帳要帳號；店員確認後扣錢包', async () => {
+    assert(!(await P({ action: 'payRefund', amount: 1050, method: '門市領現' })).ok);
+    assert(!(await P({ action: 'payRefund', amount: 500, method: '轉帳' })).ok);
+    assert((await P({ action: 'payRefund', amount: 1000, method: '轉帳', account: '台銀 民族分行 012345678 退款人' })).ok);
+    const rq = (await M({ action: 'adminPayList' })).pending.find((x) => x.memberId === V); assert(rq.refund && rq.note.includes('012345678'));
+    const r = await post({ ...A, action: 'adminPayHandle', reqId: rq.id, ok: true }); assert(r.ok, r.error);
+    const w = (await M({ action: 'adminMemberGet', memberId: V })).wallet; assert.equal(w.cash, 0); assert.equal(w.bonus, 50);
+  });
+  await t('刪除帳號：錢包有餘額不能刪；清空後輸入「刪除」才刪，個資清除、紀錄保留', async () => {
+    assert(!(await P({ action: 'memberDelete', confirm: '刪除' })).ok);
+    await post({ ...A, action: 'adminWalletAdjust', memberId: V, amount: -50, reason: '清紅利' });
+    assert(!(await P({ action: 'memberDelete' })).ok);
+    assert((await P({ action: 'memberDelete', confirm: '刪除' })).ok);
+    const row = (await q('SELECT * FROM members WHERE member_id=?', V))[0]; assert.equal(row.status, '已刪除'); assert.equal(row.phone, ''); assert.equal(row.name, '');
+    assert((await q('SELECT * FROM wallet_ledger WHERE member_id=?', V)).length >= 3);
+    assert.equal((await S.postc({ action: 'memberMe' }, ck)).data.login, false);
+  });
+}
+
 summary(); await S.dispose(); process.exit(process.exitCode || 0);

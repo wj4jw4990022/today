@@ -85,13 +85,13 @@ function vCenter() {
     '<div class="mb-card"><div class="hb-cap">我的推薦碼</div>' + (ME.pending ? '<p class="mb-p">合併完成後顯示。</p>' :
       '<div style="font-family:\'Cormorant Garamond\',serif;font-size:40px;letter-spacing:.2em;margin:10px 0">' + E(ME.code) + '</div><button class="hb-btn" style="display:block;width:100%" id="cp">複製推薦碼</button>' +
       '<p class="mb-p" style="margin:14px 0 0;font-size:13px">朋友第一次訂閱時使用，朋友得紅利；朋友取餐滿 ' + ME.referrerMeals + ' 餐，您得紅利 ' + ME.referrerBonus + ' 元。紅利只能消費，不能退現金。</p>') +
-    '<div class="hb-cap" style="margin-top:20px">個人資料</div>' + prof + '</div></div>';
+    '<div class="hb-cap" style="margin-top:20px">個人資料</div>' + prof + '</div></div>' + vAccount();
 }
 
 function vPlan() {
   if (!PI || ME.pending) return '';
   var w = PI.wallet, plan = PI.plans.filter(function (p) { return p.meals === PS.meals; })[0] || PI.plans[0], ch = function (on) { return 'style="padding:8px 14px;border:1px solid ' + (on ? 'var(--gold);background:var(--gold);color:#fff' : 'var(--line);background:#fff') + ';font:inherit;font-size:13px;cursor:pointer"'; };
-  if (PI.pending) { var q = PI.pending; return '<div class="mb-note"><b>付款確認中</b>：' + E(q.at.slice(5)) + ' 送出「' + (q.kind === '儲值並購買' ? '儲值 ' + money(q.amount) + ' 並購買 ' + q.meals + ' 餐' : '儲值 ' + money(q.amount)) + '」（' + E(q.method) + (q.last5 ? ' 末五碼 ' + E(q.last5) : '') + '）。店員確認後' + (q.kind === '儲值並購買' ? '開通方案' : '入帳') + '。<a href="#" data-pcx style="float:right;text-decoration:underline">取消申請</a><br><small>' + E(PI.howto[q.method] || '') + '</small></div>'; }
+  if (PI.pending) { var q = PI.pending; return '<div class="mb-note"><b>' + (q.kind === '退款' ? '退款處理中' : '付款確認中') + '</b>：' + E(q.at.slice(5)) + ' 送出「' + (q.kind === '退款' ? '退款 ' + money(q.amount) : q.kind === '儲值並購買' ? '儲值 ' + money(q.amount) + ' 並購買 ' + q.meals + ' 餐' : '儲值 ' + money(q.amount)) + '」（' + E(q.method) + (q.last5 ? ' 末五碼 ' + E(q.last5) : '') + '）。店員確認後' + (q.kind === '儲值並購買' ? '開通方案' : q.kind === '退款' ? '退款' : '入帳') + '。<a href="#" data-pcx style="float:right;text-decoration:underline">取消申請</a><br><small>' + E(q.kind === '退款' ? (q.method === '門市領現' ? '請到門市領取' : '店員會轉到你填的帳號') : (PI.howto[q.method] || '')) + '</small></div>'; }
   if (!plan) return '';
   var need = plan.total - w.total, renew = !!PI.sub, howto = PI.howto[PS.method] || '';
   var pay = '<div class="hb-cap" style="margin-top:16px">付款方式</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px">' + ['轉帳', 'LINE Pay', '門市付現'].map(function (m) { return '<button type="button" data-pm="' + m + '" ' + ch(PS.method === m) + '>' + (m === '門市付現' ? '到門市付現' : m) + '</button>'; }).join('') + '</div>' +
@@ -135,6 +135,18 @@ function vManage() {
   return '<div class="mb-grid" style="margin-bottom:24px"><div class="mb-card"><div class="hb-cap">暫停方案</div><p class="mb-p" style="font-size:13px;margin:6px 0 10px">每期可暫停 1 次、最多 7 天；暫停幾天，到期日就往後延幾天。</p>' + pause + '<div id="z-msg"></div></div>' +
     '<div class="mb-card"><div class="hb-cap">整期升級</div><p class="mb-p" style="font-size:13px;margin:6px 0 10px">一次把本期剩下的餐都升級；之後訂餐不再每餐扣差額。</p>' + upg + '<div id="u-msg"></div></div></div>';
 }
+
+var RF = { method: '門市領現', amt: '', acct: '' };
+function vAccount() {
+  if (ME.pending || !PI) return '';
+  var cash = PI.wallet.cash, ch = function (on) { return 'style="padding:8px 14px;border:1px solid ' + (on ? 'var(--gold);background:var(--gold);color:#fff' : 'var(--line);background:#fff') + ';font:inherit;font-size:13px;cursor:pointer;margin:0 6px 6px 0"'; };
+  var refund = PI.pending ? '<p class="mb-p" style="margin:6px 0 0">有一筆申請處理中，處理完才能再申請。</p>' : cash <= 0 ? '<p class="mb-p" style="margin:6px 0 0">目前沒有可退的金額（紅利不能退現金）。</p>' :
+    '<p class="mb-p" style="margin:6px 0 10px;font-size:13px">可退現金 ' + money(cash) + '（紅利不能退）。店員處理後從錢包扣除。</p><div class="mb-f"><label>退款金額</label><input id="rf-amt" inputmode="numeric" value="' + E(RF.amt || cash) + '"></div>' +
+    '<div class="hb-cap">退款方式</div><div>' + ['門市領現', '轉帳'].map(function (m) { return '<button type="button" data-rfm="' + m + '" ' + ch(RF.method === m) + '>' + m + '</button>'; }).join('') + '</div>' +
+    (RF.method === '轉帳' ? '<div class="mb-f"><label>退款帳號（銀行、分行、帳號、戶名）</label><input id="rf-acct" value="' + E(RF.acct) + '"></div>' : '') + '<button class="hb-btn" style="display:block;width:100%" data-rfgo>送出退款申請</button>';
+  return '<div class="mb-grid" style="margin-top:24px"><div class="mb-card"><div class="hb-cap">申請退款</div>' + refund + '<div id="rf-msg"></div></div>' +
+    '<div class="mb-card"><div class="hb-cap">刪除帳號</div><p class="mb-p" style="margin:6px 0 10px;font-size:13px">刪除後會清除姓名、手機、Email 與 LINE 綁定；交易紀錄依法保留。還有方案、錢包餘額、未取的預約或處理中的申請時不能刪除。</p><button class="hb-btn" style="display:block;width:100%;color:#9a3b2b;border-color:#9a3b2b" data-del>刪除我的帳號</button><div id="del-msg"></div></div></div>';
+}
 function draw() { document.getElementById('mb').innerHTML = !ME.login ? vLogin() : !ME.registered ? vRegister() : vCenter(); }
 function load() {
   return Z.post({ action: 'memberMe' }).then(function (d) {
@@ -156,6 +168,12 @@ document.addEventListener('click', function (e) {
   if (t.id === 'e-x') { EDIT = false; draw(); }
   if (t.id === 'e-go') Z.post({ action: 'memberUpdate', name: v('e-name'), email: v('e-email'), phone: v('e-phone') }).then(function () { EDIT = false; return load(); }).catch(function (er) { say('e-msg', er.message); });
   if (t.hasAttribute && t.hasAttribute('data-cx')) { e.preventDefault(); if (!confirm('確定取消這一餐？訂閱會加回餐數，單點會退回錢包。')) return; Z.post({ action: 'orderCancel', resId: t.getAttribute('data-cx') }).then(load).catch(function (er) { alert(er.message); }); }
+  var rb = t.closest && t.closest('[data-rfm],[data-rfgo],[data-del]');
+  if (rb) {
+    if (rb.hasAttribute('data-rfm')) { RF.method = rb.getAttribute('data-rfm'); draw(); return; }
+    if (rb.hasAttribute('data-rfgo')) { var amt = Number(v('rf-amt').replace(/,/g, '')); if (!confirm('申請退款 ' + money(amt) + '（' + RF.method + '）？')) return; rb.disabled = true; Z.post({ action: 'payRefund', amount: amt, method: RF.method, account: RF.acct }).then(function () { RF.amt = ''; PI = null; load(); }).catch(function (er) { rb.disabled = false; say('rf-msg', er.message); }); return; }
+    if (rb.hasAttribute('data-del')) { var w = prompt('確定要刪除帳號？刪除後無法復原。\n請輸入「刪除」兩個字確認：'); if (w === null) return; Z.post({ action: 'memberDelete', confirm: w.trim() }).then(function () { alert('帳號已刪除'); location.href = 'healthy.html'; }).catch(function (er) { say('del-msg', er.message); }); return; }
+  }
   var zb = t.closest && t.closest('[data-zd],[data-zs],[data-zm],[data-zpv],[data-zup],[data-zgo]');
   if (zb) {
     if (zb.hasAttribute('data-zd')) PZ.days = Number(zb.getAttribute('data-zd'));
@@ -182,6 +200,7 @@ document.addEventListener('click', function (e) {
 });
 // 輸入框的內容記在 PS，畫面重畫（例如切換付款方式）時不會被清掉
 document.addEventListener('change', function (e) { if (e.target.id === 'z-start') { PZ.start = e.target.value; draw(); } });
+document.addEventListener('input', function (e) { if (e.target.id === 'rf-amt') RF.amt = e.target.value; if (e.target.id === 'rf-acct') RF.acct = e.target.value; });
 document.addEventListener('input', function (e) { if (e.target.id === 'p-code') PS.code = e.target.value.trim().toUpperCase(); if (e.target.id === 'p-l5') PS.l5 = e.target.value.trim(); });
 Z.init('healthy', load);
 </script>

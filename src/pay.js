@@ -8,10 +8,10 @@ import { settings, walletOf, currentSub, buyPlan, topupOptions } from './members
  * - 錢包不夠或只想儲值：送出付款申請（轉帳填末五碼／LINE Pay／門市付現），店員在後台「收款確認」後入帳；「儲值並購買」同時開通方案。
  * - 「未收到」＝申請作廢，不動錢包。每位會員同時只能有一筆待確認。
  */
-const PAY = ['轉帳', 'LINE Pay', '門市付現'];
+const PAY = ['轉帳', 'LINE Pay', '門市付現'], REFUND = ['門市領現', '轉帳'];
 const num = (v, d) => { const n = Number(String(v === undefined || v === null ? '' : v).replace(/,/g, '')); return isNaN(n) || String(v).trim() === '' ? d : n; };
 const plansOf = (st) => [8, 12, 20].map((n) => ({ meals: n, total: num(st['方案' + n + '餐_總價'], 0), per: num(st['方案' + n + '餐_每餐'], 0), bonus: num(st['新會員折扣_' + n + '餐'], 0) })).filter((x) => x.total > 0);
-const view = (r) => ({ id: r['申請ID'], kind: r['類型'], amount: r['金額'], meals: r['餐數'], code: r['推薦碼'], method: r['付款方式'], last5: r['末五碼'], status: r['狀態'], at: String(r['建立時間']).slice(0, 16), by: r['處理人員'], doneAt: String(r['處理時間']).slice(0, 16), note: r['備註'] });
+const view = (r) => ({ refund: r['類型'] === '退款', id: r['申請ID'], kind: r['類型'], amount: r['金額'], meals: r['餐數'], code: r['推薦碼'], method: r['付款方式'], last5: r['末五碼'], status: r['狀態'], at: String(r['建立時間']).slice(0, 16), by: r['處理人員'], doneAt: String(r['處理時間']).slice(0, 16), note: r['備註'] });
 
 async function checkCode(c, m, code) {
   if (!code) return null;
@@ -62,6 +62,17 @@ export const payMemberApi = {
     await c.db.insert('付款申請', { 申請ID: 'P' + Date.now().toString(36).toUpperCase() + rid(3), 會員ID: m['會員ID'], 類型: kind, 金額: amount, 餐數: meals, 推薦碼: code, 付款方式: method, 末五碼: method === '轉帳' ? last5 : '', 狀態: '待確認', 建立時間: nowStamp() });
     return { ok: true };
   },
+  /** 申請退款：只能退「可退現金」的部分；門市領現，或轉帳（填銀行帳號） */
+  async payRefund(c, m, p) {
+    if (await c.db.first('付款申請', { 會員ID: m['會員ID'], 狀態: '待確認' })) throw new UserError('你已經有一筆處理中的申請');
+    const wal = walletOf(await c.db.all('錢包紀錄', { 會員ID: m['會員ID'] })), amount = Math.floor(num(p.amount, 0)), method = clean(p.method, 10), acct = clean(p.account, 80);
+    if (!(amount > 0)) throw new UserError('請輸入退款金額');
+    if (amount > wal.cash) throw new UserError('最多可以退 ' + wal.cash.toLocaleString() + ' 元（紅利不能退現金）');
+    if (REFUND.indexOf(method) < 0) throw new UserError('請選擇退款方式');
+    if (method === '轉帳' && acct.length < 6) throw new UserError('請填寫退款的銀行、帳號與戶名');
+    await c.db.insert('付款申請', { 申請ID: 'P' + Date.now().toString(36).toUpperCase() + rid(3), 會員ID: m['會員ID'], 類型: '退款', 金額: amount, 付款方式: method, 狀態: '待確認', 建立時間: nowStamp(), 備註: method === '轉帳' ? '退款帳號：' + acct : '' });
+    return { ok: true };
+  },
   async payCancel(c, m) {
     const r = await c.db.first('付款申請', { 會員ID: m['會員ID'], 狀態: '待確認' });
     if (!r) throw new UserError('沒有待確認的申請');
@@ -88,6 +99,13 @@ export const payOps = {
     if (!p.ok) { await c.db.update('付款申請', r._row, { 狀態: '未收到', 處理人員: a.email, 處理時間: nowStamp(), 備註: clean(p.note, 200) }); return { ok: true }; }
     const m = await c.db.first('會員', { 會員ID: r['會員ID'] });
     if (!m) throw new UserError('找不到這位會員');
+    if (r['類型'] === '退款') {
+      const wal = walletOf(await c.db.all('錢包紀錄', { 會員ID: m['會員ID'] }));
+      if (r['金額'] > wal.cash) throw new UserError('會員目前可退現金只有 ' + wal.cash + ' 元，請按「未收到／不處理」後請會員重新申請');
+      await c.db.insert('錢包紀錄', { 紀錄ID: 'W' + Date.now().toString(36).toUpperCase() + rid(3), 會員ID: m['會員ID'], 時間: nowStamp(), 類型: '退現金', 金額: -r['金額'], 可退現金: true, 付款方式: r['付款方式'] === '門市領現' ? '現金' : '轉帳', 對應ID: r['申請ID'], 經手人員: a.email, 狀態: '已入帳', 備註: '會員申請退款' + (r['備註'] ? '（' + r['備註'] + '）' : '') });
+      await c.db.update('付款申請', r._row, { 狀態: '已確認', 處理人員: a.email, 處理時間: nowStamp() });
+      return { ok: true, msg: '已退款 ' + r['金額'] + ' 元（' + r['付款方式'] + '）' };
+    }
     await c.db.insert('錢包紀錄', { 紀錄ID: 'W' + Date.now().toString(36).toUpperCase() + rid(3), 會員ID: m['會員ID'], 時間: nowStamp(), 類型: '儲值', 金額: r['金額'], 可退現金: true, 付款方式: r['付款方式'] === '門市付現' ? '現金' : r['付款方式'], 轉帳末五碼: r['末五碼'], 對應ID: r['申請ID'], 經手人員: a.email, 狀態: '已入帳', 備註: '網站付款申請' });
     let msg = '已入帳 ' + r['金額'] + ' 元';
     await c.db.update('付款申請', r._row, { 狀態: '已確認', 處理人員: a.email, 處理時間: nowStamp() });

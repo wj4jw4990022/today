@@ -26,8 +26,8 @@ async function handleApi(request, c) {
     switch (p.action) {
       case 'book': return json({ ok: true, data: await book(c, p) });
       case 'contact': return json({ ok: true, data: await contact(c, p) });
-      case 'memberMe': case 'memberRegister': case 'memberUpdate': return json({ ok: true, data: await memberApi(c, request, p) });
-      case 'payInfo': case 'payBuy': case 'payRequest': case 'payCancel': return json({ ok: true, data: await payMemberApi[p.action](c, await memberOfReq(c, request), p) });
+      case 'memberMe': case 'memberRegister': case 'memberUpdate': case 'memberDelete': return json({ ok: true, data: await memberApi(c, request, p) });
+      case 'payInfo': case 'payBuy': case 'payRequest': case 'payCancel': case 'payRefund': return json({ ok: true, data: await payMemberApi[p.action](c, await memberOfReq(c, request), p) });
       case 'orderInfo': case 'orderCreate': case 'orderCancel': case 'planPause': case 'planUpgrade': return json({ ok: true, data: await orderMemberApi[p.action](c, await memberOfReq(c, request), p) });
       default: {
         if (String(p.action).indexOf('admin') !== 0) throw new UserError('未知的操作');

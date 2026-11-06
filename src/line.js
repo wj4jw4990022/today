@@ -117,6 +117,18 @@ export async function memberApi(c, request, p) {
   }
   const m = s['會員ID'] && await c.db.first('會員', { 會員ID: s['會員ID'] });
   if (!m || m['狀態'] === '已刪除') throw new UserError('請先完成註冊');
+  if (p.action === 'memberDelete') {
+    const subs = await c.db.all('訂閱', { 會員ID: m['會員ID'] });
+    if (subs.some((x) => ['使用中', '暫停'].indexOf(x['狀態']) >= 0)) throw new UserError('還有使用中的方案，請先洽門市取消並結算');
+    const wal = walletOf(await c.db.all('錢包紀錄', { 會員ID: m['會員ID'] }));
+    if (wal.total !== 0) throw new UserError('錢包還有 ' + wal.total + ' 元' + (wal.cash > 0 ? '，請先申請退款' : '') + (wal.bonus > 0 ? '（紅利 ' + wal.bonus + ' 元刪除帳號後會作廢）' : ''));
+    if ((await c.db.all('付款申請', { 會員ID: m['會員ID'], 狀態: '待確認' })).length) throw new UserError('還有處理中的申請，請先取消或等店員處理');
+    if ((await c.db.all('預約', { 會員ID: m['會員ID'] })).some((r) => ['已預約', '已鎖定'].indexOf(r['狀態']) >= 0)) throw new UserError('還有未取的預約');
+    if (clean(p.confirm, 10) !== '刪除') throw new UserError('請輸入「刪除」確認');
+    await c.db.update('會員', m._row, { 狀態: '已刪除', LINEID: '', 姓名: '', 手機: '', 待合併手機: '', Email: '', Email比對: '', 備註: '會員自行刪除帳號 ' + nowStamp() });
+    await c.env.DB.prepare('DELETE FROM member_sessions WHERE member_id = ? OR line_id = ?').bind(m['會員ID'], s['LINEID']).run();
+    return { ok: true };
+  }
   if (p.action === 'memberUpdate') {
     const name = clean(p.name, 30), email = checkEmail(p.email), en = email ? normEmail(email) : '';
     if (!name) throw new UserError('請填寫姓名');
