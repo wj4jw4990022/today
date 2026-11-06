@@ -1,6 +1,6 @@
 import { UserError, clean, todayStr, nowHm, nowStamp, isDate, isHm, weekday, parseClosed, rid, imgUrl, isTrue, byOrder } from './util.js';
 import { needAll } from './service.js';
-import { settings, walletOf, currentSub } from './members.js';
+import { settings, walletOf, currentSub, consumedOf } from './members.js';
 
 /**
  * 訂餐（2026-11-06，草圖 m37）：order.html 是唯一的訂餐入口，會員自己訂與店員代訂共用同一套規則。
@@ -43,6 +43,7 @@ async function slotCounts(c, from, to) {
 export async function runCutoff(c) {
   const st = await settings(c), R = rules(st);
   const rows = (await c.db.all('預約', { 狀態: '已預約' })).filter((r) => String(r['日期']) <= R.lockDate);
+  await runExpiry(c);
   if (!rows.length) return 0;
   const { items } = await menu(c);
   const base = items.find((i) => !num(i['訂閱加價'], 0)) || items[0];
@@ -63,6 +64,30 @@ export async function runCutoff(c) {
     await c.db.update('預約', r._row, upd);
   }
   return rows.length;
+}
+
+/* ---------- 結算：中途取消或到期 ---------- */
+export async function settlePreview(c, sub) {
+  const used = await consumedOf(c, sub['訂閱ID']), paid = Number(sub['實付金額']) || 0, by = {};
+  used.rows.forEach((r) => { const k = r['份量'] + ' ' + r['主菜'] + '|' + (Number(r['單點原價']) || 0); by[k] = (by[k] || 0) + 1; });
+  const open = (await c.db.all('預約', { 訂閱ID: sub['訂閱ID'] })).filter((r) => r['狀態'] === '已預約').length;
+  return { subId: sub['訂閱ID'], paid, usedN: used.n, used: used.value, detail: Object.keys(by).map((k) => ({ item: k.split('|')[0], price: Number(k.split('|')[1]), n: by[k] })), open, amount: Math.max(0, paid - used.value) };
+}
+async function settle(c, sub, status, method, by, reason) {
+  for (const r of (await c.db.all('預約', { 訂閱ID: sub['訂閱ID'] })).filter((x) => x['狀態'] === '已預約')) await c.db.update('預約', r._row, { 狀態: '已取消', 修改時間: nowStamp(), 備註: (r['備註'] ? r['備註'] + '；' : '') + '方案' + status + '，自動取消' });
+  const pv = await settlePreview(c, sub);
+  await c.db.update('訂閱', sub._row, { 狀態: status, 剩餘餐數: 0, 結算金額: pv.amount, 結算方式: method, 備註: (sub['備註'] ? sub['備註'] + '；' : '') + status + '結算：實付 ' + pv.paid + ' − 已用 ' + pv.used + '（' + pv.usedN + ' 餐）＝ ' + pv.amount + (reason ? '（' + reason + '）' : '') + ' by ' + by });
+  if (pv.amount > 0) {
+    await ledgerAdd(c, sub['會員ID'], '退款轉入', pv.amount, { 可退現金: true, 對應ID: sub['訂閱ID'], 經手人員: by, 備註: '方案' + status + '結算' });
+    if (method === '退現金') await ledgerAdd(c, sub['會員ID'], '退現金', -pv.amount, { 對應ID: sub['訂閱ID'], 經手人員: by, 備註: '方案' + status + '結算直接退現金' + (reason ? '：' + reason : '') });
+  }
+  return pv;
+}
+/** 到期沒續訂：到期日隔天自動結算，餘額轉入錢包 */
+export async function runExpiry(c) {
+  const today = todayStr(); let n = 0;
+  for (const s of (await c.db.all('訂閱', { 狀態: '使用中' })).filter((x) => x['到期日'] && String(x['到期日']) < today)) { await settle(c, s, '已到期', '轉入錢包', '系統', ''); n++; }
+  return n;
 }
 
 /* ---------- 訂餐畫面資料 ---------- */
@@ -184,6 +209,13 @@ export const orderMemberApi = {
 export const orderOps = {
   async adminOrderInfo(c, p, a) { needAll(a); const m = await c.db.first('會員', { 會員ID: clean(p.memberId, 30) }); if (!m || m['狀態'] !== '正常') throw new UserError('找不到這位會員'); return orderInfo(c, m); },
   async adminOrderCreate(c, p, a) { needAll(a); const m = await c.db.first('會員', { 會員ID: clean(p.memberId, 30) }); if (!m || m['狀態'] !== '正常') throw new UserError('找不到這位會員'); return createOrder(c, m, p, a.email); },
+  async adminSettlePreview(c, p, a) { needAll(a); const sub = currentSub(await c.db.all('訂閱', { 會員ID: clean(p.memberId, 30) })); if (!sub) throw new UserError('沒有使用中的方案'); return settlePreview(c, sub); },
+  async adminCancelPlan(c, p, a) {
+    needAll(a); await runCutoff(c);
+    const sub = currentSub(await c.db.all('訂閱', { 會員ID: clean(p.memberId, 30) })), method = p.method === '退現金' ? '退現金' : '轉入錢包', reason = clean(p.reason, 200);
+    if (!sub) throw new UserError('沒有使用中的方案'); if (!reason) throw new UserError('請填寫取消原因');
+    return settle(c, sub, '已取消', method, a.email, reason);
+  },
   async adminOrderCancel(c, p, a) { needAll(a); return cancelOrder(c, null, p.resId, a.email); },
   /** 某一天的預約、備餐統計，以及前後幾天的份數 */
   async adminDay(c, p, a) {

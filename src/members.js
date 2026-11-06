@@ -52,6 +52,12 @@ async function member(c, memberId) {
   return m;
 }
 const ledgerOf = (c, memberId) => c.db.all('錢包紀錄', { 會員ID: memberId });
+
+/** 一期訂閱已用掉的價值：已鎖定／已取餐／未取餐作廢 的訂閱預約，用預約當下的單點原價計算（店家補償、取消的不算） */
+export async function consumedOf(c, subId) {
+  const rows = (await c.db.all('預約', { 訂閱ID: subId })).filter((r) => r['類別'] !== '單點' && ['已鎖定', '已取餐', '未取餐作廢'].indexOf(r['狀態']) >= 0);
+  return { n: rows.length, value: rows.reduce((s, r) => s + (Number(r['單點原價']) || 0), 0), rows };
+}
 export const currentSub = (subs) => subs.filter((s) => ACTIVE.indexOf(s['狀態']) >= 0).sort((a, b) => b._row - a._row)[0] || null;
 async function ledger(c, memberId, type, amount, o) {
   await c.db.insert('錢包紀錄', Object.assign({ 紀錄ID: 'W' + Date.now().toString(36).toUpperCase() + rid(3), 會員ID: memberId, 時間: nowStamp(), 類型: type, 金額: amount, 可退現金: true, 狀態: '已入帳' }, o || {}));
@@ -95,6 +101,7 @@ export const memberOps = {
     const [led, subs, refs] = await Promise.all([ledgerOf(c, m['會員ID']), c.db.all('訂閱', { 會員ID: m['會員ID'] }), c.db.all('推薦紀錄', { 推薦人會員ID: m['會員ID'] })]);
     const s = summary(m, walletOf(led), currentSub(subs));
     s.ledger = led.sort((x, y) => y._row - x._row).map((r) => ({ id: r['紀錄ID'], at: String(r['時間']).slice(0, 16), type: r['類型'], amount: r['金額'], refundable: !!r['可退現金'], method: r['付款方式'], last5: r['轉帳末五碼'], ref: r['對應ID'], by: r['經手人員'], status: r['狀態'], note: r['備註'] }));
+    if (s.sub) s.sub.future = (await c.db.all('預約', { 訂閱ID: s.sub.id })).filter((r) => ['已預約', '已鎖定'].indexOf(r['狀態']) >= 0).length;
     s.subs = subs.sort((x, y) => y._row - x._row).map((x) => ({ id: x['訂閱ID'], meals: x['方案餐數'], left: x['剩餘餐數'], paid: x['實付金額'], start: x['開始日'], end: x['到期日'], status: x['狀態'] }));
     s.referrals = refs.map((r) => ({ newMember: r['新會員ID'], status: r['狀態'], picked: r['新會員已取餐數'] }));
     return s;
@@ -144,21 +151,29 @@ export const memberOps = {
     const m = await member(c, p.memberId), st = await settings(c), meals = num(p.meals, 0);
     const price = num(st['方案' + meals + '餐_總價'], 0);
     if (!price) throw new UserError('請選擇方案');
-    const subs = await c.db.all('訂閱', { 會員ID: m['會員ID'] });
-    if (currentSub(subs)) throw new UserError('這位會員還有使用中的方案（續訂功能之後開放）');
+    const subs = await c.db.all('訂閱', { 會員ID: m['會員ID'] }), old = currentSub(subs);
+    if (old && old['狀態'] !== '使用中') throw new UserError('方案暫停中，不能續訂');
     const wal = walletOf(await ledgerOf(c, m['會員ID']));
     if (wal.total < price) throw new UserError('錢包餘額不足：還差 ' + (price - wal.total).toLocaleString() + ' 元，請先儲值');
     let referrer = null; const code = clean(p.code, 10).toUpperCase();
     if (code) {
-      if (m['曾訂閱'] || subs.length) throw new UserError('推薦碼只限第一次訂閱使用');
+      if (m['曾訂閱'] || subs.length || old) throw new UserError('推薦碼只限第一次訂閱使用');
       referrer = await c.db.first('會員', { 推薦碼: code });
       if (!referrer || referrer['狀態'] !== '正常') throw new UserError('找不到這個推薦碼');
       if (referrer['會員ID'] === m['會員ID'] || (referrer['手機'] && referrer['手機'] === m['手機'])) throw new UserError('不能使用自己的推薦碼');
       if (await c.db.first('推薦紀錄', { 新會員ID: m['會員ID'] })) throw new UserError('這位會員已經用過推薦碼');
     }
     const days = num(st['每期天數'], 30), start = todayStr(), subId = 'S' + Date.now().toString(36).toUpperCase() + rid(3);
-    await c.db.insert('訂閱', { 訂閱ID: subId, 會員ID: m['會員ID'], 方案餐數: meals, 剩餘餐數: meals, 方案金額: price, 推薦折扣: 0, 實付金額: price, 付款方式: '錢包', 收款確認人員: a.email, 收款時間: nowStamp(), 開始日: start, 到期日: addDays(start, days - 1), 狀態: '使用中', 建立時間: nowStamp() });
-    await ledger(c, m['會員ID'], '購買方案', -price, { 對應ID: subId, 經手人員: a.email, 備註: meals + ' 餐方案' });
+    // 續訂：舊期剩下的餐數與可結算金額（實付－已用掉的單點價）都帶到新一期；未吃完的預約改掛新一期
+    let carry = 0, carryMeals = 0;
+    if (old) {
+      const used = await consumedOf(c, old['訂閱ID']);
+      carry = (Number(old['實付金額']) || 0) - used.value; carryMeals = Number(old['剩餘餐數']) || 0;
+      await c.db.update('訂閱', old._row, { 狀態: '已續訂', 結算金額: carry, 結算方式: '併入續訂', 剩餘餐數: 0, 備註: (old['備註'] ? old['備註'] + '；' : '') + '續訂到 ' + subId + '（帶過去 ' + carryMeals + ' 餐、' + carry + ' 元）' });
+    }
+    await c.db.insert('訂閱', { 訂閱ID: subId, 會員ID: m['會員ID'], 方案餐數: meals, 剩餘餐數: meals + carryMeals, 方案金額: price, 推薦折扣: 0, 實付金額: price + carry, 付款方式: '錢包', 收款確認人員: a.email, 收款時間: nowStamp(), 開始日: start, 到期日: addDays(start, days - 1), 狀態: '使用中', 續訂來源訂閱ID: old ? old['訂閱ID'] : '', 建立時間: nowStamp(), 備註: old ? '續訂：含舊期 ' + carryMeals + ' 餐、可結算 ' + carry + ' 元' : '' });
+    if (old) await c.env.DB.prepare("UPDATE reservations SET sub_id = ? WHERE sub_id = ? AND status IN ('已預約','已鎖定')").bind(subId, old['訂閱ID']).run();
+    await ledger(c, m['會員ID'], '購買方案', -price, { 對應ID: subId, 經手人員: a.email, 備註: (old ? '續訂 ' : '') + meals + ' 餐方案' });
     const upd = { 曾訂閱: true };
     let bonus = 0;
     if (referrer) {

@@ -252,7 +252,6 @@ await t('用錢包購買方案：餘額不足被拒；推薦碼不能用自己�
   const r = await post({ ...A, action: 'adminBuyPlan', memberId: m1, meals: 12, code: code2 }); assert(r.ok, r.error); assert.equal(r.data.bonus, 100);
   const g = await M({ action: 'adminMemberGet', memberId: m1 }); assert.equal(g.wallet.cash, 20); assert.equal(g.wallet.bonus, 100); assert.equal(g.sub.left, 12); assert.equal(g.sub.status, '使用中');
   const ref = (await q('SELECT * FROM referrals WHERE new_member_id=?', m1))[0]; assert(ref && ref.status === '等待中' && ref.reward === 100);
-  assert(!(await post({ ...A, action: 'adminBuyPlan', memberId: m1, meals: 8 })).ok, '使用中不能再買');
 });
 await t('紅利不能退現金；扣款先扣紅利；人工調整要原因', async () => {
   assert(!(await post({ ...A, action: 'adminRefundCash', memberId: m1, amount: 50, method: '現金', reason: 'x' })).ok);
@@ -366,6 +365,50 @@ await t('會員功能只有總管理員', async () => { assert(!(await post({ ..
     assert.equal((await M({ action: 'adminMemberGet', memberId: R })).wallet.bonus, 100);
   });
   await t('沒登入不能訂；單店管理員不能代訂', async () => { assert(!(await S.postc({ action: 'orderCreate' }, '')).ok); assert(!(await post({ ...B, action: 'adminDay' })).ok); });
+  await q("UPDATE health_settings SET value='20:00' WHERE key='截單時間'");
+}
+
+/* ===== 續訂、中途取消、到期結算 ===== */
+{
+  const { runExpiry } = await import('../src/orders.js'); const { Db } = await import('../src/db.js'); const cx = { env: S.env, db: new Db(S.env.DB) };
+  await q("UPDATE health_settings SET value='23:59' WHERE key='截單時間'");
+  const nd = (n) => { let k = n; while (dow(day(k)) === 3) k++; return day(k); };
+  const Y = (await M({ action: 'adminSaveMember', member: { name: '續訂人', phone: '0922000001' } })).memberId;
+  await post({ ...A, action: 'adminTopup', memberId: Y, amount: 5000, method: '現金' });
+  await post({ ...A, action: 'adminBuyPlan', memberId: Y, meals: 8 });
+  const mk = async (d, slot) => (await post({ ...A, action: 'adminOrderCreate', memberId: Y, date: d, slot, itemId: 'HM-L-CB', sauce: 'AD-S-OIL', kind: '訂閱' })).data.resId;
+  // 2 餐已吃、1 餐未來
+  const a1 = await mk(nd(1), '中午'), a2 = await mk(nd(1), '晚上'), a3 = await mk(nd(3), '中午');
+  await q("UPDATE reservations SET status='已取餐' WHERE res_id IN (?,?)", a1, a2);
+  let subOld;
+  await t('續訂：剩餘餐數與可結算金額帶過去，未吃的預約改掛新一期', async () => {
+    subOld = (await M({ action: 'adminMemberGet', memberId: Y })).sub; assert.equal(subOld.left, 5); assert.equal(subOld.future, 1);
+    const r = await post({ ...A, action: 'adminBuyPlan', memberId: Y, meals: 8 }); assert(r.ok, r.error);
+    const g = await M({ action: 'adminMemberGet', memberId: Y }); assert.equal(g.sub.left, 13); assert.equal(g.sub.future, 1);
+    const n = (await q('SELECT * FROM subscriptions WHERE sub_id=?', g.sub.id))[0]; assert.equal(n.paid_amount, 1400 + 1400 - 380); assert.equal(n.renew_from, subOld.id);
+    assert.equal((await q('SELECT status FROM subscriptions WHERE sub_id=?', subOld.id))[0].status, '已續訂');
+    assert.equal((await q('SELECT sub_id FROM reservations WHERE res_id=?', a3))[0].sub_id, g.sub.id);
+  });
+  await t('中途取消：預覽＝實付－已用；未截單預約取消；餘額轉入錢包（可退）', async () => {
+    const pv = await M({ action: 'adminSettlePreview', memberId: Y }); assert.equal(pv.paid, 2420); assert.equal(pv.used, 0); assert.equal(pv.open, 1);
+    assert(!(await post({ ...A, action: 'adminCancelPlan', memberId: Y })).ok, '要原因');
+    const before = (await M({ action: 'adminMemberGet', memberId: Y })).wallet.cash;
+    const r = await post({ ...A, action: 'adminCancelPlan', memberId: Y, method: '轉入錢包', reason: '會員要求' }); assert(r.ok, r.error); assert.equal(r.data.amount, 2420);
+    const g = await M({ action: 'adminMemberGet', memberId: Y }); assert(!g.sub); assert.equal(g.wallet.cash, before + 2420);
+    assert.equal((await q('SELECT status FROM reservations WHERE res_id=?', a3))[0].status, '已取消');
+  });
+  await t('到期沒續訂：到期日隔天自動結算轉入錢包；直接退現金會記錄', async () => {
+    await post({ ...A, action: 'adminBuyPlan', memberId: Y, meals: 8 });
+    const b1 = await mk(nd(5), '晚上'); await q("UPDATE reservations SET status='未取餐作廢' WHERE res_id=?", b1);
+    const sid = (await M({ action: 'adminMemberGet', memberId: Y })).sub.id;
+    await q("UPDATE subscriptions SET end_date=? WHERE sub_id=?", day(-1), sid);
+    const before = (await M({ action: 'adminMemberGet', memberId: Y })).wallet.total;
+    assert.equal(await runExpiry(cx), 1);
+    const s2 = (await q('SELECT * FROM subscriptions WHERE sub_id=?', sid))[0]; assert.equal(s2.status, '已到期'); assert.equal(s2.settle_amount, 1210);
+    assert.equal((await M({ action: 'adminMemberGet', memberId: Y })).wallet.total, before + 1210);
+    await post({ ...A, action: 'adminBuyPlan', memberId: Y, meals: 8 });
+    const r = await post({ ...A, action: 'adminCancelPlan', memberId: Y, method: '退現金', reason: '退' }); assert(r.ok); assert((await q("SELECT * FROM wallet_ledger WHERE member_id=? AND type='退現金'", Y)).length === 1);
+  });
   await q("UPDATE health_settings SET value='20:00' WHERE key='截單時間'");
 }
 
