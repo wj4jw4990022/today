@@ -269,14 +269,14 @@ await t('會員功能只有總管理員', async () => { assert(!(await post({ ..
   const { startSession } = await import('../src/line.js'); const { Db } = await import('../src/db.js');
   const cx = { env: S.env, db: new Db(S.env.DB) };
   const login = async (sub, nm) => 'zm=' + await startSession(cx, sub, nm);
-  await t('會員編號是 ZR 流水號', async () => { const r = await M({ action: 'adminSaveMember', member: { name: '流水號', phone: '0955000001' } }); assert(/^ZR\d{5}$/.test(r.memberId), r.memberId); const r2 = await M({ action: 'adminSaveMember', member: { name: '流水號2', phone: '0955000002' } }); assert.equal(Number(r2.memberId.slice(2)), Number(r.memberId.slice(2)) + 1); });
+  await t('會員編號是 M＋日期＋4 碼', async () => { const r = await M({ action: 'adminSaveMember', member: { name: '編號', phone: '0955000001' } }); assert(/^M\d{6}-[A-HJ-NP-Z2-9]{4}$/.test(r.memberId), r.memberId); });
   await t('沒登入：memberMe 回 login=false；未設定 LINE 時登入頁導回並說明', async () => { const r = await S.postc({ action: 'memberMe' }, ''); assert(r.ok && r.data.login === false); const x = await S.raw('/api/line/login'); assert.equal(x.status, 302); assert(x.headers.get('location').includes('/member.html?err=')); });
   await t('設定 LINE 後：登入導向 LINE 授權頁並帶 state', async () => { S.env.LINE_LOGIN_CHANNEL_ID = '2012418415'; S.env.LINE_LOGIN_SECRET = 's'; const x = await S.raw('/api/line/login'); const loc = x.headers.get('location'); assert(loc.startsWith('https://access.line.me/oauth2/v2.1/authorize?') && loc.includes('client_id=2012418415') && /state=[0-9a-f]{32}/.test(loc)); const bad = await S.raw('/api/line/callback?code=x&state=nope'); assert(bad.headers.get('location').includes('err=')); });
   await t('新 LINE 會員：填資料註冊（要同意條款），可改姓名與 Email，不能改手機', async () => {
     const ck = await login('Uaaa', '阿新'); let r = await S.postc({ action: 'memberMe' }, ck); assert(r.data.login && !r.data.registered && r.data.lineName === '阿新');
     assert(!(await S.postc({ action: 'memberRegister', name: '新會員', phone: '0966000001' }, ck)).ok);
     r = await S.postc({ action: 'memberRegister', name: '新會員', phone: '0966000001', email: 'n@x.com', agreeTerms: true, agreePrivacy: true }, ck); assert(r.ok && !r.data.pending, JSON.stringify(r));
-    r = await S.postc({ action: 'memberMe' }, ck); assert(r.data.registered && /^ZR/.test(r.data.id) && r.data.phone === '0966000001');
+    r = await S.postc({ action: 'memberMe' }, ck); assert(r.data.registered && /^M\d{6}-/.test(r.data.id) && r.data.phone === '0966000001');
     assert((await S.postc({ action: 'memberUpdate', name: '新名字', email: 'n2@x.com', phone: '0966000999' }, ck)).ok);
     r = await S.postc({ action: 'memberMe' }, ck); assert.equal(r.data.name, '新名字'); assert.equal(r.data.phone, '0966000001');
     const ck2 = await login('Uaaa', '阿新'); assert.equal((await S.postc({ action: 'memberMe' }, ck2)).data.id, r.data.id, '再登入是同一個會員');

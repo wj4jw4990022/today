@@ -57,13 +57,12 @@ async function ledger(c, memberId, type, amount, o) {
   await c.db.insert('錢包紀錄', Object.assign({ 紀錄ID: 'W' + Date.now().toString(36).toUpperCase() + rid(3), 會員ID: memberId, 時間: nowStamp(), 類型: type, 金額: amount, 可退現金: true, 狀態: '已入帳' }, o || {}));
 }
 
-/** 會員編號：ZR＋5 位流水號（ZR00001 起），推薦碼 6 碼英數字。兩者都不重複、不能修改 */
+/** 會員編號：M＋建立日期（YYMMDD）＋4 碼英數字，例 M261106-SK6Y；推薦碼 6 碼英數字。兩者都不重複、不能修改 */
 export async function newIds(c) {
-  const r = await c.env.DB.prepare("SELECT MAX(CAST(SUBSTR(member_id, 3) AS INTEGER)) AS n FROM members WHERE member_id GLOB 'ZR[0-9]*'").first();
-  let n = (r && r.n) || 0;
+  const d = todayStr().slice(2).replace(/-/g, '');
+  const pick = (n) => { let x = ''; for (let j = 0; j < n; j++) x += CODE_CH[Math.floor(Math.random() * CODE_CH.length)]; return x; };
   for (let i = 0; i < 20; i++) {
-    const id = 'ZR' + String(n + 1 + i).padStart(5, '0');
-    let code = ''; for (let j = 0; j < 6; j++) code += CODE_CH[Math.floor(Math.random() * CODE_CH.length)];
+    const id = 'M' + d + '-' + pick(4), code = pick(6);
     if (!(await c.db.first('會員', { 會員ID: id })) && !(await c.db.first('會員', { 推薦碼: code }))) return { id, code };
   }
   throw new UserError('產生會員編號失敗，請再試一次');
