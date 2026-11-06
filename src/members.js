@@ -83,7 +83,7 @@ export async function newIds(c) {
 function summary(m, wal, sub) {
   return {
     id: m['會員ID'], name: m['姓名'], phone: m['手機'], email: m['Email'], note: m['備註'], code: m['推薦碼'], line: !!m['LINEID'],
-    phoneOk: !!m['手機已驗證'], status: m['狀態'], ever: !!m['曾訂閱'], referredBy: m['推薦人會員ID'], since: m['註冊時間'],
+    phoneOk: !!m['手機已驗證'], cashBlocked: !!m['付現停用'], cashNoshow: Number(m['付現沒來次數']) || 0, status: m['狀態'], ever: !!m['曾訂閱'], referredBy: m['推薦人會員ID'], since: m['註冊時間'],
     wallet: wal, sub: sub ? { id: sub['訂閱ID'], meals: sub['方案餐數'], left: sub['剩餘餐數'], start: sub['開始日'], end: sub['到期日'], status: sub['狀態'] } : null
   };
 }

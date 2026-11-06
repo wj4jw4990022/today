@@ -15,7 +15,7 @@ const num = (v, d) => { const s = String(v === undefined || v === null ? '' : v)
 const addDays = (d, n) => new Date(new Date(d + 'T00:00:00Z').getTime() + n * 86400000).toISOString().slice(0, 10);
 const LIVE = ['已預約', '已鎖定', '已取餐', '未取餐作廢'];
 
-function rules(st) {
+export function rules(st) {
   const cut = isHm(String(st['截單時間'] || '')) ? String(st['截單時間']) : '20:00';
   const today = todayStr(), lockDate = nowHm() >= cut ? addDays(today, 1) : today; // 這一天（含）以前都已鎖定
   return {
@@ -26,6 +26,7 @@ function rules(st) {
   };
 }
 /** 配送門檻：依距離分級（設定「配送門檻_*」「配送最遠公里」）；超過最遠距離回 null */
+export function feeOf(st, km) { km = Number(km) || 0; return km <= 2 ? num(st['配送費_2公里內'], 30) : km <= 5 ? num(st['配送費_2至5公里'], 50) : num(st['配送費_5至8公里'], 80); }
 export function threshold(st, km) {
   km = Number(km) || 0; const far = num(st['配送最遠公里'], 8);
   if (km > far) return null;
@@ -33,23 +34,23 @@ export function threshold(st, km) {
   if (km <= 5) return num(st['配送門檻_2至5公里'], 5);
   return num(st['配送門檻_5至8公里'], 10);
 }
-async function points(c, st, all) {
+export async function points(c, st, all) {
   return (await c.db.all('配送點')).filter((p) => all || p['啟用']).map((p) => ({ id: p['配送點ID'], name: p['名稱'], address: p['地址'], km: num(p['距離公里'], 0), slots: String(p['可配送時段'] || '中午,晚上').split(/[,，、\s]+/).filter(Boolean), on: !!p['啟用'], note: p['備註'], min: threshold(st, p['距離公里']) }));
 }
-async function pointCounts(c, from, to) {
+export async function pointCounts(c, from, to) {
   const r = await c.env.DB.prepare("SELECT date, slot, point_id, SUM(qty) AS n FROM reservations WHERE pickup = '配送' AND date >= ? AND date <= ? AND status IN ('已預約','已鎖定','已取餐','未取餐作廢') GROUP BY date, slot, point_id").bind(from, to).all();
   const m = {}; (r.results || []).forEach((x) => { m[x.date + '|' + x.slot + '|' + x.point_id] = x.n; });
   return m;
 }
-async function menu(c) {
+export async function menu(c) {
   const items = (await c.db.all('健康餐品項', { 店家ID: SHOP })).filter((r) => isTrue(r['顯示'])).sort(byOrder);
   const addons = (await c.db.all('加購品項', { 店家ID: SHOP })).filter((r) => isTrue(r['顯示'])).sort(byOrder);
   return { items, addons };
 }
-async function ledgerAdd(c, memberId, type, amount, o) {
+export async function ledgerAdd(c, memberId, type, amount, o) {
   await c.db.insert('錢包紀錄', Object.assign({ 紀錄ID: 'W' + Date.now().toString(36).toUpperCase() + rid(3), 會員ID: memberId, 時間: nowStamp(), 類型: type, 金額: amount, 可退現金: true, 狀態: '已入帳' }, o || {}));
 }
-async function slotCounts(c, from, to) {
+export async function slotCounts(c, from, to) {
   const r = await c.env.DB.prepare("SELECT date, slot, SUM(qty) AS n FROM reservations WHERE date >= ? AND date <= ? AND status IN ('已預約','已鎖定','已取餐','未取餐作廢') GROUP BY date, slot").bind(from, to).all();
   const m = {}; (r.results || []).forEach((x) => { m[x.date + '|' + x.slot] = x.n; });
   return m;
@@ -67,10 +68,24 @@ export async function runCutoff(c) {
   const pts = {}; (await points(c, st, true)).forEach((p) => { pts[p.id] = p; });
   const grp = {}; rows.filter((r) => r['取餐方式'] === '配送').forEach((r) => { const k = r['日期'] + '|' + r['時段'] + '|' + r['配送點ID']; grp[k] = (grp[k] || 0) + num(r['份數'], 1); });
   const toSelf = {}; Object.keys(grp).forEach((k) => { const p = pts[k.split('|')[2]]; if (!p || !p.on || p.min === null || grp[k] < p.min) toSelf[k] = p ? (p.on ? '只有 ' + grp[k] + ' 份，未達 ' + p.min + ' 份' : '配送點已停用') : '配送點不存在'; });
+  // 未達門檻、但訂單勾了「願意付配送費」：照送，收一次配送費（錢包不足改自取）
+  const keepOrder = {};
+  for (const k of Object.keys(toSelf)) {
+    const p = pts[k.split('|')[2]]; if (!p || !p.on || p.min === null) continue;
+    const oids = [...new Set(rows.filter((r) => r['日期'] + '|' + r['時段'] + '|' + r['配送點ID'] === k && r['訂單ID']).map((r) => r['訂單ID']))];
+    for (const oid of oids) {
+      const o = await c.db.first('訂單', { 訂單ID: oid }); if (!o || !o['願付配送費'] || o['配送費狀態']) continue;
+      const fee = feeOf(st, p.km);
+      if (o['付款方式'] === '現付') { await c.db.update('訂單', o._row, { 配送費: fee, 配送費狀態: '現付', 應收現金: num(o['應收現金'], 0) + fee }); keepOrder[oid] = 1; continue; }
+      const wal = walletOf(await c.db.all('錢包紀錄', { 會員ID: o['會員ID'] }));
+      if (wal.total >= fee) { await ledgerAdd(c, o['會員ID'], '配送費扣款', -fee, { 對應ID: oid, 經手人員: '系統', 備註: o['日期'] + ' ' + o['時段'] + ' ' + p.name + '：未達 ' + p.min + ' 份，付配送費' }); await c.db.update('訂單', o._row, { 配送費: fee, 配送費狀態: '已扣款' }); keepOrder[oid] = 1; }
+      else await c.db.update('訂單', o._row, { 配送費狀態: '錢包不足改自取' });
+    }
+  }
   for (const r of rows.sort((a, b) => a._row - b._row)) {
     const upd = { 狀態: '已鎖定', 修改時間: nowStamp() };
     const gk = r['日期'] + '|' + r['時段'] + '|' + r['配送點ID'];
-    if (r['取餐方式'] === '配送' && toSelf[gk]) Object.assign(upd, { 取餐方式: '自取', 配送點ID: '', 備註: (r['備註'] ? r['備註'] + '；' : '') + '配送改自取（' + (pts[r['配送點ID']] ? pts[r['配送點ID']].name + '：' : '') + toSelf[gk] + '）' });
+    if (r['取餐方式'] === '配送' && toSelf[gk] && !keepOrder[r['訂單ID']]) Object.assign(upd, { 取餐方式: '自取', 配送點ID: '', 備註: (r['備註'] ? r['備註'] + '；' : '') + '配送改自取（' + (pts[r['配送點ID']] ? pts[r['配送點ID']].name + '：' : '') + toSelf[gk] + '）' });
     if (r['類別'] === '訂閱') {
       const due = num(r['升級差額'], 0) + num(r['加購金額'], 0);
       if (due < 0) { // 整期升級後改訂較便宜的組合：退差額
@@ -120,6 +135,7 @@ export async function runExpiry(c) {
 
 /* ---------- 訂餐畫面資料 ---------- */
 async function orderInfo(c, m) {
+  const { order2Extra } = await import('./order2.js');
   await runCutoff(c);
   const st = await settings(c), R = rules(st), { items, addons } = await menu(c);
   const first = addDays(R.lockDate, 1), last = addDays(R.today, R.maxDays);
@@ -140,11 +156,12 @@ async function orderInfo(c, m) {
     drinks: addons.filter((a) => a['類型'] === '飲品' && num(a['加購價'], null) !== null).map((a) => ({ id: a['品項ID'], name: a['名稱'], price: num(a['加購價'], 0), protein: num(a['蛋白質'], 0), image: imgUrl(a['圖片網址']) })),
     mine: mine.map(resView).sort((a, b) => (a.date + a.slot).localeCompare(b.date + b.slot)),
     points: pl.filter((p) => p.min !== null), pointCount: pcnt,
-    eta: { 中午: String(st['中午預計送達時段'] || ''), 晚上: String(st['晚上預計送達時段'] || '') }
+    eta: { 中午: String(st['中午預計送達時段'] || ''), 晚上: String(st['晚上預計送達時段'] || '') },
+    extra: await order2Extra(c, m)
   };
 }
 function resView(r) {
-  return { pickup: r['取餐方式'], pointId: r['配送點ID'], id: r['預約ID'], date: String(r['日期']), slot: r['時段'], kind: r['類別'], qty: num(r['份數'], 1), size: r['份量'], main: r['主菜'], itemId: r['品項ID'], sauce: r['醬汁'], addons: r['加購項目'], upg: num(r['升級差額'], 0), addonAmt: num(r['加購金額'], 0), paid: num(r['付款金額'], 0), status: r['狀態'], charge: r['扣款狀態'], note: r['備註'] };
+  return { orderId: r['訂單ID'], pickup: r['取餐方式'], pointId: r['配送點ID'], id: r['預約ID'], date: String(r['日期']), slot: r['時段'], kind: r['類別'], qty: num(r['份數'], 1), size: r['份量'], main: r['主菜'], itemId: r['品項ID'], sauce: r['醬汁'], addons: r['加購項目'], upg: num(r['升級差額'], 0), addonAmt: num(r['加購金額'], 0), paid: num(r['付款金額'], 0), status: r['狀態'], charge: r['扣款狀態'], note: r['備註'] };
 }
 
 /* ---------- 訂餐 ---------- */
@@ -201,7 +218,7 @@ async function createOrder(c, m, p, by) {
 }
 
 /** 退回：訂閱加回 1 餐；單點退回錢包（用掉的紅利退回紅利） */
-async function giveBack(c, r, why, by) {
+export async function giveBack(c, r, why, by) {
   if (r['類別'] === '訂閱') {
     if (r['訂閱ID']) await c.env.DB.prepare('UPDATE subscriptions SET remaining = remaining + 1 WHERE sub_id = ?').bind(r['訂閱ID']).run();
     if (r['扣款狀態'] === '已扣款') { const paid = num(r['升級差額'], 0) + num(r['加購金額'], 0); if (paid > 0) await ledgerAdd(c, r['會員ID'], '退款轉入', paid, { 可退現金: true, 對應ID: r['預約ID'], 經手人員: by, 備註: why + '：退回升級加購' }); }
@@ -218,11 +235,19 @@ async function cancelOrder(c, m, resId, by) {
   if (r['狀態'] !== '已預約') throw new UserError(r['狀態'] === '已取消' ? '這筆已經取消了' : '已經截單鎖定，不能取消（請洽門市）');
   await c.db.update('預約', r._row, { 狀態: '已取消', 修改時間: nowStamp(), 備註: (r['備註'] ? r['備註'] + '；' : '') + '取消 by ' + by });
   await giveBack(c, r, '取消預約', by);
+  if (r['訂單ID']) await closeOrderIfEmpty(c, r['訂單ID'], by);
   return { ok: true };
+}
+/** 訂單裡的便當都取消了：訂單標記取消；已用錢包付的配送費退回 */
+export async function closeOrderIfEmpty(c, oid, by) {
+  const o = await c.db.first('訂單', { 訂單ID: oid }); if (!o || o['狀態'] === '已取消') return;
+  if ((await c.db.all('預約', { 訂單ID: oid })).some((x) => x['狀態'] !== '已取消')) return;
+  if (o['配送費狀態'] === '已扣款' && num(o['配送費'], 0) > 0) await ledgerAdd(c, o['會員ID'], '退款轉入', num(o['配送費'], 0), { 可退現金: true, 對應ID: oid, 經手人員: by, 備註: '訂單取消，退配送費' });
+  await c.db.update('訂單', o._row, { 狀態: '已取消', 應收現金: 0 });
 }
 
 /* ---------- 推薦紅利：新會員已取餐滿 N 餐 ---------- */
-async function checkReferral(c, memberId, R) {
+export async function checkReferral(c, memberId, R) {
   const ref = await c.db.first('推薦紀錄', { 新會員ID: memberId });
   if (!ref || ref['狀態'] !== '等待中') return;
   const picked = (await c.db.all('預約', { 會員ID: memberId, 狀態: '已取餐' })).filter((r) => r['類別'] === '訂閱').length;
@@ -341,6 +366,7 @@ export const orderOps = {
     const [rows, ms, adds] = await Promise.all([c.db.all('預約', { 日期: date }), c.db.all('會員'), c.db.all('加購品項', { 店家ID: SHOP })]);
     const name = {}; ms.forEach((x) => { name[x['會員ID']] = x['姓名'] + '（' + x['手機'] + '）'; });
     const pmap = {}; (await points(c, st, true)).forEach((x) => { pmap[x.id] = x; });
+    const omap = {}; (await c.db.all('訂單', { 日期: date })).forEach((o) => { omap[o['訂單ID']] = o; });
     const an = {}; adds.forEach((x) => { an[x['品項ID']] = x['名稱']; });
     const live = rows.filter((r) => r['狀態'] !== '已取消');
     const prep = {}; const drinks = {};
@@ -355,7 +381,9 @@ export const orderOps = {
       prep: Object.values(prep).sort((x, y) => (x.slot + x.item).localeCompare(y.slot + y.item)),
       drinks: Object.keys(drinks).map((k) => ({ slot: k.split('|')[0], name: k.split('|')[1], n: drinks[k] })),
       points: (function () { const g = {}; live.filter((r) => r['取餐方式'] === '配送' && r['狀態'] !== '店家補償').forEach((r) => { const k = r['時段'] + '|' + r['配送點ID'], pt = pmap[r['配送點ID']] || { name: r['配送點ID'], address: '', min: 0 }; g[k] = g[k] || { slot: r['時段'], name: pt.name, address: pt.address, min: pt.min, n: 0 }; g[k].n += num(r['份數'], 1); }); return Object.values(g); })(),
-      list: live.map((r) => Object.assign(resView(r), { pointName: pmap[r['配送點ID']] ? pmap[r['配送點ID']].name : '', member: name[r['會員ID']] || r['會員ID'], memberId: r['會員ID'], addonNames: String(r['加購項目'] || '').split(',').filter(Boolean).map((id) => an[id] || id).join('、'), by: r['建立者'] })).sort((x, y) => (x.slot + x.id).localeCompare(y.slot + y.id))
+      cash: Object.values(omap).filter((o) => o['付款方式'] === '現付' && o['狀態'] !== '已取消').map((o) => ({ orderId: o['訂單ID'], member: name[o['會員ID']] || o['會員ID'], slot: o['時段'], due: num(o['應收現金'], 0), paid: !!o['已收現金'], pickup: o['取餐方式'] })),
+      addrs: Object.values(omap).filter((o) => o['取餐方式'] === '地址' && o['狀態'] !== '已取消').map((o) => ({ orderId: o['訂單ID'], slot: o['時段'], member: name[o['會員ID']] || o['會員ID'], area: o['行政區'], address: o['地址'], recipient: o['收件人'], phone: o['電話'], note: o['地址備註'], fee: num(o['配送費'], 0), n: live.filter((r) => r['訂單ID'] === o['訂單ID'] && r['狀態'] !== '店家補償').reduce((t, r) => t + num(r['份數'], 1), 0) })),
+      list: live.map((r) => Object.assign(resView(r), { pay: omap[r['訂單ID']] ? omap[r['訂單ID']]['付款方式'] : '錢包', addr: omap[r['訂單ID']] && omap[r['訂單ID']]['取餐方式'] === '地址' ? omap[r['訂單ID']]['行政區'] + ' ' + omap[r['訂單ID']]['地址'] : '', pointName: pmap[r['配送點ID']] ? pmap[r['配送點ID']].name : '', member: name[r['會員ID']] || r['會員ID'], memberId: r['會員ID'], addonNames: String(r['加購項目'] || '').split(',').filter(Boolean).map((id) => an[id] || id).join('、'), by: r['建立者'] })).sort((x, y) => (x.slot + x.id).localeCompare(y.slot + y.id))
     };
   },
   /** 取餐標記：已取餐／未取餐作廢／店家補償（補償要原因；訂閱加回 1 餐、單點退回錢包） */
@@ -374,7 +402,16 @@ export const orderOps = {
       await giveBack(c, r, '店家補償', a.email);
       await c.db.insert('補償紀錄', { 紀錄ID: 'C' + Date.now().toString(36).toUpperCase() + rid(3), 預約ID: r['預約ID'], 會員ID: r['會員ID'], 原因: reason, 處理方式: r['類別'] === '訂閱' ? '加回 1 餐' : '退回錢包', 處理人員: a.email, 時間: nowStamp() });
     }
-    await checkReferral(c, r['會員ID'], rules(await settings(c)));
+    const st2 = await settings(c);
+    if (to === '未取餐作廢' && r['訂單ID']) {
+      const o = await c.db.first('訂單', { 訂單ID: r['訂單ID'] });
+      if (o && o['付款方式'] === '現付' && !/沒來已記/.test(o['備註'])) {
+        const m = await c.db.first('會員', { 會員ID: r['會員ID'] }), n = num(m['付現沒來次數'], 0) + 1, lim = num(st2['付現沒來關閉次數'], 2);
+        await c.db.update('會員', m._row, { 付現沒來次數: n, 付現停用: n >= lim ? true : m['付現停用'] });
+        await c.db.update('訂單', o._row, { 備註: (o['備註'] ? o['備註'] + '；' : '') + '沒來已記' });
+      }
+    }
+    await checkReferral(c, r['會員ID'], rules(st2));
     return { ok: true };
   }
 };

@@ -7,8 +7,9 @@ import { memberOps } from './members.js';
 import { handleLine, memberApi, mergeOps, memberOfReq } from './line.js';
 import { orderOps, orderMemberApi, runCutoff } from './orders.js';
 import { payOps, payMemberApi } from './pay.js';
+import { order2Ops, order2MemberApi, order2Extra } from './order2.js';
 
-const OPS = { ...adminOps, ...healthOps, ...memberOps, ...mergeOps, ...orderOps, ...payOps };
+const OPS = { ...adminOps, ...healthOps, ...memberOps, ...mergeOps, ...orderOps, ...payOps, ...order2Ops };
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 const json = (o, status) => new Response(JSON.stringify(o), { status: status || 200, headers: JSON_HEADERS });
 
@@ -28,6 +29,7 @@ async function handleApi(request, c) {
       case 'contact': return json({ ok: true, data: await contact(c, p) });
       case 'memberMe': case 'memberRegister': case 'memberUpdate': case 'memberDelete': return json({ ok: true, data: await memberApi(c, request, p) });
       case 'payInfo': case 'payBuy': case 'payRequest': case 'payCancel': case 'payRefund': return json({ ok: true, data: await payMemberApi[p.action](c, await memberOfReq(c, request), p) });
+      case 'orderCreate2': case 'addrDelete': case 'orderCancelWhole': return json({ ok: true, data: await order2MemberApi[p.action](c, await memberOfReq(c, request), p) });
       case 'orderInfo': case 'orderCreate': case 'orderCancel': case 'planPause': case 'planUpgrade': return json({ ok: true, data: await orderMemberApi[p.action](c, await memberOfReq(c, request), p) });
       default: {
         if (String(p.action).indexOf('admin') !== 0) throw new UserError('未知的操作');

@@ -838,7 +838,7 @@ function mDetail(g, L) {
   var buyNote = after < 0 ? '<span class="neg">不足 ' + money(-after) + '，請先儲值</span>' : money(after);
   return '<div class="card" style="gap:14px"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:baseline"><div class="h" style="font-size:22px">' + E(g.name) + '</div><div class="sd">' + E(g.id) + '・推薦碼 ' + E(g.code) + '・LINE ' + (g.line ? '已綁定' : '未綁定') + '</div></div>' +
     '<div class="kp"><div>錢包總餘額<b>' + money(w.total) + '</b></div><div>可退現金<b>' + money(w.cash) + '</b></div><div>紅利<b>' + money(w.bonus) + '</b></div><div>本期剩餘<b>' + (g.sub ? g.sub.left + ' / ' + g.sub.meals + ' 餐' : '—') + '</b></div><div>到期日<b>' + (g.sub ? E(g.sub.end.slice(5).replace('-', '/')) : '—') + '</b></div></div>' +
-    '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" data-mpanel="edit">修改資料</button><button class="btn sm" data-mpanel="adjust">人工調整</button><button class="btn sm" data-mpanel="refund">退現金</button>' + (g.sub ? '<button class="btn sm" data-mpanel="settle" style="color:#9a3b2b;border-color:#9a3b2b">取消方案・結算</button><button class="btn sm" data-mtest="1" style="border-style:dashed">測試：已用餐＋1</button>' : '') + '</div></div>' + panel +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" data-mpanel="edit">修改資料</button><button class="btn sm" data-mpanel="adjust">人工調整</button><button class="btn sm" data-mpanel="refund">退現金</button>' + (g.sub ? '<button class="btn sm" data-mpanel="settle" style="color:#9a3b2b;border-color:#9a3b2b">取消方案・結算</button><button class="btn sm" data-mtest="1" style="border-style:dashed">測試：已用餐＋1</button>' : '') + '</div>' + (g.cashBlocked ? '<div class="msg" style="margin:0">「取餐時付現」已停用（沒來 ' + g.cashNoshow + ' 次）。<button class="btn sm" data-munblock="1">重新開放付現</button></div>' : g.cashNoshow ? '<p class="sd" style="margin:0">付現沒來取餐 ' + g.cashNoshow + ' 次</p>' : '') + '</div>' + panel +
     '<div class="mgrid">' +
     '<div class="card" style="gap:14px"><div class="cap">① 登錄儲值</div><div class="field"><label>金額（選一個，或自訂金額）</label></div><div class="amt">' + amts + '</div>' +
     (MS.custom ? '<div class="field"><label>自訂金額（整數元，單筆最多 ' + Number(L.customMax).toLocaleString() + '）</label><input id="mt-amt" inputmode="numeric"></div><div class="field"><label>原因（自訂金額必填）</label><input id="mt-reason"></div>' : '') +
@@ -876,6 +876,7 @@ document.addEventListener('click', function (e) {
   var t = e.target, b;
   if (!document.querySelector('.mwrap') && !t.closest('[data-mmerge],[data-mreject]')) return;
   if ((b = t.closest('[data-msel]'))) { MS.sel = b.getAttribute('data-msel'); MS.panel = ''; cache.ms = null; mLoad(); if (innerWidth < 760) scrollTo(0, 0); return; }
+  if ((b = t.closest('[data-munblock]'))) { call('adminCashUnblock', { memberId: MS.sel }).then(function () { toast('已重新開放付現'); mLoad(); }).catch(function (er) { toast(er.message); }); return; }
   if ((b = t.closest('[data-mtest]'))) { if (!confirm('測試用：替「' + cache.mg.name + '」記一筆今天已取餐（扣 1 餐）？')) return; call('adminTestMeal', { memberId: MS.sel }).then(function (r) { toast('已用餐＋1' + (r.picked !== null ? '；推薦：已取餐 ' + r.picked + ' 餐（' + r.refStatus + '）' : '')); mLoad(); }).catch(function (er) { toast(er.message); }); return; }
   if ((b = t.closest('[data-msettle]'))) { if (!confirm('確認取消「' + cache.mg.name + '」的方案並結算 ' + money(cache.ms.amount) + '？')) return; mDo(call('adminCancelPlan', { memberId: MS.sel, method: mVal('ms-method'), reason: mVal('ms-reason') }), '已取消並結算').then(function () { MS.panel = ''; cache.ms = null; mLoad(); }).catch(function () {}); return; }
   if ((b = t.closest('[data-mpanel]'))) { cache.ms = null; MS.panel = b.getAttribute('data-mpanel'); mDraw(); if (MS.panel) { var f = document.querySelector('.mwrap input#mf-name,#ma-amt,#mr-amt'); if (f) f.focus(); } return; }
@@ -938,16 +939,20 @@ function oDraw() {
     return '<div class="stb">' + [['已取餐', '已取餐'], ['未取餐作廢', '未取餐（作廢）'], ['店家補償', '店家補償']].map(function (x) { return '<button class="btn sm' + (r.status === x[0] ? ' on' : '') + '" data-opk="' + E(r.id) + '" data-st="' + x[0] + '">' + x[1] + '</button>'; }).join('') + '</div>';
   };
   var list = '<div class="card" style="gap:10px"><div class="cap">預約名單</div>' + (d.list.length ? '<div class="tw"><table><tr><th>時段</th><th>會員</th><th>類型</th><th>餐點</th><th>取餐方式</th><th class="dk-only">錢包</th><th>取餐</th></tr>' + d.list.map(function (r) {
-    var pay = r.kind === '單點' ? '單點 −' + Number(r.paid).toLocaleString() + ' 已扣' : r.charge === '已扣款' ? (r.upg + r.addonAmt ? '+' + (r.upg + r.addonAmt) + ' 已扣' : '—') : r.charge === '餘額不足改回基本餐' ? '餘額不足→改回基本餐' : (r.upg + r.addonAmt ? '截單扣 +' + (r.upg + r.addonAmt) : '—');
+    var pay = r.kind === '單點' && r.pay === '現付' ? '取餐付現' : r.kind === '單點' ? '單點 −' + Number(r.paid).toLocaleString() + ' 已扣' : r.charge === '已扣款' ? (r.upg + r.addonAmt ? '+' + (r.upg + r.addonAmt) + ' 已扣' : '—') : r.charge === '餘額不足改回基本餐' ? '餘額不足→改回基本餐' : (r.upg + r.addonAmt ? '截單扣 +' + (r.upg + r.addonAmt) : '—');
     return '<tr><td>' + E(r.slot) + '</td><td>' + E(r.member) + '</td><td>' + E(r.kind) + (r.qty > 1 ? ' ×' + r.qty : '') + '</td><td>' + E(r.size + ' ' + r.main) + '・' + E(r.sauce) + (r.addonNames ? '＋' + E(r.addonNames) : '') + '</td><td>' + (r.pickup === '配送' ? '配送・' + E(r.pointName) : '自取' + (/配送改自取/.test(r.note || '') ? '<br><span class="sd">（配送未達門檻）</span>' : '')) + '</td><td class="dk-only sd">' + E(pay) + '</td><td>' + acts(r) + '</td></tr>';
   }).join('') + '</table></div>' : '<p class="sd" style="margin:0">沒有預約</p>') + '<p class="sd" style="margin:0">截單後才能標記取餐。「未取餐」照常扣；「店家補償」要填原因，訂閱加回 1 餐、單點退回錢包。截單前可取消（訂閱加回餐數、單點退回錢包）。</p></div>';
-  $('sp').innerHTML = head + prep + list;
+  var due = d.cash.filter(function (x) { return !x.paid; }).reduce(function (t, x) { return t + x.due; }, 0);
+  var addrs = d.addrs.length ? '<div class="card" style="gap:10px"><div class="cap">送到會員地址　' + d.addrs.length + ' 筆</div><div class="tw"><table><tr><th>時段</th><th>行政區・地址</th><th>收件人</th><th>份數</th><th>配送費</th></tr>' + d.addrs.map(function (x) { return '<tr><td>' + E(x.slot) + '</td><td>' + E(x.area + ' ' + x.address) + (x.note ? '<br><span class="sd">' + E(x.note) + '</span>' : '') + '</td><td>' + E(x.recipient) + '<br><span class="sd">' + E(x.phone) + '</span></td><td><b>' + x.n + '</b></td><td>' + (x.fee ? money(x.fee) : '免運') + '</td></tr>'; }).join('') + '</table></div></div>' : '';
+  var cash = d.cash.length ? '<div class="card" style="gap:10px"><div class="cap">取餐付現　應收 ' + money(due) + '（' + d.cash.filter(function (x) { return !x.paid; }).length + ' 筆未收）</div><div class="tw"><table><tr><th>時段</th><th>會員</th><th>取餐</th><th>金額</th><th></th></tr>' + d.cash.map(function (x) { return '<tr><td>' + E(x.slot) + '</td><td>' + E(x.member) + '</td><td>' + E(x.pickup === '配送' ? '配送點' : x.pickup === '地址' ? '送到地址' : '自取') + '</td><td><b>' + money(x.due) + '</b></td><td>' + (x.paid ? '<span class="pill">已收現金</span>' : '<button class="btn sm" data-ocash="' + E(x.orderId) + '">已收現金</button>') + '</td></tr>'; }).join('') + '</table></div></div>' : '';
+  $('sp').innerHTML = head + prep + addrs + cash + list;
 }
 document.addEventListener('click', function (e) {
   var t = e.target, b;
   if ((b = t.closest('[data-od]'))) { OD.date = b.getAttribute('data-od'); oLoad(); return; }
   if ((b = t.closest('[data-onew]'))) { var mid = $('o-mem').value; if (!mid) { toast('請先選會員'); return; } location.href = 'order.html?admin=1&member=' + encodeURIComponent(mid); return; }
   if ((b = t.closest('[data-oprint]'))) { var w = window.open('', '_blank'); w.document.write('<meta charset="utf-8"><title>備餐單 ' + cache.od.date + '</title><style>body{font-family:sans-serif;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:6px;text-align:left}</style><h2>備餐單 ' + cache.od.date + '</h2>' + $('o-prep').innerHTML + '<h3>名單</h3><table><tr><th>時段</th><th>會員</th><th>餐點</th><th>取餐方式</th><th>取餐</th></tr>' + cache.od.list.map(function (r) { return '<tr><td>' + E(r.slot) + '</td><td>' + E(r.member) + '</td><td>' + E(r.size + ' ' + r.main + '・' + r.sauce + (r.addonNames ? '＋' + r.addonNames : '') + (r.qty > 1 ? ' ×' + r.qty : '')) + '</td><td>' + (r.pickup === '配送' ? '配送・' + E(r.pointName) : '自取') + '</td><td>□</td></tr>'; }).join('') + '</table>'); w.document.close(); w.print(); return; }
+  if ((b = t.closest('[data-ocash]'))) { if (!confirm('確認已收到這筆現金？')) return; call('adminOrderCash', { orderId: b.getAttribute('data-ocash') }).then(function () { toast('已記錄收現金'); oLoad(); }).catch(function (er) { toast(er.message); }); return; }
   if ((b = t.closest('[data-ocx]'))) { if (!confirm('取消這筆預約？訂閱會加回餐數，單點會退回錢包。')) return; call('adminOrderCancel', { resId: b.getAttribute('data-ocx') }).then(function () { toast('已取消'); oLoad(); }).catch(function (er) { toast(er.message); }); return; }
   if ((b = t.closest('[data-opk]'))) {
     var st = b.getAttribute('data-st'), reason = '';
@@ -974,15 +979,26 @@ document.addEventListener('click', function (e) {
 
 
 /* ---------- 健康餐 › 配送點（2026-11-06） ---------- */
-function dLoad() { call('adminPoints').then(function (r) { cache.dp = r; dDraw(); }).catch(err); }
+function dLoad() { Promise.all([call('adminPoints'), call('adminAreas')]).then(function (r) { cache.dp = r[0]; cache.da = r[1]; dDraw(); }).catch(err); }
 function dDraw() {
   var r = cache.dp, rows = r.points.concat([{ id: '', name: '', address: '', km: '', slots: ['中午', '晚上'], on: true, note: '', min: '' }]);
   $('sp').innerHTML = '<div class="msg" style="margin:0 0 16px">只配送到這裡的固定配送點。免運門檻依距離：2 公里內 3 份、2～5 公里 5 份、5～8 公里 10 份（「規則與價格」的「配送門檻_*」可改），超過 ' + r.far + ' 公里不提供配送。截單時同一配送點、同一時段沒達到門檻 → 自動改門市自取。停用配送點或取消某時段時，還沒截單的配送預約會改自取。預計送達時段：中午「' + E(r.eta['中午'] || '未設定') + '」、晚上「' + E(r.eta['晚上'] || '未設定') + '」（在「規則與價格」改）。最後一列是新增。</div>' +
     '<div class="tw"><table><tr><th>名稱</th><th>地址</th><th>距離 km</th><th>門檻</th><th>中午</th><th>晚上</th><th>啟用</th><th>備註</th><th></th></tr>' + rows.map(function (x, i) {
       return '<tr data-di="' + i + '"><td><input class="mini" style="width:120px" data-f="name" value="' + E(x.name) + '"></td><td><input class="mini" style="width:200px" data-f="address" value="' + E(x.address) + '"></td><td><input class="mini" style="width:56px" data-f="km" value="' + E(x.km) + '"></td><td class="sd">' + (x.min === '' ? '—' : x.min === null ? '不配送' : x.min + ' 份') + '</td><td><input type="checkbox" data-f="s1"' + (x.slots.indexOf('中午') >= 0 ? ' checked' : '') + '></td><td><input type="checkbox" data-f="s2"' + (x.slots.indexOf('晚上') >= 0 ? ' checked' : '') + '></td><td><input type="checkbox" data-f="on"' + (x.on ? ' checked' : '') + '></td><td><input class="mini" style="width:140px" data-f="note" value="' + E(x.note) + '"></td><td><button class="btn sm" data-dsave="' + i + '">' + (x.id ? '儲存' : '新增') + '</button></td></tr>';
+    }).join('') + '</table></div>' +
+    '<div class="h" style="font-size:20px;margin:32px 0 8px">送到會員地址：行政區</div><p class="sd">會員自己輸入地址時，依行政區的距離算配送費與「同一筆滿幾份免運」。不在清單上或停用的行政區＝不送；距離超過 ' + r.far + ' 公里也不送。配送費在「規則與價格」的「配送費_*」。最後一列是新增。</p>' +
+    '<div class="tw"><table><tr><th>行政區</th><th>距離 km</th><th>配送費</th><th>免運門檻</th><th>啟用</th><th>排序</th><th>備註</th><th></th></tr>' + cache.da.areas.concat([{ area: '', km: '', on: true, order: '', note: '', fee: '', min: '' }]).map(function (x, i) {
+      return '<tr><td><input class="mini" style="width:80px" data-af="area" value="' + E(x.area) + '"></td><td><input class="mini" style="width:56px" data-af="km" value="' + E(x.km) + '"></td><td class="sd">' + (x.min === null ? '不送' : x.fee === '' ? '—' : money(x.fee)) + '</td><td class="sd">' + (x.min === null || x.min === '' ? '—' : x.min + ' 份') + '</td><td><input type="checkbox" data-af="on"' + (x.on ? ' checked' : '') + '></td><td><input class="mini" style="width:44px" data-af="order" value="' + E(x.order) + '"></td><td><input class="mini" style="width:160px" data-af="note" value="' + E(x.note) + '"></td><td><button class="btn sm" data-asave="' + E(x.area) + '">' + (x.area ? '儲存' : '新增') + '</button>' + (x.area ? ' <button class="btn sm line" data-adel="' + E(x.area) + '">刪除</button>' : '') + '</td></tr>';
     }).join('') + '</table></div>';
 }
 document.addEventListener('click', function (e) {
+  var ab = e.target.closest && e.target.closest('[data-asave],[data-adel]');
+  if (ab) {
+    if (ab.hasAttribute('data-adel')) { if (!confirm('刪除行政區「' + ab.getAttribute('data-adel') + '」？')) return; call('adminDeleteArea', { area: ab.getAttribute('data-adel') }).then(function () { toast('已刪除'); dLoad(); }).catch(function (er) { toast(er.message); }); return; }
+    var tr = ab.closest('tr'), g = function (f) { return tr.querySelector('[data-af=' + f + ']'); };
+    call('adminSaveArea', { area: { orig: ab.getAttribute('data-asave'), area: g('area').value, km: g('km').value, on: g('on').checked, order: g('order').value, note: g('note').value } }).then(function () { toast('已儲存'); dLoad(); }).catch(function (er) { toast(er.message); });
+    return;
+  }
   var b = e.target.closest && e.target.closest('[data-dsave]'); if (!b) return;
   var tr = b.closest('tr'), i = Number(b.getAttribute('data-dsave')), x = cache.dp.points[i], g = function (f) { return tr.querySelector('[data-f=' + f + ']'); };
   var pt = { id: x ? x.id : '', name: g('name').value, address: g('address').value, km: g('km').value, slots: [g('s1').checked ? '中午' : '', g('s2').checked ? '晚上' : ''].filter(Boolean), on: g('on').checked, note: g('note').value };
