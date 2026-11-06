@@ -59,7 +59,7 @@ function item() { return D.items.filter(function (i) { return i.id === S.item; }
 function calc() {
   var it = item(); if (!it) return null;
   var sauce = D.sauces.filter(function (s) { return s.id === S.sauce; })[0], add = (sauce ? sauce.price : 0) + S.drinks.reduce(function (s, id) { var d = D.drinks.filter(function (x) { return x.id === id; })[0]; return s + (d ? d.price : 0); }, 0);
-  if (S.kind === '訂閱') return { meals: 1, later: it.upg + add, now: 0 };
+  if (S.kind === '訂閱') return { meals: 1, later: it.upg - (D.sub.upgValue || 0) + add, now: 0 };
   return { meals: 0, later: 0, now: (it.price + add) * S.qty };
 }
 function draw() {
@@ -69,7 +69,8 @@ function draw() {
   var mains = []; D.items.forEach(function (i) { if (mains.indexOf(i.main) < 0) mains.push(i.main); });
   if (!S.main) S.main = it ? it.main : mains[0];
   var order = ['LIGHT', 'BALANCE', 'POWER'], list = D.items.filter(function (i) { return i.main === S.main; }).sort(function (a, b) { return order.indexOf(a.size) - order.indexOf(b.size); });
-  var canSub = D.sub && D.sub.status === '使用中' && D.sub.left > 0 && (!S.date || (S.date >= D.sub.start && S.date <= D.sub.end));
+  var inPause = D.sub && D.sub.pauseStart && S.date >= D.sub.pauseStart && S.date <= D.sub.pauseEnd;
+  var canSub = D.sub && D.sub.status === '使用中' && D.sub.left > 0 && !inPause && (!S.date || (S.date >= D.sub.start && S.date <= D.sub.end));
   if (!S.kind || (S.kind === '訂閱' && !canSub)) S.kind = canSub ? '訂閱' : '單點';
   if (S.kind === '訂閱') S.qty = 1;
   var h = (ADMIN ? '<div class="adm"><span>店員代訂模式　會員：<b>' + E(D.member.name) + '・' + E(D.member.id) + '</b>（' + (D.sub ? '剩 ' + D.sub.left + '/' + D.sub.meals + ' 餐・' : '') + '錢包 ' + money(D.wallet.total) + '）</span><a href="admin.html" style="text-decoration:underline">回後台</a></div>' : '') +
@@ -80,17 +81,17 @@ function draw() {
     '<div class="oc"><div class="cap">① 日期與時段（前一天 ' + E(D.cutoff) + ' 截單）</div><div class="days">' + D.days.map(function (d) { return '<button type="button" data-d="' + d.date + '" class="' + (d.date === S.date ? 'on' : '') + '"' + (d.closed ? ' disabled' : '') + '><b>' + md(d.date) + '</b>' + (d.closed ? '公休' : '週' + WD[d.wd]) + '</button>'; }).join('') + '</div>' +
     (day ? '<div class="chs">' + day.slots.map(function (s) { var full = s.left !== null && s.left < 1; return '<button type="button" data-s="' + s.slot + '" class="' + (s.slot === S.slot ? 'on' : '') + '"' + (full ? ' disabled' : '') + '>' + s.slot + ' ' + E(s.pickup) + (s.left === null ? '' : full ? '・已滿' : '・剩 ' + s.left + ' 份') + '</button>'; }).join('') + '</div>' : '<p class="op" style="margin:0">請先選日期</p>') + '</div>' +
     '<div class="oc"><div class="cap">② 選便當</div><div class="chs" style="margin-bottom:12px">' + mains.map(function (m) { return '<button type="button" data-m="' + E(m) + '" class="' + (m === S.main ? 'on' : '') + '">' + E(m) + '</button>'; }).join('') + '</div>' +
-    '<div class="pick">' + list.map(function (i) { return '<button type="button" data-i="' + E(i.id) + '" class="' + (i.id === S.item ? 'on' : '') + '"><div class="im">' + pic(i.image, i.size + ' ' + i.main) + '</div>' + E(i.size) + '<br>' + i.kcal + ' 大卡・' + i.protein + 'g<br>' + (S.kind === '訂閱' ? (i.upg ? '方案 +' + i.upg : '方案基本餐') : '單點 ' + money(i.price)) + '</button>'; }).join('') + '</div></div>' +
+    '<div class="pick">' + list.map(function (i) { return '<button type="button" data-i="' + E(i.id) + '" class="' + (i.id === S.item ? 'on' : '') + '"><div class="im">' + pic(i.image, i.size + ' ' + i.main) + '</div>' + E(i.size) + '<br>' + i.kcal + ' 大卡・' + i.protein + 'g<br>' + (S.kind === '訂閱' ? (function (x) { return x > 0 ? '方案 +' + x : x < 0 ? '方案 退 ' + (-x) : '方案不加價'; })(i.upg - (D.sub.upgValue || 0)) : '單點 ' + money(i.price)) + '</button>'; }).join('') + '</div></div>' +
     '<div class="oc"><div class="cap">③ 醬汁（' + (D.sauces.some(function (s) { return !s.price; }) ? '免費選一杯' : '選一杯') + '）</div><div class="chs">' + D.sauces.map(function (s) { return '<button type="button" data-sa="' + E(s.id) + '" class="' + (s.id === S.sauce ? 'on' : '') + '">' + E(s.name) + (s.price ? ' +' + s.price : '') + '</button>'; }).join('') + '</div>' +
     (D.drinks.length ? '<div class="cap" style="margin-top:16px">加購飲品（可複選）</div><div class="chs">' + D.drinks.map(function (d) { return '<button type="button" data-dr="' + E(d.id) + '" class="' + (S.drinks.indexOf(d.id) >= 0 ? 'on' : '') + '">' + E(d.name) + ' +' + d.price + '</button>'; }).join('') + '</div>' : '') +
-    '<div class="cap" style="margin-top:16px">④ 這一餐用</div><div class="chs"><button type="button" data-k="訂閱" class="' + (S.kind === '訂閱' ? 'on' : '') + '"' + (canSub ? '' : ' disabled') + '>訂閱方案（扣 1 餐）' + (D.sub ? '' : '・沒有方案') + '</button><button type="button" data-k="單點" class="' + (S.kind === '單點' ? 'on' : '') + '">單點（錢包付）</button></div>' +
+    '<div class="cap" style="margin-top:16px">④ 這一餐用</div><div class="chs"><button type="button" data-k="訂閱" class="' + (S.kind === '訂閱' ? 'on' : '') + '"' + (canSub ? '' : ' disabled') + '>訂閱方案（扣 1 餐）' + (D.sub ? (inPause ? '・暫停期間' : '') : '・沒有方案') + '</button><button type="button" data-k="單點" class="' + (S.kind === '單點' ? 'on' : '') + '">單點（錢包付）</button></div>' +
     (S.kind === '單點' ? '<div class="cap" style="margin-top:14px">份數</div><div class="qty"><button type="button" data-q="-1">−</button><span>' + S.qty + '</span><button type="button" data-q="1">＋</button></div>' : '') + '</div>' +
     '</div><div class="sticky"><div class="oc">' + (it ? '<div class="pv">' + pic(it.image, it.size + ' ' + it.main) + '</div><div style="font-family:\'Noto Serif TC\',serif;font-size:20px">' + E(it.size) + '・' + E(it.main) + '</div>' +
       '<div class="mac"><div><b>' + it.kcal + '</b>大卡</div><div><b>' + it.protein + 'g</b>蛋白質</div><div><b>' + it.carb + 'g</b>碳水</div><div><b>' + it.fat + 'g</b>脂肪</div></div>' : '<div class="pv">' + pic('', '') + '</div><p class="op">請選便當</p>') +
     '<div class="cap" style="margin-top:6px">⑤ 確認</div>' +
     '<div class="row"><span>取餐</span><span>' + (S.date && S.slot ? md(S.date) + '（' + WD[day.wd] + '）' + S.slot + '・門市自取 ' + E(day.slots.filter(function (s) { return s.slot === S.slot; })[0].pickup) : '—') + '</span></div>' +
     '<div class="row"><span>醬汁・加購</span><span>' + E((D.sauces.filter(function (s) { return s.id === S.sauce; })[0] || {}).name || '—') + (S.drinks.length ? '＋' + S.drinks.map(function (id) { return (D.drinks.filter(function (d) { return d.id === id; })[0] || {}).name; }).join('、') : '') + '</span></div>' +
-    (c ? (S.kind === '訂閱' ? '<div class="row"><span>扣餐數</span><span>1 餐（剩 ' + (D.sub.left - 1) + ' 餐）</span></div><div class="row"><span>截單時錢包扣</span><span>' + money(c.later) + '</span></div>' : '<div class="row"><span>單點 ×' + S.qty + '</span><span>現在從錢包扣 ' + money(c.now) + '</span></div>') : '') +
+    (c ? (S.kind === '訂閱' ? '<div class="row"><span>扣餐數</span><span>1 餐（剩 ' + (D.sub.left - 1) + ' 餐）</span></div>' + (c.later < 0 ? '<div class="row"><span>截單時退回錢包</span><span>' + money(-c.later) + '</span></div>' : '<div class="row"><span>截單時錢包扣</span><span>' + money(c.later) + '</span></div>') : '<div class="row"><span>單點 ×' + S.qty + '</span><span>現在從錢包扣 ' + money(c.now) + '</span></div>') : '') +
     '<div class="row"><span>錢包餘額</span><span>' + money(D.wallet.total) + (D.wallet.bonus ? '（紅利 ' + money(D.wallet.bonus) + '）' : '') + '</span></div>' +
     (c && S.kind === '單點' && c.now > D.wallet.total ? '<div class="err">錢包不足，請先到門市儲值</div>' : '') +
     (c && S.kind === '訂閱' && c.later > D.wallet.total ? '<div class="err">錢包不足 ' + money(c.later) + '：截單時會改回基本餐、取消加購</div>' : '') +

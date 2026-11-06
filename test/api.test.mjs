@@ -226,6 +226,7 @@ await t('沒有權限的人被拒（健康餐）', async () => { assert(!(await 
 /* ===== 會員與錢包（後台代建，2026-11-06） ===== */
 await q("INSERT OR REPLACE INTO health_settings (key,value) VALUES ('新會員折扣_8餐','50'),('新會員折扣_12餐','100'),('新會員折扣_20餐','150'),('推薦人獎勵','100'),('方案12餐_總價','1980')");
 const M = async (o) => (await post({ ...A, ...o })).data;
+const O2 = async (id) => (await M({ action: 'adminMemberGet', memberId: id })).wallet;
 let m1, m2;
 await t('店員新增會員：會員編號與 6 碼推薦碼、手機與 Email 不可重複', async () => {
   const r = await post({ ...A, action: 'adminSaveMember', member: { name: '王小明', phone: '0912-345-678', email: 'Wang.X+a@gmail.com' } }); assert(r.ok, r.error); m1 = r.data.memberId;
@@ -453,5 +454,45 @@ await t('測試按鈕：已用餐＋1 扣餐並觸發推薦紅利', async () => 
   assert.equal(r.data.picked, 3); assert.equal(r.data.refStatus, '已發放'); assert.equal((await M({ action: 'adminMemberGet', memberId: a2 })).sub.left, 5); assert.equal((await M({ action: 'adminMemberGet', memberId: a1 })).wallet.bonus, 100);
   assert(!(await post({ ...B, action: 'adminTestMeal', memberId: a2 })).ok);
 });
+
+/* ===== 暫停、整期升級 ===== */
+{
+  const { runCutoff } = await import('../src/orders.js'); const { startSession } = await import('../src/line.js'); const { Db } = await import('../src/db.js'); const cx = { env: S.env, db: new Db(S.env.DB) };
+  await q("UPDATE health_settings SET value='23:59' WHERE key='截單時間'"); await q("UPDATE health_items SET price=190 WHERE item_id='HM-L-CB'");
+  const nd = (n) => { let k = n; while (dow(day(k)) === 3) k++; return day(k); };
+  const U = (await M({ action: 'adminSaveMember', member: { name: '升級人', phone: '0933666001' } })).memberId;
+  await post({ ...A, action: 'adminTopup', memberId: U, amount: 3000, method: '現金' }); await post({ ...A, action: 'adminBuyPlan', memberId: U, meals: 8 });
+  const ck = 'zm=' + await startSession(cx, 'Uupg', 'u'); await q("UPDATE member_sessions SET member_id=? WHERE line_id='Uupg'", U);
+  const P = (o) => S.postc(o, ck);
+  const r1 = (await P({ action: 'orderCreate', date: nd(2), slot: '中午', itemId: 'HM-L-CB', sauce: 'AD-S-OIL', kind: '訂閱' })).data.resId;
+  await t('整期升級：差額 × (剩餘＋已訂未截單)，從錢包扣；之後訂升級組合不加價、訂便宜組合截單時退差額', async () => {
+    const pv = await P({ action: 'planUpgrade', size: 'BALANCE', main: '雞胸', preview: true }); assert(pv.ok, pv.error); assert.equal(pv.data.n, 8); assert.equal(pv.data.total, 160);
+    const before = (await P({ action: 'orderInfo' })).data.wallet.total;
+    assert((await P({ action: 'planUpgrade', size: 'BALANCE', main: '雞胸' })).ok);
+    const info = (await P({ action: 'orderInfo' })).data; assert.equal(info.wallet.total, before - 160); assert.equal(info.sub.upgValue, 20);
+    assert.equal((await q('SELECT upgrade_amount FROM reservations WHERE res_id=?', r1))[0].upgrade_amount, -20);
+    const r2 = (await P({ action: 'orderCreate', date: nd(2), slot: '晚上', itemId: 'HM-B-CB', sauce: 'AD-S-OIL', kind: '訂閱' })).data.resId;
+    assert.equal((await q('SELECT upgrade_amount FROM reservations WHERE res_id=?', r2))[0].upgrade_amount, 0);
+    await q("UPDATE reservations SET date=? WHERE res_id IN (?,?)", day(0), r1, r2); await runCutoff(cx);
+    assert.equal((await O2(U)).total, before - 160 + 20, '訂 LIGHT 退回 20');
+    assert(!(await P({ action: 'planUpgrade', size: 'BALANCE', main: '雞胸' })).ok, '不能升到一樣');
+  });
+  await t('暫停：期間內已訂的取消加回餐數、到期日延後；每期一次；暫停期間不能訂', async () => {
+    const r3 = (await P({ action: 'orderCreate', date: nd(4), slot: '中午', itemId: 'HM-B-CB', sauce: 'AD-S-OIL', kind: '訂閱' })).data.resId;
+    const s0 = (await P({ action: 'orderInfo' })).data.sub;
+    assert(!(await P({ action: 'planPause', start: day(0), days: 3 })).ok);
+    const r = await P({ action: 'planPause', start: nd(4), days: 3 }); assert(r.ok, r.error); assert.equal(r.data.canceled, 1);
+    const s1 = (await P({ action: 'orderInfo' })).data.sub; assert.equal(s1.left, s0.left + 1); assert.equal(s1.end, r.data.newEnd); assert.equal(s1.pauseStart, nd(4));
+    assert.equal((await q('SELECT status FROM reservations WHERE res_id=?', r3))[0].status, '已取消');
+    assert(!(await P({ action: 'orderCreate', date: nd(4), slot: '晚上', itemId: 'HM-B-CB', sauce: 'AD-S-OIL', kind: '訂閱' })).ok);
+    assert(!(await P({ action: 'planPause', start: nd(10), days: 1 })).ok, '每期一次');
+  });
+  await t('結算時退回整期升級沒用到的餐', async () => {
+    const left = (await P({ action: 'orderInfo' })).data.sub.left, before = (await O2(U)).total;
+    const r = await post({ ...A, action: 'adminCancelPlan', memberId: U, method: '轉入錢包', reason: 't' }); assert(r.ok, r.error);
+    const after = (await O2(U)).total; assert.equal(after - before, r.data.amount + left * 20);
+  });
+  await q("UPDATE health_settings SET value='20:00' WHERE key='截單時間'");
+}
 
 summary(); await S.dispose(); process.exit(process.exitCode || 0);

@@ -58,6 +58,12 @@ export async function consumedOf(c, subId) {
   const rows = (await c.db.all('預約', { 訂閱ID: subId })).filter((r) => r['類別'] !== '單點' && ['已鎖定', '已取餐', '未取餐作廢'].indexOf(r['狀態']) >= 0);
   return { n: rows.length, value: rows.reduce((s, r) => s + (Number(r['單點原價']) || 0), 0), rows };
 }
+/** 整期升級：這一期升級到的組合與每餐價值（＝該組合的訂閱加價）；沒有升級回 0 */
+export async function subUpg(c, sub) {
+  if (!sub || !sub['整期升級份量'] || !sub['整期升級主菜']) return { value: 0, item: null };
+  const it = (await c.db.all('健康餐品項', { 份量: sub['整期升級份量'], 主菜: sub['整期升級主菜'] }))[0];
+  return { value: it ? Number(it['訂閱加價']) || 0 : 0, item: it || null };
+}
 export const currentSub = (subs) => subs.filter((s) => ACTIVE.indexOf(s['狀態']) >= 0).sort((a, b) => b._row - a._row)[0] || null;
 async function ledger(c, memberId, type, amount, o) {
   await c.db.insert('錢包紀錄', Object.assign({ 紀錄ID: 'W' + Date.now().toString(36).toUpperCase() + rid(3), 會員ID: memberId, 時間: nowStamp(), 類型: type, 金額: amount, 可退現金: true, 狀態: '已入帳' }, o || {}));
@@ -106,6 +112,8 @@ export async function buyPlan(c, m, p, by) {
     if (old) {
       const used = await consumedOf(c, old['訂閱ID']);
       carry = (Number(old['實付金額']) || 0) - used.value; carryMeals = Number(old['剩餘餐數']) || 0;
+      const up = await subUpg(c, old); // 整期升級沒用到的餐（剩餘餐數）退回錢包
+      if (up.value > 0 && carryMeals > 0) await ledger(c, m['會員ID'], '退款轉入', up.value * carryMeals, { 對應ID: old['訂閱ID'], 經手人員: a.email, 備註: '續訂：整期升級未用 ' + carryMeals + ' 餐退回' });
       await c.db.update('訂閱', old._row, { 狀態: '已續訂', 結算金額: carry, 結算方式: '併入續訂', 剩餘餐數: 0, 備註: (old['備註'] ? old['備註'] + '；' : '') + '續訂到 ' + subId + '（帶過去 ' + carryMeals + ' 餐、' + carry + ' 元）' });
     }
     await c.db.insert('訂閱', { 訂閱ID: subId, 會員ID: m['會員ID'], 方案餐數: meals, 剩餘餐數: meals + carryMeals, 方案金額: price, 推薦折扣: 0, 實付金額: price + carry, 付款方式: '錢包', 收款確認人員: a.email, 收款時間: nowStamp(), 開始日: start, 到期日: addDays(start, days - 1), 狀態: '使用中', 續訂來源訂閱ID: old ? old['訂閱ID'] : '', 建立時間: nowStamp(), 備註: old ? '續訂：含舊期 ' + carryMeals + ' 餐、可結算 ' + carry + ' 元' : '' });

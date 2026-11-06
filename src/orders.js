@@ -1,6 +1,6 @@
 import { UserError, clean, todayStr, nowHm, nowStamp, isDate, isHm, weekday, parseClosed, rid, imgUrl, isTrue, byOrder } from './util.js';
 import { needAll } from './service.js';
-import { settings, walletOf, currentSub, consumedOf } from './members.js';
+import { settings, walletOf, currentSub, consumedOf, subUpg } from './members.js';
 
 /**
  * 訂餐（2026-11-06，草圖 m37）：order.html 是唯一的訂餐入口，會員自己訂與店員代訂共用同一套規則。
@@ -51,13 +51,17 @@ export async function runCutoff(c) {
     const upd = { 狀態: '已鎖定', 修改時間: nowStamp() };
     if (r['類別'] === '訂閱') {
       const due = num(r['升級差額'], 0) + num(r['加購金額'], 0);
-      if (due > 0) {
+      if (due < 0) { // 整期升級後改訂較便宜的組合：退差額
+        await ledgerAdd(c, r['會員ID'], '退款轉入', -due, { 可退現金: true, 對應ID: r['預約ID'], 經手人員: '系統', 備註: r['日期'] + ' ' + r['時段'] + '：整期升級改訂 ' + r['份量'] + ' ' + r['主菜'] + '，退差額' });
+        upd['扣款狀態'] = '已扣款';
+      } else if (due > 0) {
         const wal = walletOf(await c.db.all('錢包紀錄', { 會員ID: r['會員ID'] }));
         if (wal.total >= due) {
           await ledgerAdd(c, r['會員ID'], '升級加購扣款', -due, { 對應ID: r['預約ID'], 經手人員: '系統', 備註: r['日期'] + ' ' + r['時段'] + '：' + r['份量'] + ' ' + r['主菜'] + (r['加購項目'] ? '＋加購' : '') });
           upd['扣款狀態'] = '已扣款';
         } else {
-          Object.assign(upd, { 份量: base['份量'], 主菜: base['主菜'], 品項ID: base['品項ID'], 單點原價: num(base['單點價'], 0), 升級差額: 0, 加購金額: 0, 加購項目: '', 扣款狀態: '餘額不足改回基本餐', 備註: (r['備註'] ? r['備註'] + '；' : '') + '截單時錢包不足 ' + due + ' 元，改回基本餐' });
+          const up = await subUpg(c, await c.db.first('訂閱', { 訂閱ID: r['訂閱ID'] })), b = up.item || base;
+          Object.assign(upd, { 份量: b['份量'], 主菜: b['主菜'], 品項ID: b['品項ID'], 單點原價: num(b['單點價'], 0), 升級差額: 0, 加購金額: 0, 加購項目: '', 扣款狀態: '餘額不足改回基本餐', 備註: (r['備註'] ? r['備註'] + '；' : '') + '截單時錢包不足 ' + due + ' 元，改回基本餐' });
         }
       } else upd['扣款狀態'] = '已扣款';
     }
@@ -74,6 +78,8 @@ export async function settlePreview(c, sub) {
   return { subId: sub['訂閱ID'], paid, usedN: used.n, used: used.value, detail: Object.keys(by).map((k) => ({ item: k.split('|')[0], price: Number(k.split('|')[1]), n: by[k] })), open, amount: Math.max(0, paid - used.value) };
 }
 async function settle(c, sub, status, method, by, reason) {
+  const up = await subUpg(c, sub), openN = (await c.db.all('預約', { 訂閱ID: sub['訂閱ID'] })).filter((x) => x['狀態'] === '已預約').length, unused = (Number(sub['剩餘餐數']) || 0) + openN;
+  if (up.value > 0 && unused > 0) await ledgerAdd(c, sub['會員ID'], '退款轉入', up.value * unused, { 可退現金: true, 對應ID: sub['訂閱ID'], 經手人員: by, 備註: '方案' + status + '：整期升級未用 ' + unused + ' 餐退回' });
   for (const r of (await c.db.all('預約', { 訂閱ID: sub['訂閱ID'] })).filter((x) => x['狀態'] === '已預約')) await c.db.update('預約', r._row, { 狀態: '已取消', 修改時間: nowStamp(), 備註: (r['備註'] ? r['備註'] + '；' : '') + '方案' + status + '，自動取消' });
   const pv = await settlePreview(c, sub);
   await c.db.update('訂閱', sub._row, { 狀態: status, 剩餘餐數: 0, 結算金額: pv.amount, 結算方式: method, 備註: (sub['備註'] ? sub['備註'] + '；' : '') + status + '結算：實付 ' + pv.paid + ' − 已用 ' + pv.used + '（' + pv.usedN + ' 餐）＝ ' + pv.amount + (reason ? '（' + reason + '）' : '') + ' by ' + by });
@@ -105,7 +111,7 @@ async function orderInfo(c, m) {
   return {
     member: { id: m['會員ID'], name: m['姓名'] },
     wallet: walletOf(await c.db.all('錢包紀錄', { 會員ID: m['會員ID'] })),
-    sub: sub ? { id: sub['訂閱ID'], left: sub['剩餘餐數'], meals: sub['方案餐數'], start: sub['開始日'], end: sub['到期日'], status: sub['狀態'] } : null,
+    sub: sub ? Object.assign({ id: sub['訂閱ID'], left: sub['剩餘餐數'], meals: sub['方案餐數'], start: sub['開始日'], end: sub['到期日'], status: sub['狀態'], pauseStart: String(sub['暫停起日'] || ''), pauseEnd: String(sub['暫停迄日'] || ''), upgSize: sub['整期升級份量'], upgMain: sub['整期升級主菜'] }, { upgValue: (await subUpg(c, sub)).value }) : null,
     cutoff: R.cut, days,
     items: items.map((i) => ({ id: i['品項ID'], size: i['份量'], main: i['主菜'], mainDesc: i['主菜內容'], name: i['品名'], desc: i['介紹'], kcal: num(i['熱量'], 0), protein: num(i['蛋白質'], 0), carb: num(i['碳水'], 0), fat: num(i['脂肪'], 0), price: num(i['單點價'], 0), upg: num(i['訂閱加價'], 0), image: imgUrl(i['圖片網址']) })),
     sauces: addons.filter((a) => a['類型'] === '醬汁' && (a['名稱'] !== '松露醬' || isTrue(st['松露醬開放']))).map((a) => ({ id: a['品項ID'], name: a['名稱'], price: isTrue(a['免費']) ? 0 : num(a['加購價'], 0) })),
@@ -147,8 +153,10 @@ async function createOrder(c, m, p, by) {
     if (!sub || sub['狀態'] !== '使用中') throw new UserError('沒有使用中的方案，可以改用單點');
     if (date < String(sub['開始日']) || date > String(sub['到期日'])) throw new UserError('這天不在方案期間（' + sub['開始日'] + '～' + sub['到期日'] + '）');
     if (num(sub['剩餘餐數'], 0) < 1) throw new UserError('方案的餐數已經用完，可以改用單點');
+    if (sub['暫停起日'] && date >= String(sub['暫停起日']) && date <= String(sub['暫停迄日'])) throw new UserError('這天在暫停期間（' + sub['暫停起日'] + '～' + sub['暫停迄日'] + '）');
     if ((await c.db.all('預約', { 會員ID: m['會員ID'], 日期: date, 時段: slot, 類別: '訂閱' })).some((r) => r['狀態'] !== '已取消')) throw new UserError('這個時段已經用方案訂過一份了（要多訂請用單點）');
-    Object.assign(row, { 訂閱ID: sub['訂閱ID'], 升級差額: num(it['訂閱加價'], 0), 加購金額: addonUnit, 扣款狀態: '未扣款' });
+    const up = await subUpg(c, sub);
+    Object.assign(row, { 訂閱ID: sub['訂閱ID'], 升級差額: num(it['訂閱加價'], 0) - up.value, 加購金額: addonUnit, 扣款狀態: '未扣款' });
     await c.db.insert('預約', row);
     await c.env.DB.prepare('UPDATE subscriptions SET remaining = remaining - 1 WHERE sub_id = ? AND remaining > 0').bind(sub['訂閱ID']).run();
   } else {
@@ -198,11 +206,54 @@ async function checkReferral(c, memberId, R) {
   await c.db.update('推薦紀錄', ref._row, upd);
 }
 
+/* ---------- 暫停、整期升級 ---------- */
+async function pausePlan(c, m, p, by) {
+  await runCutoff(c);
+  const st = await settings(c), R = rules(st), sub = currentSub(await c.db.all('訂閱', { 會員ID: m['會員ID'] }));
+  if (!sub || sub['狀態'] !== '使用中') throw new UserError('沒有使用中的方案');
+  if (num(sub['剩餘餐數'], 0) < 1) throw new UserError('方案已經沒有剩餘餐數');
+  if (sub['暫停起日']) throw new UserError('這一期已經暫停過（' + sub['暫停起日'] + '～' + sub['暫停迄日'] + '）');
+  const start = clean(p.start, 10), days = Math.floor(num(p.days, 0)), max = num(st['暫停最多天數'], 7);
+  if (!isDate(start)) throw new UserError('請選擇暫停開始日');
+  if (start <= R.lockDate) throw new UserError('最早只能從 ' + addDays(R.lockDate, 1) + ' 開始暫停');
+  if (start > String(sub['到期日'])) throw new UserError('開始日超過方案到期日');
+  if (!(days >= 1 && days <= max)) throw new UserError('暫停天數請選 1～' + max + ' 天');
+  const end = addDays(start, days - 1), newEnd = addDays(String(sub['到期日']), days);
+  let n = 0;
+  for (const r of (await c.db.all('預約', { 訂閱ID: sub['訂閱ID'] })).filter((x) => x['狀態'] === '已預約' && String(x['日期']) >= start && String(x['日期']) <= end)) {
+    await c.db.update('預約', r._row, { 狀態: '已取消', 修改時間: nowStamp(), 備註: (r['備註'] ? r['備註'] + '；' : '') + '方案暫停，自動取消' });
+    await giveBack(c, r, '方案暫停', by); n++;
+  }
+  await c.db.update('訂閱', sub._row, { 暫停起日: start, 暫停迄日: end, 到期日: newEnd, 備註: (sub['備註'] ? sub['備註'] + '；' : '') + '暫停 ' + start + '～' + end + '（' + days + ' 天）by ' + by });
+  return { ok: true, start, end, newEnd, canceled: n };
+}
+async function upgradePlan(c, m, p, by) {
+  await runCutoff(c);
+  const sub = currentSub(await c.db.all('訂閱', { 會員ID: m['會員ID'] }));
+  if (!sub || sub['狀態'] !== '使用中') throw new UserError('沒有使用中的方案');
+  const it = (await c.db.all('健康餐品項', { 份量: clean(p.size, 20), 主菜: clean(p.main, 20) })).filter((x) => isTrue(x['顯示']))[0];
+  if (!it) throw new UserError('請選擇要升級的組合');
+  const cur = await subUpg(c, sub), val = num(it['訂閱加價'], 0), diff = val - cur.value;
+  if (diff <= 0) throw new UserError(cur.value ? '只能升級到比目前（' + sub['整期升級份量'] + ' ' + sub['整期升級主菜'] + '）更高的組合' : '請選擇需要加價的組合');
+  const open = (await c.db.all('預約', { 訂閱ID: sub['訂閱ID'] })).filter((x) => x['狀態'] === '已預約' && x['類別'] === '訂閱');
+  const n = num(sub['剩餘餐數'], 0) + open.length, total = diff * n;
+  if (n < 1) throw new UserError('沒有可以升級的餐');
+  if (p.preview) return { diff, n, total, left: num(sub['剩餘餐數'], 0), open: open.length };
+  const wal = walletOf(await c.db.all('錢包紀錄', { 會員ID: m['會員ID'] }));
+  if (wal.total < total) throw new UserError('錢包餘額不足：需要 ' + total.toLocaleString() + ' 元，目前 ' + wal.total.toLocaleString() + ' 元');
+  await ledgerAdd(c, m['會員ID'], '升級扣款', -total, { 對應ID: sub['訂閱ID'], 經手人員: by, 備註: '整期升級 ' + it['份量'] + ' ' + it['主菜'] + '：' + diff + ' × ' + n + ' 餐' });
+  await c.db.update('訂閱', sub._row, { 整期升級份量: it['份量'], 整期升級主菜: it['主菜'], 備註: (sub['備註'] ? sub['備註'] + '；' : '') + '整期升級 ' + it['份量'] + ' ' + it['主菜'] + ' by ' + by });
+  for (const r of open) await c.db.update('預約', r._row, { 升級差額: num(r['升級差額'], 0) - diff });
+  return { ok: true, diff, n, total };
+}
+
 /* ---------- 前台（會員，用 cookie） ---------- */
 export const orderMemberApi = {
   orderInfo: (c, m) => orderInfo(c, m),
   orderCreate: (c, m, p) => createOrder(c, m, p, '會員'),
-  orderCancel: (c, m, p) => cancelOrder(c, m, p.resId, '會員')
+  orderCancel: (c, m, p) => cancelOrder(c, m, p.resId, '會員'),
+  planPause: (c, m, p) => pausePlan(c, m, p, '會員'),
+  planUpgrade: (c, m, p) => upgradePlan(c, m, p, '會員')
 };
 
 /* ---------- 後台 ---------- */
