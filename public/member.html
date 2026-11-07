@@ -33,6 +33,21 @@
 .mb-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:24px}
 @media(max-width:760px){.mb-wrap{padding:28px 14px}.mb-two,.mb-grid{grid-template-columns:1fr;gap:20px}.mb-kp{grid-template-columns:1fr 1fr}.mb-h{font-size:24px}.mb-card{padding:20px}}
 .pl3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0 14px}.pl3 button{border:1px solid var(--line);background:#fff;padding:14px;text-align:center;font:inherit;font-size:13px;cursor:pointer;color:var(--ink)}.pl3 button.on{outline:2px solid var(--gold);outline-offset:-2px}.pl3 b{display:block;font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:500}@media(max-width:760px){.pl3{grid-template-columns:1fr}}
+.mm{display:grid;grid-template-columns:360px 1fr;gap:32px;align-items:start}
+.mm-l{position:sticky;top:16px;display:flex;flex-direction:column;gap:14px}
+.mm-card{background:var(--dark);color:#EFE8DA;padding:20px 22px;border:1px solid var(--gold)}
+.mm-id{font-size:11px;letter-spacing:.14em;opacity:.7}.mm-nm{font-family:'Noto Serif TC',serif;font-size:24px;letter-spacing:.12em;margin-top:2px}
+.mm-g{display:grid;grid-template-columns:1fr 1fr;margin-top:14px;border-top:1px solid rgba(217,180,119,.4)}.mm-g div{padding:12px 0 2px;font-size:11px;letter-spacing:.14em;opacity:.85}.mm-g b{display:block;font-family:'Cormorant Garamond','Noto Serif TC',serif;font-size:26px;font-weight:500;color:#D9B477;letter-spacing:0;margin-top:2px}
+.mm-go{display:block;text-align:center;background:var(--gold);color:#fff;padding:15px;letter-spacing:.3em;font-size:15px}
+.mm-tabs{display:flex;border-bottom:1px solid var(--line);margin-bottom:14px;overflow-x:auto}.mm-tabs button{flex:1;min-width:64px;background:transparent;border:0;border-bottom:2px solid transparent;padding:12px 4px;font:inherit;font-size:14px;color:var(--mute);cursor:pointer}.mm-tabs button.on{color:var(--ink);border-bottom-color:var(--gold);font-weight:500}
+.mm-it{background:var(--card);border:1px solid var(--line);padding:14px 16px;margin-bottom:10px}.mm-ith{display:flex;justify-content:space-between;gap:10px;font-size:15px}.mm-ith a{color:var(--gold);text-decoration:underline;margin-left:12px;font-size:13px}.mm-ith em{font-style:normal;font-size:12px;color:var(--gold);border:1px solid var(--gold);padding:1px 8px}
+.mm-its{font-size:12px;color:var(--mute);margin:2px 0 6px}.mm-itl{font-size:14px;padding:4px 0;border-top:1px dashed var(--line);display:flex;justify-content:space-between;gap:8px}.mm-itl span{font-size:12px;color:var(--mute);text-align:right}
+.mm-more{display:block;width:100%;background:transparent;border:1px solid var(--gold);color:var(--gold);padding:11px;font:inherit;font-size:14px;cursor:pointer;margin-top:6px}
+.mm-sec{font-size:12px;letter-spacing:.18em;color:var(--gold);margin:4px 0 6px}
+.mm-acc{border:1px solid var(--line);background:var(--card);margin-bottom:8px}.mm-acc.on{border-color:var(--gold)}.mm-acch{display:flex;justify-content:space-between;align-items:center;width:100%;background:transparent;border:0;padding:14px 16px;font:inherit;font-size:15px;text-align:left;cursor:pointer;color:var(--ink)}.mm-acch small{display:block;font-size:12px;color:var(--mute)}.mm-acch i{font-style:normal;color:var(--gold)}.mm-accb{padding:0 16px 16px}
+.mm-code{font-family:'Cormorant Garamond',serif;font-size:46px;letter-spacing:.24em;margin:6px 0 12px}
+.mm-del{margin-top:28px;text-align:center;font-size:12px;color:var(--mute)}.mm-del a{color:#9a3b2b;text-decoration:underline;font-size:13px}.mm-del small{display:block;margin-top:4px}
+@media(max-width:860px){.mm{grid-template-columns:1fr;gap:16px}.mm-l{position:static}.mm-tabs button{font-size:13px}}
 .mb-ld{font-size:14px;color:var(--mute);padding:40px 0}
 .mb-terms{font-size:13px;line-height:2;color:var(--mute);border:1px solid var(--line);background:#fff;padding:14px 18px;margin:10px 0;max-height:240px;overflow:auto}
 </style>
@@ -66,32 +81,86 @@ function vRegister() {
     '<label class="mb-ck"><input type="checkbox" id="r-t1"> 我同意會員條款</label><label class="mb-ck"><input type="checkbox" id="r-t2"> 我同意隱私權政策</label>' +
     '<div id="r-msg"></div><div style="margin-top:18px"><button class="hb-btn g" style="display:block;width:100%" id="r-go">完成註冊</button></div></div></div>';
 }
-function vCenter() {
-  var w = ME.wallet, s = ME.sub;
-  var note = ME.pending ? '<div class="mb-note"><b>資料合併審核中</b>：這支手機在門市已有會員資料（錢包、方案）。店員確認是本人後會合併，合併前錢包與方案暫時顯示為 0。若急需使用，請到門市或傳 LINE 給我們。</div>'
-    : ME.needPhone ? '<div class="mb-note"><b>請補填手機</b>：店員確認您和門市的另一位會員不是同一人，請在「修改資料」填寫您自己的手機。</div>' : '';
+var TAB = 'meals', OPEN = '', PAST = false, ALLLED = false;
+function pendNote() {
+  if (!PI || !PI.pending) return '';
+  var q = PI.pending;
+  return '<div class="mb-note"><b>' + (q.kind === '退款' ? '退款處理中' : '付款確認中') + '</b>：' + E(q.at.slice(5)) + ' 送出「' + (q.kind === '退款' ? '退款 ' + money(q.amount) : q.kind === '儲值並購買' ? '儲值 ' + money(q.amount) + ' 並購買 ' + q.meals + ' 餐' : '儲值 ' + money(q.amount)) + '」（' + E(q.method) + (q.last5 ? ' 末五碼 ' + E(q.last5) : '') + '）。<a href="#" data-pcx style="float:right;text-decoration:underline">取消申請</a><br><small>' + E(q.kind === '退款' ? (q.method === '門市領現' ? '請到門市領取' : '店員會轉到你填的帳號') : (PI.howto[q.method] || '')) + '</small></div>';
+}
+function acc(key, title, sub, body) {
+  var on = OPEN === key;
+  return '<div class="mm-acc' + (on ? ' on' : '') + '"><button type="button" class="mm-acch" data-open="' + key + '"><span>' + title + (sub ? '<small>' + sub + '</small>' : '') + '</span><i>' + (on ? '－' : '＞') + '</i></button>' + (on ? '<div class="mm-accb">' + body + '</div>' : '') + '</div>';
+}
+function mdw(d) { var t = new Date(d + 'T00:00:00Z'); return Number(d.slice(5, 7)) + '/' + Number(d.slice(8)) + '（' + '日一二三四五六'.charAt(t.getUTCDay()) + '）'; }
+function vMeals() {
+  if (ME.pending) return '<p class="mb-p">資料合併完成後才能訂餐。</p>';
+  if (MINE === null) return '<p class="mb-p">載入中…</p>';
+  var today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
+  var list = MINE.filter(function (r) { return PAST ? r.date < today : r.date >= today; });
+  var groups = [], seen = {};
+  list.forEach(function (r) { var k = r.orderId || r.id; if (!seen[k]) { seen[k] = { key: k, rows: [] }; groups.push(seen[k]); } seen[k].rows.push(r); });
+  var h = groups.length ? groups.map(function (g) {
+    var r = g.rows[0], open = g.rows.every(function (x) { return x.status === '已預約'; });
+    var where = r.pickup === '配送' ? '送到配送點' : r.pickup === '地址' ? '送到我的地址' : '門市自取';
+    return '<div class="mm-it"><div class="mm-ith"><b>' + mdw(r.date) + ' ' + E(r.slot) + '</b><span>' + (open ? '<a href="order.html?change=' + encodeURIComponent(r.orderId || r.id) + '&item=' + encodeURIComponent(r.itemId) + '">改期</a><a href="#" ' + (r.orderId ? 'data-cxo="' + E(r.orderId) + '"' : 'data-cx="' + E(r.id) + '"') + '>取消</a>' : '<em>' + E(r.status) + '</em>') + '</span></div>' +
+      '<div class="mm-its">' + where + '</div>' + g.rows.map(function (x) { return '<div class="mm-itl">' + E(x.size + ' ' + x.main) + (x.qty > 1 ? ' ×' + x.qty : '') + '・' + E(x.sauce) + '<span>' + (x.kind === '訂閱' ? '方案' : '單點') + (x.charge === '餘額不足改回基本餐' ? '・錢包不足已改回基本餐' : '') + (/配送改自取/.test(x.note || '') ? '・未達門檻改自取' : '') + '</span></div>'; }).join('') + '</div>';
+  }).join('') : '<p class="mb-p" style="margin:6px 0 14px">' + (PAST ? '還沒有過去的餐點。' : '還沒有預約，按上方「＋ 訂餐」開始。') + '</p>';
+  return h + '<button type="button" class="mm-more" data-past>' + (PAST ? '看即將取餐' : '看過去的餐點') + '</button>';
+}
+function vPlanTab() {
+  var s = ME.sub, m = vManage();
+  if (ME.pending) return '<p class="mb-p">資料合併完成後顯示。</p>';
+  var h = s ? '<div class="mm-sec">目前方案</div><div class="mb-row"><span>' + s.meals + ' 餐方案（' + E(s.status) + '）</span><span>剩 ' + s.left + ' 餐</span></div><div class="mb-row"><span>期間</span><span>' + E(s.start) + ' ～ ' + E(s.end) + '</span></div>' +
+      (OI && OI.sub && OI.sub.upgSize ? '<div class="mb-row"><span>整期升級</span><span>' + E(OI.sub.upgSize + ' ' + OI.sub.upgMain) + '（每餐 +' + OI.sub.upgValue + '）</span></div>' : '') +
+      (OI && OI.sub && OI.sub.pauseStart ? '<div class="mb-row"><span>本期暫停</span><span>' + E(OI.sub.pauseStart.slice(5) + ' ～ ' + OI.sub.pauseEnd.slice(5)) + '</span></div>' : '') +
+      '<p class="mb-p" style="font-size:12px;margin:8px 0 0">到期前續訂，剩下的餐併入下一期；沒有續訂，已用的餐以單點價計算後，餘額轉入錢包（可申請退現金）。</p><div class="mm-sec" style="margin-top:18px">操作</div>'
+    : '<p class="mb-p" style="margin:0 0 12px">目前沒有方案。沒有方案也可以用錢包單點。</p>';
+  PS.mode = 'buy';
+  h += acc('buy', s ? '續訂方案' : '選擇方案', s ? '剩下的餐會併入下一期' : '8／12／20 餐', PI ? vPlan() : '載入中…');
+  if (m) { h += acc('pause', '暫停方案', OI.sub.pauseStart ? '本期已暫停過' : '本期可用 1 次', m.pause); h += acc('upg', '整期升級', OI.sub.upgSize ? '已升級 ' + OI.sub.upgSize + ' ' + OI.sub.upgMain : '一次升級剩下的餐', m.upg); }
+  return h;
+}
+function vWalletTab() {
+  var w = ME.wallet;
+  if (ME.pending) return '<p class="mb-p">資料合併完成後顯示。</p>';
+  var led = ALLLED ? ME.ledger : ME.ledger.slice(0, 5);
+  return '<div class="mb-row"><span>總餘額</span><span><b>' + money(w.total) + '</b></span></div><div class="mb-row"><span>可退現金</span><span>' + money(w.cash) + '</span></div><div class="mb-row"><span>紅利（只能消費，不能退現金）</span><span>' + money(w.bonus) + '</span></div><div style="height:12px"></div>' +
+    acc('topup', '儲值', '轉帳、LINE Pay 或到門市付現', PI ? (function () { PS.mode = 'topup'; var x = vPlan(); PS.mode = 'buy'; return x; })() : '載入中…') +
+    acc('refund', '申請退款', '退回可退現金', vRefund()) +
+    '<div class="mm-sec" style="margin-top:18px">' + (ALLLED ? '全部紀錄' : '最近紀錄') + '</div>' + (led.length ? led.map(function (r) { return '<div class="mb-row"><span>' + E(r.at.slice(5, 10).replace('-', '/')) + '　' + E(r.type) + '</span><span>' + (r.amount >= 0 ? '+' : '−') + Math.abs(r.amount).toLocaleString('en-US') + (r.amount > 0 && !r.refundable ? ' <span class="mb-tag">紅利</span>' : '') + '</span></div>'; }).join('') : '<div class="mb-row"><span>還沒有紀錄</span><span></span></div>') +
+    (ME.ledger.length > 5 ? '<button type="button" class="mm-more" data-allled>' + (ALLLED ? '只看最近' : '看全部紀錄') + '</button>' : '');
+}
+function vRefTab() {
+  if (ME.pending) return '<p class="mb-p">資料合併完成後顯示。</p>';
+  return '<div style="text-align:center;padding:10px 0 4px"><div class="mm-sec">我的推薦碼</div><div class="mm-code">' + E(ME.code) + '</div><button class="hb-btn g" style="display:block;width:100%" id="cp">複製推薦碼</button></div>' +
+    '<div class="mm-sec" style="margin-top:20px">怎麼拿紅利</div><div class="mb-row"><span>朋友第一次訂閱時填你的推薦碼</span><span>朋友得紅利</span></div><div class="mb-row"><span>朋友取餐滿 ' + ME.referrerMeals + ' 餐</span><span>你得 ' + money(ME.referrerBonus) + ' 紅利</span></div>' +
+    '<p class="mb-p" style="font-size:12px;margin:8px 0 0">紅利只能用來消費（升級、加購、單點），不能退現金。</p>';
+}
+function vAccTab() {
   var prof = EDIT ? '<div class="mb-f"><label>姓名</label><input id="e-name" value="' + E(ME.name) + '"></div><div class="mb-f"><label>Email（選填）</label><input id="e-email" type="email" value="' + E(ME.email) + '"></div>' +
       (ME.needPhone ? '<div class="mb-f"><label>手機</label><input id="e-phone" inputmode="tel"></div>' : '<p class="mb-p" style="font-size:12px;margin:0 0 10px">手機修改請洽門市。</p>') +
       '<div id="e-msg"></div><div style="display:flex;gap:10px"><button class="hb-btn g" id="e-go" style="flex:1">儲存</button><button class="hb-btn" id="e-x" style="flex:1">取消</button></div>'
-    : '<div class="mb-row"><span>手機</span><span>' + (ME.phone ? E(ME.phone) + (ME.phoneOk ? '' : ' <span class="mb-tag">待核對</span>') : '—') + '</span></div><div class="mb-row"><span>Email</span><span>' + (E(ME.email) || '—') + '</span></div><div style="margin-top:14px"><button class="hb-btn" style="display:block;width:100%" id="e-open">修改資料</button></div>';
-  return err() + '<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px"><div><div class="hb-en">My page</div><div class="mb-h" style="margin-bottom:0">' + E(ME.name) + '</div></div><div class="mb-p" style="margin:0">' + E(ME.id) + '・LINE 已綁定・<a href="/api/line/logout" style="text-decoration:underline">登出</a></div></div>' + note +
-    '<div class="mb-kp"><div>錢包總餘額<b>' + money(w.total) + '</b></div><div>可退現金<b>' + money(w.cash) + '</b></div><div>紅利<b>' + money(w.bonus) + '</b></div><div>本期剩餘<b>' + (s ? s.left + '/' + s.meals : '—') + '</b></div></div>' +
-    vPlan() + vManage() + (ME.pending ? '' : '<div class="mb-card" style="margin-bottom:24px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div class="hb-cap" style="margin:0">即將取餐</div><a class="hb-btn g" href="order.html">＋ 訂餐</a></div>' +
-      (MINE === null ? '<p class="mb-p">載入中…</p>' : MINE.length ? MINE.map(function (r) { var md = r.date.slice(5).replace('-', '/'); return '<div class="mb-row"><span>' + md + ' ' + E(r.slot) + '・' + E(r.size + ' ' + r.main) + (r.qty > 1 ? ' ×' + r.qty : '') + '<br><small style="color:var(--mute)">' + E(r.kind) + '・' + (r.pickup === '配送' ? '配送點' : r.pickup === '地址' ? '送到地址' : '自取') + '・' + E(r.sauce) + (r.charge === '餘額不足改回基本餐' ? '・錢包不足已改回基本餐' : '') + '</small></span><span>' + (r.status === '已預約' ? '<a href="order.html?change=' + encodeURIComponent(r.orderId || r.id) + '&item=' + encodeURIComponent(r.itemId) + '" style="text-decoration:underline">改期</a>　<a href="#" data-cx="' + E(r.id) + '" style="text-decoration:underline">取消</a>' : '<span class="mb-tag">' + E(r.status) + '</span>') + '</span></div>'; }).join('') : '<p class="mb-p" style="margin:10px 0 0">還沒有預約。</p>') + '</div>') +
-    '<div class="mb-grid"><div class="mb-card"><div class="hb-cap">我的方案</div>' +
-    (s ? '<div class="mb-row"><span>目前方案</span><span>' + s.meals + ' 餐（' + E(s.status) + '）</span></div><div class="mb-row"><span>期間</span><span>' + E(s.start) + ' ～ ' + E(s.end) + '</span></div><div class="mb-row"><span>剩餘</span><span>' + s.left + ' 餐</span></div>'
-       : '<div class="mb-row"><span>目前方案</span><span>尚無</span></div><div class="mb-row"><span>購買方式</span><span>在上方「訂閱方案」購買</span></div>') +
-    '<div class="hb-cap" style="margin-top:22px">錢包紀錄</div>' + (ME.ledger.length ? ME.ledger.map(function (r) { return '<div class="mb-row"><span>' + E(r.at.slice(5)) + '　' + E(r.type) + '</span><span>' + (r.amount >= 0 ? '+' : '−') + Math.abs(r.amount).toLocaleString('en-US') + (r.amount > 0 && !r.refundable ? ' <span class="mb-tag">紅利</span>' : '') + '</span></div>'; }).join('') : '<div class="mb-row"><span>還沒有紀錄</span><span></span></div>') + '</div>' +
-    '<div class="mb-card"><div class="hb-cap">我的推薦碼</div>' + (ME.pending ? '<p class="mb-p">合併完成後顯示。</p>' :
-      '<div style="font-family:\'Cormorant Garamond\',serif;font-size:40px;letter-spacing:.2em;margin:10px 0">' + E(ME.code) + '</div><button class="hb-btn" style="display:block;width:100%" id="cp">複製推薦碼</button>' +
-      '<p class="mb-p" style="margin:14px 0 0;font-size:13px">朋友第一次訂閱時使用，朋友得紅利；朋友取餐滿 ' + ME.referrerMeals + ' 餐，您得紅利 ' + ME.referrerBonus + ' 元。紅利只能消費，不能退現金。</p>') +
-    '<div class="hb-cap" style="margin-top:20px">個人資料</div>' + prof + '</div></div>' + vAccount();
+    : '<div class="mb-row"><span>姓名</span><span>' + E(ME.name) + '</span></div><div class="mb-row"><span>會員編號</span><span>' + E(ME.id) + '</span></div><div class="mb-row"><span>手機</span><span>' + (ME.phone ? E(ME.phone) + (ME.phoneOk ? '' : ' <span class="mb-tag">待核對</span>') : '—') + '</span></div><div class="mb-row"><span>Email</span><span>' + (E(ME.email) || '—') + '</span></div><div class="mb-row"><span>LINE</span><span>已綁定</span></div><button class="hb-btn" style="display:block;width:100%;margin-top:14px" id="e-open">修改資料</button>';
+  return prof + '<div style="height:14px"></div>' + acc('terms', '會員條款與隱私權政策', '草稿，待法律確認', TERMS) +
+    '<a class="hb-btn" style="display:block;text-align:center;margin-top:14px" href="/api/line/logout">登出</a>' +
+    (ME.pending ? '' : '<div class="mm-del"><a href="#" data-del>刪除我的帳號</a><small>還有方案、錢包餘額、未取的餐或處理中的申請時不能刪除。</small><div id="del-msg"></div></div>');
 }
-
+function vCenter() {
+  var w = ME.wallet, s = ME.sub, today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
+  var note = ME.pending ? '<div class="mb-note"><b>資料合併審核中</b>：這支手機在門市已有會員資料（錢包、方案）。店員確認是本人後會合併，合併前錢包與方案暫時顯示為 0。</div>'
+    : ME.needPhone ? '<div class="mb-note"><b>請補填手機</b>：店員確認你和門市的另一位會員不是同一人，請到「帳號」填寫你自己的手機。</div>' : '';
+  var tabs = [['meals', '我的餐點'], ['plan', '方案'], ['wallet', '錢包'], ['ref', '推薦'], ['acc', '帳號']];
+  var body = TAB === 'plan' ? vPlanTab() : TAB === 'wallet' ? vWalletTab() : TAB === 'ref' ? vRefTab() : TAB === 'acc' ? vAccTab() : vMeals();
+  return err() + '<div class="mm"><div class="mm-l"><div class="mm-card"><div class="mm-id">' + E(ME.id) + '</div><div class="mm-nm">' + E(ME.name) + '</div>' +
+    '<div class="mm-g"><div>本期剩餘<b>' + (s ? s.left + ' / ' + s.meals + ' 餐' : '—') + '</b></div><div>錢包<b>' + money(w.total) + '</b></div><div>到期日<b>' + (s ? E(s.end.slice(5).replace('-', '/')) : '—') + '</b></div><div>紅利<b>' + money(w.bonus) + '</b></div></div></div>' +
+    (ME.pending ? '' : '<a class="mm-go" href="order.html">＋ 訂餐</a>') + note + pendNote() + '</div>' +
+    '<div class="mm-r"><div class="mm-tabs">' + tabs.map(function (t) { return '<button type="button" data-tab="' + t[0] + '" class="' + (TAB === t[0] ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</div><div class="mm-body">' + body + '</div></div></div>';
+}
 function vPlan() {
   if (!PI || ME.pending) return '';
   var w = PI.wallet, plan = PI.plans.filter(function (p) { return p.meals === PS.meals; })[0] || PI.plans[0], ch = function (on) { return 'style="padding:8px 14px;border:1px solid ' + (on ? 'var(--gold);background:var(--gold);color:#fff' : 'var(--line);background:#fff') + ';font:inherit;font-size:13px;cursor:pointer"'; };
-  if (PI.pending) { var q = PI.pending; return '<div class="mb-note"><b>' + (q.kind === '退款' ? '退款處理中' : '付款確認中') + '</b>：' + E(q.at.slice(5)) + ' 送出「' + (q.kind === '退款' ? '退款 ' + money(q.amount) : q.kind === '儲值並購買' ? '儲值 ' + money(q.amount) + ' 並購買 ' + q.meals + ' 餐' : '儲值 ' + money(q.amount)) + '」（' + E(q.method) + (q.last5 ? ' 末五碼 ' + E(q.last5) : '') + '）。店員確認後' + (q.kind === '儲值並購買' ? '開通方案' : q.kind === '退款' ? '退款' : '入帳') + '。<a href="#" data-pcx style="float:right;text-decoration:underline">取消申請</a><br><small>' + E(q.kind === '退款' ? (q.method === '門市領現' ? '請到門市領取' : '店員會轉到你填的帳號') : (PI.howto[q.method] || '')) + '</small></div>'; }
+  if (PI.pending) return '<p class="mb-p">有一筆申請處理中（見上方提示），處理完才能再送出。</p>';
+  if (false) { var q = PI.pending; return '<div class="mb-note"><b>' + (q.kind === '退款' ? '退款處理中' : '付款確認中') + '</b>：' + E(q.at.slice(5)) + ' 送出「' + (q.kind === '退款' ? '退款 ' + money(q.amount) : q.kind === '儲值並購買' ? '儲值 ' + money(q.amount) + ' 並購買 ' + q.meals + ' 餐' : '儲值 ' + money(q.amount)) + '」（' + E(q.method) + (q.last5 ? ' 末五碼 ' + E(q.last5) : '') + '）。店員確認後' + (q.kind === '儲值並購買' ? '開通方案' : q.kind === '退款' ? '退款' : '入帳') + '。<a href="#" data-pcx style="float:right;text-decoration:underline">取消申請</a><br><small>' + E(q.kind === '退款' ? (q.method === '門市領現' ? '請到門市領取' : '店員會轉到你填的帳號') : (PI.howto[q.method] || '')) + '</small></div>'; }
   if (!plan) return '';
   var need = plan.total - w.total, renew = !!PI.sub, howto = PI.howto[PS.method] || '';
   var pay = '<div class="hb-cap" style="margin-top:16px">付款方式</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px">' + ['轉帳', 'LINE Pay', '門市付現'].map(function (m) { return '<button type="button" data-pm="' + m + '" ' + ch(PS.method === m) + '>' + (m === '門市付現' ? '到門市付現' : m) + '</button>'; }).join('') + '</div>' +
@@ -104,12 +173,11 @@ function vPlan() {
       (need <= 0 ? '<button class="hb-btn g" style="display:block;width:100%;margin-top:14px" data-pbuy>用錢包' + (renew ? '續訂' : '購買') + '</button>'
         : '<div class="mb-row"><span>還需要付</span><span><b>' + money(need) + '</b></span></div>' + pay + '<button class="hb-btn g" style="display:block;width:100%" data-preq>送出：儲值 ' + money(need) + ' 並' + (renew ? '續訂 ' : '購買 ') + plan.meals + ' 餐</button>')
     : '<div class="hb-cap" style="margin-top:6px">儲值金額</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px">' + PI.topup.map(function (a) { return '<button type="button" data-pa="' + a + '" ' + ch(PS.amt === a) + '>' + money(a) + '</button>'; }).join('') + '</div>' + pay + '<button class="hb-btn g" style="display:block;width:100%" data-preq>送出：儲值 ' + money(PS.amt) + '</button>';
-  return '<div class="mb-card" style="margin-bottom:24px"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px"><div class="hb-cap" style="margin:0">' + (renew ? '續訂方案' : '訂閱方案') + '</div><div>' + '<a href="#" data-pmode="buy" style="margin-right:12px;' + (PS.mode === 'buy' ? 'color:var(--gold);text-decoration:underline' : '') + '">' + (renew ? '續訂' : '買方案') + '</a><a href="#" data-pmode="topup" style="' + (PS.mode === 'topup' ? 'color:var(--gold);text-decoration:underline' : '') + '">只儲值</a></div></div>' +
-    '<p class="mb-p" style="margin:6px 0 0;font-size:13px">一期 ' + PI.days + ' 天，前一天 20:00 前預約；錢包不夠時先付款，店員確認收款後自動開通。</p>' + body + '<div id="p-msg"></div></div>';
+  return (PS.mode === 'buy' ? '<p class="mb-p" style="margin:0;font-size:13px">一期 ' + PI.days + ' 天，前一天 20:00 前預約；錢包不夠時先付款，店員確認收款後自動開通。</p>' : '<p class="mb-p" style="margin:0;font-size:13px">儲值後可以買方案、單點、升級與加購。店員確認收款後入帳。</p>') + body + '<div id="p-msg"></div>';
 }
 
 function vManage() {
-  if (!OI || !OI.sub || OI.sub.status !== '使用中' || ME.pending) return '';
+  if (!OI || !OI.sub || OI.sub.status !== '使用中' || ME.pending) return null;
   var s = OI.sub, ch = function (on) { return 'style="padding:8px 14px;border:1px solid ' + (on ? 'var(--gold);background:var(--gold);color:#fff' : 'var(--line);background:#fff') + ';font:inherit;font-size:13px;cursor:pointer;margin:0 6px 6px 0"'; };
   var ad = function (d, n) { var t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
   var md = function (d) { return d ? Number(d.slice(5, 7)) + '/' + Number(d.slice(8)) : ''; };
@@ -132,20 +200,18 @@ function vManage() {
     (!pick ? '<p class="mb-p">沒有這個組合</p>' : diff <= 0 ? '<p class="mb-p" style="margin:8px 0 0">' + (s.upgValue ? '請選比目前更高的組合' : '這是基本餐，不用升級') + '</p>' :
       '<div class="mb-row"><span>每餐差額</span><span>$' + diff + '</span></div>' + (PZ.pv ? '<div class="mb-row"><span>適用餐數</span><span>剩 ' + PZ.pv.left + ' 餐＋已訂未截單 ' + PZ.pv.open + ' 餐＝' + PZ.pv.n + ' 餐</span></div><div class="mb-row"><span>從錢包扣</span><span><b>' + money(PZ.pv.total) + '</b>（餘額 ' + money(OI.wallet.total) + '）</span></div><button class="hb-btn g" style="display:block;width:100%;margin-top:14px" data-zup>確認整期升級</button>' : '<button class="hb-btn" style="display:block;width:100%;margin-top:14px" data-zpv>計算金額</button>')) +
     '<p class="mb-p" style="font-size:12px;margin:10px 0 0">升級後訂餐預設用這個組合；改訂較便宜的組合，截單時退差額到錢包。續訂或結算時，沒用到的升級差額退回錢包。</p>';
-  return '<div class="mb-grid" style="margin-bottom:24px"><div class="mb-card"><div class="hb-cap">暫停方案</div><p class="mb-p" style="font-size:13px;margin:6px 0 10px">每期可暫停 1 次、最多 7 天；暫停幾天，到期日就往後延幾天。</p>' + pause + '<div id="z-msg"></div></div>' +
-    '<div class="mb-card"><div class="hb-cap">整期升級</div><p class="mb-p" style="font-size:13px;margin:6px 0 10px">一次把本期剩下的餐都升級；之後訂餐不再每餐扣差額。</p>' + upg + '<div id="u-msg"></div></div></div>';
+  return { pause: '<p class="mb-p" style="font-size:13px;margin:0 0 10px">每期可暫停 1 次、最多 7 天；暫停幾天，到期日就往後延幾天。</p>' + pause + '<div id="z-msg"></div>', upg: '<p class="mb-p" style="font-size:13px;margin:0 0 10px">一次把本期剩下的餐都升級；之後訂餐不再每餐扣差額。</p>' + upg + '<div id="u-msg"></div>' };
 }
 
 var RF = { method: '門市領現', amt: '', acct: '' };
-function vAccount() {
+function vRefund() {
   if (ME.pending || !PI) return '';
   var cash = PI.wallet.cash, ch = function (on) { return 'style="padding:8px 14px;border:1px solid ' + (on ? 'var(--gold);background:var(--gold);color:#fff' : 'var(--line);background:#fff') + ';font:inherit;font-size:13px;cursor:pointer;margin:0 6px 6px 0"'; };
   var refund = PI.pending ? '<p class="mb-p" style="margin:6px 0 0">有一筆申請處理中，處理完才能再申請。</p>' : cash <= 0 ? '<p class="mb-p" style="margin:6px 0 0">目前沒有可退的金額（紅利不能退現金）。</p>' :
     '<p class="mb-p" style="margin:6px 0 10px;font-size:13px">可退現金 ' + money(cash) + '（紅利不能退）。店員處理後從錢包扣除。</p><div class="mb-f"><label>退款金額</label><input id="rf-amt" inputmode="numeric" value="' + E(RF.amt || cash) + '"></div>' +
     '<div class="hb-cap">退款方式</div><div>' + ['門市領現', '轉帳'].map(function (m) { return '<button type="button" data-rfm="' + m + '" ' + ch(RF.method === m) + '>' + m + '</button>'; }).join('') + '</div>' +
     (RF.method === '轉帳' ? '<div class="mb-f"><label>退款帳號（銀行、分行、帳號、戶名）</label><input id="rf-acct" value="' + E(RF.acct) + '"></div>' : '') + '<button class="hb-btn" style="display:block;width:100%" data-rfgo>送出退款申請</button>';
-  return '<div class="mb-grid" style="margin-top:24px"><div class="mb-card"><div class="hb-cap">申請退款</div>' + refund + '<div id="rf-msg"></div></div>' +
-    '<div class="mb-card"><div class="hb-cap">刪除帳號</div><p class="mb-p" style="margin:6px 0 10px;font-size:13px">刪除後會清除姓名、手機、Email 與 LINE 綁定；交易紀錄依法保留。還有方案、錢包餘額、未取的預約或處理中的申請時不能刪除。</p><button class="hb-btn" style="display:block;width:100%;color:#9a3b2b;border-color:#9a3b2b" data-del>刪除我的帳號</button><div id="del-msg"></div></div></div>';
+  return refund + '<div id="rf-msg"></div>';
 }
 function draw() { document.getElementById('mb').innerHTML = !ME.login ? vLogin() : !ME.registered ? vRegister() : vCenter(); }
 function load() {
@@ -168,6 +234,16 @@ document.addEventListener('click', function (e) {
   if (t.id === 'e-x') { EDIT = false; draw(); }
   if (t.id === 'e-go') Z.post({ action: 'memberUpdate', name: v('e-name'), email: v('e-email'), phone: v('e-phone') }).then(function () { EDIT = false; return load(); }).catch(function (er) { say('e-msg', er.message); });
   if (t.hasAttribute && t.hasAttribute('data-cx')) { e.preventDefault(); if (!confirm('確定取消這一餐？訂閱會加回餐數，單點會退回錢包。')) return; Z.post({ action: 'orderCancel', resId: t.getAttribute('data-cx') }).then(load).catch(function (er) { alert(er.message); }); }
+  var tb = t.closest && t.closest('[data-tab],[data-open],[data-past],[data-allled],[data-cxo]');
+  if (tb) {
+    e.preventDefault();
+    if (tb.hasAttribute('data-tab')) { TAB = tb.getAttribute('data-tab'); OPEN = ''; EDIT = false; }
+    else if (tb.hasAttribute('data-open')) { var k = tb.getAttribute('data-open'); OPEN = OPEN === k ? '' : k; }
+    else if (tb.hasAttribute('data-past')) PAST = !PAST;
+    else if (tb.hasAttribute('data-allled')) ALLLED = !ALLLED;
+    else if (tb.hasAttribute('data-cxo')) { if (!confirm('取消這一筆訂單（裡面所有的便當）？方案會加回餐數，錢包付的會退回。')) return; Z.post({ action: 'orderCancelWhole', orderId: tb.getAttribute('data-cxo') }).then(load).catch(function (er) { alert(er.message); }); return; }
+    draw(); return;
+  }
   var rb = t.closest && t.closest('[data-rfm],[data-rfgo],[data-del]');
   if (rb) {
     if (rb.hasAttribute('data-rfm')) { RF.method = rb.getAttribute('data-rfm'); draw(); return; }
@@ -193,7 +269,7 @@ document.addEventListener('click', function (e) {
     else if (pb.hasAttribute('data-pmode')) PS.mode = pb.getAttribute('data-pmode');
     else if (pb.hasAttribute('data-pcx')) { if (confirm('取消這筆付款申請？')) Z.post({ action: 'payCancel' }).then(load).catch(function (er) { alert(er.message); }); return; }
     else if (pb.hasAttribute('data-pbuy')) { if (!confirm('用錢包' + (PI.sub ? '續訂 ' : '購買 ') + PS.meals + ' 餐方案？')) return; pb.disabled = true; Z.post({ action: 'payBuy', meals: PS.meals, code: PS.code }).then(function () { PI = null; PS.code = ''; load(); }).catch(function (er) { pb.disabled = false; say('p-msg', er.message); }); return; }
-    else if (pb.hasAttribute('data-preq')) { pb.disabled = true; Z.post({ action: 'payRequest', kind: PS.mode === 'buy' ? '儲值並購買' : '儲值', meals: PS.meals, amount: PS.amt, code: PS.code, method: PS.method, last5: PS.l5 }).then(function () { PI = null; load(); }).catch(function (er) { pb.disabled = false; say('p-msg', er.message); }); return; }
+    else if (pb.hasAttribute('data-preq')) { pb.disabled = true; Z.post({ action: 'payRequest', kind: TAB === 'wallet' ? '儲值' : '儲值並購買', meals: PS.meals, amount: PS.amt, code: PS.code, method: PS.method, last5: PS.l5 }).then(function () { PI = null; load(); }).catch(function (er) { pb.disabled = false; say('p-msg', er.message); }); return; }
     draw(); return;
   }
   if (t.id === 'cp') { try { navigator.clipboard.writeText(ME.code); t.textContent = '已複製'; } catch (x) { prompt('推薦碼', ME.code); } }
