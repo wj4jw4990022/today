@@ -31,20 +31,27 @@ export function topupOptions(st) {
   return String(st['儲值金額選項'] || '1400,1980,3100,1000,2000,3000,5000').split(/[,，\s]+/).map((x) => num(x, 0)).filter((x) => x > 0 && Number.isInteger(x));
 }
 
-/** 依紀錄順序重算錢包：可退現金、紅利。只算「已入帳」 */
-export function walletOf(rows) {
+/** 依紀錄順序重算錢包：可退現金、紅利。只算「已入帳」。split＝每筆紀錄的 { 紀錄ID: [紅利變動, 錢包變動] } */
+export function walletOf(rows, split) {
   let cash = 0, bonus = 0;
   rows.filter((r) => r['狀態'] === '已入帳').sort((a, b) => a._row - b._row).forEach((r) => {
     const amt = Number(r['金額']) || 0, type = r['類型'];
-    if (amt >= 0) { if (r['可退現金']) cash += amt; else bonus += amt; return; }
-    let out = -amt;
-    if (type === '退現金') { cash -= out; return; }
-    if (type === '紅利收回' || type === '獎勵收回') { bonus -= out; return; }
-    if (type === '人工調整') { if (r['可退現金']) cash -= out; else bonus -= out; return; }
-    const fromBonus = Math.min(bonus, out); bonus -= fromBonus; cash -= out - fromBonus; // 消費：先扣紅利
+    let b = 0, c = 0;
+    if (amt >= 0) { if (r['可退現金']) c = amt; else b = amt; }
+    else {
+      const out = -amt;
+      if (type === '退現金') c = -out;
+      else if (type === '紅利收回' || type === '獎勵收回') b = -out;
+      else if (type === '人工調整') { if (r['可退現金']) c = -out; else b = -out; }
+      else { const fromBonus = Math.min(Math.max(bonus, 0), out); b = -fromBonus; c = -(out - fromBonus); } // 消費：先扣紅利
+    }
+    bonus += b; cash += c;
+    if (split) split[r['紀錄ID']] = [b, c];
   });
   return { total: cash + bonus, cash, bonus };
 }
+/** 錢包紀錄給畫面用：每筆加上 bonus（紅利變動）、cash（錢包變動） */
+export function ledgerView(rows) { const sp = {}; walletOf(rows, sp); return (r) => ({ bonus: (sp[r['紀錄ID']] || [0, 0])[0], cash: (sp[r['紀錄ID']] || [0, 0])[1] }); }
 
 async function member(c, memberId) {
   const m = await c.db.first('會員', { 會員ID: clean(memberId, 30) });
@@ -149,7 +156,8 @@ export const memberOps = {
     const m = await member(c, p.memberId);
     const [led, subs, refs] = await Promise.all([ledgerOf(c, m['會員ID']), c.db.all('訂閱', { 會員ID: m['會員ID'] }), c.db.all('推薦紀錄', { 推薦人會員ID: m['會員ID'] })]);
     const s = summary(m, walletOf(led), currentSub(subs));
-    s.ledger = led.sort((x, y) => y._row - x._row).map((r) => ({ id: r['紀錄ID'], at: String(r['時間']).slice(0, 16), type: r['類型'], amount: r['金額'], refundable: !!r['可退現金'], method: r['付款方式'], last5: r['轉帳末五碼'], ref: r['對應ID'], by: r['經手人員'], status: r['狀態'], note: r['備註'] }));
+    const lv = ledgerView(led);
+    s.ledger = led.sort((x, y) => y._row - x._row).map((r) => Object.assign(lv(r), { id: r['紀錄ID'], at: String(r['時間']).slice(0, 16), type: r['類型'], amount: r['金額'], refundable: !!r['可退現金'], method: r['付款方式'], last5: r['轉帳末五碼'], ref: r['對應ID'], by: r['經手人員'], status: r['狀態'], note: r['備註'] }));
     if (s.sub) s.sub.future = (await c.db.all('預約', { 訂閱ID: s.sub.id })).filter((r) => ['已預約', '已鎖定'].indexOf(r['狀態']) >= 0).length;
     s.subs = subs.sort((x, y) => y._row - x._row).map((x) => ({ id: x['訂閱ID'], meals: x['方案餐數'], left: x['剩餘餐數'], paid: x['實付金額'], start: x['開始日'], end: x['到期日'], status: x['狀態'] }));
     s.referrals = refs.map((r) => ({ newMember: r['新會員ID'], status: r['狀態'], picked: r['新會員已取餐數'] }));

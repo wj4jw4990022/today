@@ -90,4 +90,15 @@ await t('刪除帳號：只剩紅利可以刪，紅利歸零；有可退現金�
   assert.equal((await q('SELECT status FROM members WHERE member_id=?', m.id))[0].status, '已刪除');
 });
 
+await t('錢包紀錄：每筆顯示扣了多少紅利、多少錢包', async () => {
+  const m = await newMember('Uc8', '紅利辛', '0955000008', 1000, 0);
+  await q("INSERT INTO wallet_ledger (rec_id,member_id,at,type,amount,refundable,status) VALUES ('WB9',?,'2026-11-07 12:00:00','推薦紅利',100,0,'已入帳')", m.id);
+  const r = await m.O({ action: 'orderCreate2', date: D1, slot: '晚上', pay: '錢包', lines: [{ itemId: 'HM-L-CB', sauce: 'AD-S-OIL', qty: 1 }] }); assert(r.ok, r.error);
+  const me = (await m.O({ action: 'memberMe' })).data;
+  assert.deepEqual(me.wallet, { total: 910, cash: 910, bonus: 0 });
+  const x = me.ledger.find((l) => l.type === '單點扣款'); assert.equal(x.bonus, -100); assert.equal(x.cash, -90);
+  assert.equal(me.ledger.find((l) => l.type === '推薦紅利').bonus, 100);
+  const g = (await post({ ...A, action: 'adminMemberGet', memberId: m.id })).data; assert.equal(g.ledger.find((l) => l.type === '單點扣款').bonus, -100);
+});
+
 summary(); await S.dispose(); process.exit(process.exitCode || 0);

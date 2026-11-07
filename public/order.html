@@ -40,11 +40,12 @@
 .wz-add{display:block;width:100%;text-align:center;border:1px dashed var(--gold);color:var(--gold);background:transparent;padding:12px;font:inherit;font-size:14px;cursor:pointer}
 .wz-note{font-size:12px;color:var(--mute);line-height:1.8;margin:10px 0 0}
 .wz-err{border:1px solid #9a3b2b;color:#9a3b2b;background:#fff;padding:10px 14px;margin:12px 0 0;font-size:14px}
-.wz-ft{position:sticky;bottom:0;display:flex;gap:10px;background:var(--bg);padding:14px 0;margin-top:20px;border-top:1px solid var(--line)}
+.wz-ft{position:sticky;bottom:0;display:flex;flex-wrap:wrap;gap:10px;background:var(--bg);padding:14px 0;margin-top:20px;border-top:1px solid var(--line)}
 .wz-ft button{flex:1;padding:14px;font:inherit;font-size:14px;letter-spacing:.2em;cursor:pointer}.wz-bk{border:1px solid var(--gold);color:var(--gold);background:transparent}.wz-nx{border:0;background:var(--gold);color:#fff}.wz-nx[disabled]{opacity:.45;cursor:not-allowed}
+.wz-ftsum{display:none;width:100%;font-size:12px;margin:0 0 6px}
 .wz-side{position:sticky;top:16px;background:var(--card);border:1px solid var(--line);padding:20px}
 .wz-ok{border:1px solid var(--gold);background:#fff;padding:26px;text-align:center;grid-column:1/-1}
-@media(max-width:860px){.wz{grid-template-columns:1fr;padding:18px 14px 40px}.wz-side{display:none}.wz-ft{position:fixed;left:0;right:0;bottom:0;padding:10px 14px;z-index:5;margin:0}}
+@media(max-width:860px){.wz{grid-template-columns:1fr;padding:18px 14px 40px}.wz-side{display:none}.wz-ftsum{display:block}.wz-ft{position:fixed;left:0;right:0;bottom:0;padding:10px 14px;z-index:5;margin:0}}
 </style>
 </head>
 <body class="hk hx">
@@ -79,6 +80,9 @@ function sum() {
   if (S.pickup === '配送點') { var p = point(); if (p) { min = p.min; var have = (D.pointCount || {})[S.date + '|' + S.slot + '|' + p.id] || 0; feeNote = have + n >= p.min ? '目前已達 ' + p.min + ' 份' : (S.feeOk ? '截單時未達 ' + p.min + ' 份才收 ' + money(feeFor(p.km)) : '未達 ' + p.min + ' 份會改門市自取'); } }
   return { n: n, single: single, later: later, fee: fee, feeNote: feeNote, subUsed: subUsed, now: S.pay === '錢包' ? single + fee : 0, cash: S.pay === '現付' ? single + fee + Math.max(0, later) : 0 };
 }
+function useSplit(amt) { var w = D.wallet, b = Math.min(Math.max(w.bonus, 0), amt); return { b: b, c: amt - b }; }
+function splitTxt(amt) { var x = useSplit(amt); return (x.b ? '<span style="color:var(--gold)">紅利 −' + money(x.b) + '</span>＋' : '') + '錢包 −' + money(x.c); }
+function splitRows(amt) { var x = useSplit(amt), w = D.wallet; return (x.b ? '<div class="wz-row" style="color:var(--gold)"><span>先扣紅利</span><span>−' + money(x.b) + '（剩 ' + money(w.bonus - x.b) + '）</span></div>' : '') + '<div class="wz-row"><span>' + (x.b ? '再扣錢包' : '從錢包扣') + '</span><span>−' + money(x.c) + '（剩 ' + money(w.cash - x.c) + '）</span></div>'; }
 function point() { return (D.points || []).filter(function (p) { return p.id === S.point; })[0]; }
 function feeFor(km) { var f = D.extra.feeOf; return km <= 2 ? f[2] : km <= 5 ? f[5] : f[8]; }
 function ok(step) {
@@ -135,8 +139,8 @@ function vStep() {
     var t5 = sum(), x = D.extra.cash, need = t5.single + t5.fee, cashNeed = need + Math.max(0, t5.later);
     if (!need && t5.later <= 0) h += '<p class="wz-note" style="font-size:14px">這一筆只有方案的餐，不用另外付錢' + (t5.later < 0 ? '（差額截單時退到錢包）' : '') + '。</p>';
     else {
-      h += '<button type="button" class="wz-op' + (S.pay === '錢包' ? ' on' : '') + '" data-pay="錢包">錢包付款<small>現在扣 ' + money(need) + (t5.later > 0 ? '，升級／加購 ' + money(t5.later) + ' 截單時扣' : '') + '・餘額 ' + money(D.wallet.total) + (D.wallet.bonus ? '（紅利 ' + money(D.wallet.bonus) + ' 先扣）' : '') + (need > D.wallet.total ? '・<b style="color:#9a3b2b">餘額不足，請先到會員頁儲值</b>' : '') + '</small></button>';
-      h += '<button type="button" class="wz-op' + (S.pay === '現付' ? ' on' : '') + '" data-pay="現付"' + (x.blocked || x.open >= x.limit ? ' disabled' : '') + '>取餐時付現<small>' + (x.blocked ? '已停用（沒來取餐次數過多），請洽門市' : '門市或配送時收現金 ' + money(cashNeed) + (t5.later > 0 ? '（含升級／加購 ' + money(t5.later) + '）' : '') + '・目前 ' + x.open + ' / ' + x.limit + ' 筆未取') + '</small></button>';
+      h += '<button type="button" class="wz-op' + (S.pay === '錢包' ? ' on' : '') + '" data-pay="錢包">錢包付款<small>現在扣 ' + money(need) + (t5.later > 0 ? '，升級／加購 ' + money(t5.later) + ' 截單時扣' : '') + '<br>' + (need > 0 && need <= D.wallet.total ? splitTxt(need) + '・' : '') + '目前 錢包 ' + money(D.wallet.cash) + '・<span style="color:var(--gold)">紅利 ' + money(D.wallet.bonus) + '</span>' + (need > D.wallet.total ? '・<b style="color:#9a3b2b">餘額不足，請先到會員頁儲值</b>' : '') + '</small></button>';
+      h += '<button type="button" class="wz-op' + (S.pay === '現付' ? ' on' : '') + '" data-pay="現付"' + (x.blocked || x.open >= x.limit ? ' disabled' : '') + '>取餐時付現<small>' + (x.blocked ? '已停用（沒來取餐次數過多），請洽門市' : '門市或配送時收現金 ' + money(cashNeed) + (t5.later > 0 ? '（含升級／加購 ' + money(t5.later) + '）' : '') + '・付現不會用到紅利・目前 ' + x.open + ' / ' + x.limit + ' 筆未取') + '</small></button>';
       h += '<p class="wz-note">' + (t5.subUsed ? '方案那 1 份不用付錢（扣 1 餐）。' : '') + (S.pickup === '配送點' ? '配送點的配送費只在截單時沒達門檻、且你願意付時才收，跟著這筆的付款方式。' : '') + '</p>';
     }
   }
@@ -147,7 +151,8 @@ function vStep() {
     h += S.lines.map(function (l) { var it = item(l.itemId), sn = (D.sauces.filter(function (s) { return s.id === l.sauce; })[0] || {}).name, dn = l.drinks.map(function (id) { return (D.drinks.filter(function (x) { return x.id === id; })[0] || {}).name; }).join('、'); return '<div class="wz-row"><span>' + E(it.size + ' ' + it.main) + '・' + E(sn) + (dn ? '＋' + E(dn) : '') + (l.qty > 1 ? ' ×' + l.qty : '') + '</span><span>' + (l.useSub ? '方案 1 餐' : money((it.price + sauceP(l.sauce) + drinkP(l.drinks)) * l.qty)) + '</span></div>'; }).join('');
     if (S.pickup !== '自取') h += '<div class="wz-row"><span>配送費</span><span>' + (S.pickup === '地址' ? (t6.fee ? money(t6.fee) + '（' + t6.feeNote + '）' : '免運（' + t6.feeNote + '）') : E(t6.feeNote)) + '</span></div>';
     if (t6.later) h += '<div class="wz-row"><span>方案升級／加購</span><span>' + (t6.later > 0 ? (S.pay === '現付' ? '取餐時一起付 ' : '截單時錢包扣 ') + money(t6.later) : '截單時退到錢包 ' + money(-t6.later)) + '</span></div>';
-    h += '<div class="wz-row"><b>' + (S.pay === '現付' ? '取餐時付現' : '現在從錢包扣') + '</b><b>' + money(S.pay === '現付' ? t6.cash : t6.now) + '</b></div>';
+    h += '<div class="wz-row"><b>' + (S.pay === '現付' ? '取餐時付現' : '現在從錢包付') + '</b><b>' + money(S.pay === '現付' ? t6.cash : t6.now) + '</b></div>';
+    if (S.pay === '錢包' && t6.now > 0) h += splitRows(t6.now);
     h += '<p class="wz-note">前一天 ' + E(D.cutoff) + ' 前可以在會員頁修改或取消；之後鎖定。</p>';
   }
   return h;
@@ -162,16 +167,17 @@ function vSide() {
   return '<div class="wz-st">目前的訂單</div>' + '<div class="wz-row"><span>時間</span><span>' + (S.date ? md(S.date) + (S.slot ? ' ' + S.slot : '') : '—') + '</span></div>' +
     '<div class="wz-row"><span>取餐</span><span>' + (STEP < 2 ? '—' : S.pickup === '自取' ? '門市自取' : S.pickup === '配送點' ? (point() ? E(point().name) : '配送點') : E(S.addr.area || '我的地址')) + '</span></div>' +
     (S.lines.length ? S.lines.map(function (l) { var it = item(l.itemId); return '<div class="wz-row"><span>' + E(it.size + ' ' + it.main) + (l.qty > 1 ? ' ×' + l.qty : '') + '</span><span>' + (l.useSub ? '方案' : money(it.price * l.qty)) + '</span></div>'; }).join('') : '<div class="wz-row"><span>便當</span><span>—</span></div>') +
-    '<div class="wz-row"><b>' + (S.pay === '現付' ? '取餐付現' : '錢包扣') + '</b><b>' + money(S.pay === '現付' ? t.cash : t.now) + '</b></div>' +
-    '<p class="wz-note">錢包餘額 ' + money(D.wallet.total) + (D.sub ? '・方案剩 ' + D.sub.left + ' 餐' : '') + '</p>';
+    '<div class="wz-row"><b>' + (S.pay === '現付' ? '取餐付現' : '錢包付') + '</b><b>' + money(S.pay === '現付' ? t.cash : t.now) + '</b></div>' +
+    (S.pay === '錢包' && t.now > 0 ? splitRows(Math.min(t.now, D.wallet.total)) : '') +
+    '<p class="wz-note">錢包 ' + money(D.wallet.cash) + '・<span style="color:var(--gold)">紅利 ' + money(D.wallet.bonus) + '</span>' + (D.sub ? '・方案剩 ' + D.sub.left + ' 餐' : '') + '</p>';
 }
 function draw() {
   var w = document.getElementById('wz');
   if (DONE) { w.innerHTML = '<div class="wz-ok"><div class="hb-en">Thank you</div><div class="wz-q">訂好了</div><p class="wz-note" style="font-size:14px">' + DONE + '</p><p style="margin-top:16px"><a class="hb-btn g" href="order.html' + (ADMIN ? '?admin=1&member=' + encodeURIComponent(MID) : '') + '">再訂一餐</a> <a class="hb-btn" href="' + (ADMIN ? 'admin.html' : 'member.html') + '">' + (ADMIN ? '回後台' : '回會員頁') + '</a></p></div>'; return; }
-  w.innerHTML = (ADMIN ? '<div class="wz-adm"><span>店員代訂模式　會員：<b>' + E(D.member.name) + '・' + E(D.member.id) + '</b>（' + (D.sub ? '剩 ' + D.sub.left + '/' + D.sub.meals + ' 餐・' : '') + '錢包 ' + money(D.wallet.total) + '）</span><a href="admin.html" style="text-decoration:underline">回後台</a></div>' : '') +
+  w.innerHTML = (ADMIN ? '<div class="wz-adm"><span>店員代訂模式　會員：<b>' + E(D.member.name) + '・' + E(D.member.id) + '</b>（' + (D.sub ? '剩 ' + D.sub.left + '/' + D.sub.meals + ' 餐・' : '') + '錢包 ' + money(D.wallet.cash) + '・紅利 ' + money(D.wallet.bonus) + '）</span><a href="admin.html" style="text-decoration:underline">回後台</a></div>' : '') +
     '<div class="wz-main"><div class="wz-pr"><i style="width:' + Math.round(STEP / 6 * 100) + '%"></i></div><div class="wz-st">STEP ' + STEP + ' / 6' + (STEP > 1 && S.date ? '・' + md(S.date) + '（' + WD[day().wd] + '）' + (S.slot || '') : '') + (CHANGE ? '・改期' : '') + '</div><div class="wz-q">' + (STEP === 5 && !sum().single && !sum().fee ? '不用另外付錢' : STEP === 5 ? '單點 ' + money(sum().single + sum().fee) + ' 怎麼付？' : Q1[STEP - 1]) + '</div>' + vStep() +
     (ERR ? '<div class="wz-err">' + E(ERR) + '</div>' : '') +
-    '<div class="wz-ft"><button type="button" class="wz-bk" data-back>' + (STEP === 1 ? '取消' : '上一步') + '</button><button type="button" class="wz-nx" data-next' + (ok(STEP) ? '' : ' disabled') + '>' + (STEP === 6 ? (CHANGE ? '確認改期' : '確認訂餐') : '下一步') + '</button></div></div>' +
+    '<div class="wz-ft">' + (STEP >= 5 && S.pay === '錢包' && sum().now > 0 && sum().now <= D.wallet.total ? '<div class="wz-ftsum">錢包付 ' + money(sum().now) + '：' + splitTxt(sum().now) + '</div>' : '') + '<button type="button" class="wz-bk" data-back>' + (STEP === 1 ? '取消' : '上一步') + '</button><button type="button" class="wz-nx" data-next' + (ok(STEP) ? '' : ' disabled') + '>' + (STEP === 6 ? (CHANGE ? '確認改期' : '確認訂餐') : '下一步') + '</button></div></div>' +
     '<aside class="wz-side">' + vSide() + '</aside>';
 }
 function login() { try { localStorage.setItem('zr_after', location.pathname + location.search); } catch (e) {} document.getElementById('wz').innerHTML = '<div class="wz-ok"><div class="wz-q">訂餐需要會員登入</div><a class="hb-btn g" href="/api/line/login">用 LINE 登入</a> <a class="hb-btn" href="healthy.html">看菜單</a></div>'; }

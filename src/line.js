@@ -1,6 +1,6 @@
 import { UserError, clean, nowStamp, rid } from './util.js';
 import { needAll } from './service.js';
-import { settings, normEmail, walletOf, currentSub, newIds } from './members.js';
+import { settings, normEmail, walletOf, ledgerView, currentSub, newIds } from './members.js';
 
 /**
  * 會員 LINE 登入與會員中心（2026-11-06，草圖 m33）
@@ -69,7 +69,7 @@ function meView(m, led, subs) {
     needPhone: !pending && !m['手機'],
     wallet: pending ? { total: 0, cash: 0, bonus: 0 } : walletOf(led),
     sub: sub ? { meals: sub['方案餐數'], left: sub['剩餘餐數'], start: sub['開始日'], end: sub['到期日'], status: sub['狀態'] } : null,
-    ledger: pending ? [] : led.sort((x, y) => y._row - x._row).slice(0, 30).map((r) => ({ at: String(r['時間']).slice(0, 16), type: r['類型'], amount: r['金額'], refundable: !!r['可退現金'] }))
+    ledger: pending ? [] : (function () { const lv = ledgerView(led); return led.sort((x, y) => y._row - x._row).slice(0, 30).map((r) => Object.assign(lv(r), { at: String(r['時間']).slice(0, 16), type: r['類型'], amount: r['金額'], refundable: !!r['可退現金'] })); })()
   };
 }
 function checkPhone(p) { p = clean(p, 20).replace(/[\s-]/g, ''); if (!/^09\d{8}$/.test(p)) throw new UserError('手機請填 09 開頭的 10 碼數字'); return p; }
