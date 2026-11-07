@@ -221,9 +221,9 @@ document.addEventListener('click', function (e) {
     if (STEP < 6) { STEP++; ERR = ''; scrollTo(0, 0); draw(); return; }
     b.disabled = true; ERR = '';
     var body = { date: S.date, slot: S.slot, pickup: S.pickup, pointId: S.point, feeOk: S.feeOk, pay: S.pay, addr: S.addr, lines: S.lines.map(function (l) { return { itemId: l.itemId, qty: l.qty, useSub: l.useSub, sauce: l.sauce, drinks: l.drinks }; }) };
-    var cancelOld = function () { if (!CHANGE || CHANGE === 'done') return Promise.resolve(); var c = CHANGE; CHANGE = 'done'; return /^O/.test(c) ? api('orderCancelWhole', { orderId: c }) : api('orderCancel', { resId: c }); };
-    api('orderCreate2', body).catch(function (er) { if (CHANGE && /已經用方案訂過/.test(er.message)) return cancelOld().then(function () { return api('orderCreate2', body); }); throw er; })
-      .then(function (r) { return cancelOld().then(function () { return r; }); })
+    if (CHANGE && CHANGE !== 'done') body.replace = CHANGE;
+    api('orderCreate2', body)
+      .then(function (r) { CHANGE = 'done'; return r; })
       .then(function (r) { var t = sum(); DONE = md(S.date) + ' ' + S.slot + '・共 ' + t.n + ' 份。' + (S.pickup === '自取' ? '門市自取。' : S.pickup === '配送點' ? '送到 ' + E(point().name) + '。' : '送到 ' + E(S.addr.area + ' ' + S.addr.address) + '。') + (r.cashDue ? '取餐時付現 ' + money(r.cashDue) + '。' : ''); draw(); })
       .catch(function (er) { ERR = er.message; draw(); });
     return;

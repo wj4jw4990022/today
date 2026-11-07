@@ -615,4 +615,42 @@ await t('測試按鈕：已用餐＋1 扣餐並觸發推薦紅利', async () => 
   await q("UPDATE health_settings SET value='20:00' WHERE key='截單時間'");
 }
 
+/* ===== 修正：地址配送費截單重算與合併、改期把舊訂單退款算進去 ===== */
+{
+  const { runCutoff } = await import('../src/orders.js'); const { startSession } = await import('../src/line.js'); const { Db } = await import('../src/db.js'); const cx = { env: S.env, db: new Db(S.env.DB) };
+  await q("UPDATE health_settings SET value='23:59' WHERE key='截單時間'");
+  const nd = (n) => { let k = n; while (dow(day(k)) === 3) k++; return day(k); };
+  const F = (await M({ action: 'adminSaveMember', member: { name: '修正人', phone: '0933123001' } })).memberId;
+  await post({ ...A, action: 'adminTopup', memberId: F, amount: 2000, method: '現金' });
+  const ck = 'zm=' + await startSession(cx, 'Ufix2', 'f'); await q("UPDATE member_sessions SET member_id=? WHERE line_id='Ufix2'", F);
+  const P = (o) => S.postc(o, ck); const bal = async () => (await M({ action: 'adminMemberGet', memberId: F })).wallet.total;
+  const addr = { area: '三民區', address: '建國路 1 號', recipient: '修', phone: '0912000111' };
+  const L = (q2) => [{ itemId: 'HM-L-CB', sauce: 'AD-S-OIL', qty: q2 }];
+  const lock = async (oids) => { for (const o of oids) await q("UPDATE reservations SET date=? WHERE order_id=?", day(1), o); await q("UPDATE orders SET date=? WHERE order_id IN (" + oids.map(() => '?').join(',') + ")", day(1), ...oids); await q("UPDATE health_settings SET value='00:00' WHERE key='截單時間'"); await runCutoff(cx); await q("UPDATE health_settings SET value='23:59' WHERE key='截單時間'"); };
+  await t('#1 地址：訂 3 份免運後取消 2 份 → 截單補收配送費', async () => {
+    const b0 = await bal();
+    const r = await P({ action: 'orderCreate2', date: nd(2), slot: '中午', pickup: '地址', addr, pay: '錢包', lines: [{ itemId: 'HM-L-CB', sauce: 'AD-S-OIL', qty: 1 }, { itemId: 'HM-B-CB', sauce: 'AD-S-OIL', qty: 2 }] }); assert(r.ok, r.error); assert.equal(r.data.fee, 0);
+    const bres = (await q("SELECT res_id FROM reservations WHERE order_id=? AND item_id='HM-B-CB'", r.data.orderId))[0].res_id;
+    assert((await P({ action: 'orderCancel', resId: bres })).ok);
+    await lock([r.data.orderId]);
+    assert.equal(await bal(), b0 - 190 - 30);
+    assert.equal((await q('SELECT fee FROM orders WHERE order_id=?', r.data.orderId))[0].fee, 30);
+  });
+  await t('#6 同地址同時段兩筆：合併計算，滿門檻退回已收的配送費', async () => {
+    const b0 = await bal();
+    const a = await P({ action: 'orderCreate2', date: nd(3), slot: '晚上', pickup: '地址', addr, pay: '錢包', lines: L(1) }); assert.equal(a.data.fee, 30);
+    const b = await P({ action: 'orderCreate2', date: nd(3), slot: '晚上', pickup: '地址', addr, pay: '錢包', lines: L(2) }); assert.equal(b.data.fee, 30);
+    await lock([a.data.orderId, b.data.orderId]);
+    assert.equal(await bal(), b0 - 570, '3 份免運，兩筆配送費都退回');
+  });
+  await t('#2 改期：錢包只夠一次也能改（舊訂單的退款先算進去）', async () => {
+    const left = await bal();
+    const k = Math.floor(left / 190), o = await P({ action: 'orderCreate2', date: nd(4), slot: '中午', pickup: '自取', pay: '錢包', lines: L(k) }); assert(o.ok, o.error);
+    const r = await P({ action: 'orderCreate2', date: nd(5), slot: '晚上', pickup: '自取', pay: '錢包', lines: L(k), replace: o.data.orderId }); assert(r.ok, r.error);
+    assert.equal((await q("SELECT COUNT(*) n FROM reservations WHERE order_id=? AND status='已取消'", o.data.orderId))[0].n, 1);
+    assert.equal(await bal(), left - k * 190);
+  });
+  await q("UPDATE health_settings SET value='20:00' WHERE key='截單時間'");
+}
+
 summary(); await S.dispose(); process.exit(process.exitCode || 0);

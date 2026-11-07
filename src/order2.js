@@ -34,6 +34,16 @@ export async function order2Extra(c, m) {
 export async function createOrder2(c, m, p, by) {
   await runCutoff(c);
   const st = await settings(c), R = rules(st), { items, addons } = await menu(c);
+  // 改期：舊的訂單（或單筆預約）在新訂單成立後才取消；檢查時把舊的會退回的錢、餐數、份數先算進來
+  let old = [], oldKey = clean(p.replace, 30);
+  if (oldKey) {
+    old = (await c.db.all('預約', { 會員ID: m['會員ID'] })).filter((r) => (r['訂單ID'] === oldKey || r['預約ID'] === oldKey) && r['狀態'] !== '已取消');
+    if (!old.length) throw new UserError('找不到要改期的訂單');
+    if (old.some((r) => r['狀態'] !== '已預約')) throw new UserError('原本的訂單已經截單鎖定，不能改期');
+  }
+  const oldO = oldKey ? await c.db.first('訂單', { 訂單ID: old[0]['訂單ID'] || '-' }) : null;
+  const oldCredit = old.filter((r) => r['類別'] === '單點').reduce((t, r) => t + num(r['付款金額'], 0), 0) + (oldO && oldO['配送費狀態'] === '已扣款' ? num(oldO['配送費'], 0) : 0);
+  const oldIds = old.map((r) => r['預約ID']);
   const date = clean(p.date, 10), slot = clean(p.slot, 4);
   if (!isDate(date)) throw new UserError('請選擇日期');
   if (SLOTS.indexOf(slot) < 0) throw new UserError('請選擇中午或晚上');
@@ -54,15 +64,15 @@ export async function createOrder2(c, m, p, by) {
   const subLines = lines.filter((l) => l.sub);
   if (subLines.length > 1 || (subLines[0] && subLines[0].qty !== 1)) throw new UserError('方案每個時段只能用 1 份，其他請用單點');
   const total = lines.reduce((s, l) => s + l.qty, 0);
-  if (R.cap[slot]) { const used = (await slotCounts(c, date, date))[date + '|' + slot] || 0; if (used + total > R.cap[slot]) throw new UserError('這個時段只剩 ' + Math.max(0, R.cap[slot] - used) + ' 份'); }
+  if (R.cap[slot]) { const used = ((await slotCounts(c, date, date))[date + '|' + slot] || 0) - old.filter((r) => r['日期'] === date && r['時段'] === slot).reduce((t, r) => t + num(r['份數'], 1), 0); if (used + total > R.cap[slot]) throw new UserError('這個時段只剩 ' + Math.max(0, R.cap[slot] - used) + ' 份'); }
   let sub = null, up = { value: 0 };
   if (subLines.length) {
     sub = currentSub(await c.db.all('訂閱', { 會員ID: m['會員ID'] }));
     if (!sub || sub['狀態'] !== '使用中') throw new UserError('沒有使用中的方案，請改用單點');
     if (date < String(sub['開始日']) || date > String(sub['到期日'])) throw new UserError('這天不在方案期間（' + sub['開始日'] + '～' + sub['到期日'] + '）');
     if (sub['暫停起日'] && date >= String(sub['暫停起日']) && date <= String(sub['暫停迄日'])) throw new UserError('這天在暫停期間');
-    if (num(sub['剩餘餐數'], 0) < 1) throw new UserError('方案的餐數已經用完，請改用單點');
-    if ((await c.db.all('預約', { 會員ID: m['會員ID'], 日期: date, 時段: slot, 類別: '訂閱' })).some((r) => r['狀態'] !== '已取消')) throw new UserError('這個時段已經用方案訂過一份了');
+    if (num(sub['剩餘餐數'], 0) + old.filter((r) => r['類別'] === '訂閱').length < 1) throw new UserError('方案的餐數已經用完，請改用單點');
+    if ((await c.db.all('預約', { 會員ID: m['會員ID'], 日期: date, 時段: slot, 類別: '訂閱' })).some((r) => r['狀態'] !== '已取消' && oldIds.indexOf(r['預約ID']) < 0)) throw new UserError('這個時段已經用方案訂過一份了');
     up = await subUpg(c, sub);
   }
   // 取餐方式
@@ -95,10 +105,16 @@ export async function createOrder2(c, m, p, by) {
   if (pay === '現付') {
     if (!singles.length && !feeNow) throw new UserError('這筆沒有需要付現的單點');
     if (m['付現停用']) throw new UserError('你的「取餐時付現」已停用（沒來取餐次數過多），請改用錢包付款或洽門市');
-    if ((await cashOpen(c, m['會員ID'])) >= num(st['付現未取上限'], 2)) throw new UserError('你已經有 ' + num(st['付現未取上限'], 2) + ' 筆付現訂單還沒取餐，請改用錢包付款');
+    if ((await cashOpen(c, m['會員ID'])) - (oldO && oldO['付款方式'] === '現付' ? 1 : 0) >= num(st['付現未取上限'], 2)) throw new UserError('你已經有 ' + num(st['付現未取上限'], 2) + ' 筆付現訂單還沒取餐，請改用錢包付款');
   } else {
     const need = singleTotal + feeNow, wal = walletOf(await c.db.all('錢包紀錄', { 會員ID: m['會員ID'] }));
-    if (wal.total < need) throw new UserError('錢包餘額不足：需要 ' + need.toLocaleString() + ' 元，目前 ' + wal.total.toLocaleString() + ' 元');
+    if (wal.total + oldCredit < need) throw new UserError('錢包餘額不足：需要 ' + need.toLocaleString() + ' 元，目前 ' + wal.total.toLocaleString() + ' 元' + (oldCredit ? '（含原訂單退回 ' + oldCredit + ' 元）' : ''));
+  }
+  // 改期：檢查都通過了，先取消舊的（退回錢與餐數），再寫入新的
+  if (old.length) {
+    const { orderMemberApi } = await import('./orders.js');
+    for (const r of old) await orderMemberApi.orderCancel(c, m, { resId: r['預約ID'] }).catch(async (e) => { throw e; });
+    if (oldO) await closeOrderIfEmpty(c, oldO['訂單ID'], by);
   }
   const oid = 'O' + Date.now().toString(36).toUpperCase() + rid(3), now = nowStamp();
   const wal0 = walletOf(await c.db.all('錢包紀錄', { 會員ID: m['會員ID'] }));

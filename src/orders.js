@@ -82,9 +82,12 @@ export async function runCutoff(c) {
       else await c.db.update('訂單', o._row, { 配送費狀態: '錢包不足改自取' });
     }
   }
+  // 送到地址：截單時重算免運（同一位會員、同一天、同一時段、同一個地址合併；取消後不到門檻要補收、多筆只收一次）
+  const toSelfOrder = await settleAddressFees(c, st, rows);
   for (const r of rows.sort((a, b) => a._row - b._row)) {
     const upd = { 狀態: '已鎖定', 修改時間: nowStamp() };
     const gk = r['日期'] + '|' + r['時段'] + '|' + r['配送點ID'];
+    if (r['取餐方式'] === '地址' && toSelfOrder[r['訂單ID']]) Object.assign(upd, { 取餐方式: '自取', 備註: (r['備註'] ? r['備註'] + '；' : '') + '錢包不足以補收配送費，改門市自取' });
     if (r['取餐方式'] === '配送' && toSelf[gk] && !keepOrder[r['訂單ID']]) Object.assign(upd, { 取餐方式: '自取', 配送點ID: '', 備註: (r['備註'] ? r['備註'] + '；' : '') + '配送改自取（' + (pts[r['配送點ID']] ? pts[r['配送點ID']].name + '：' : '') + toSelf[gk] + '）' });
     if (r['類別'] === '訂閱') {
       const due = num(r['升級差額'], 0) + num(r['加購金額'], 0);
@@ -105,6 +108,37 @@ export async function runCutoff(c) {
     await c.db.update('預約', r._row, upd);
   }
   return rows.length;
+}
+
+
+/** 送到地址的配送費在截單時重算：同一位會員＋日期＋時段＋行政區＋地址為一組，份數（未取消）達門檻免運，否則整組只收一次。
+ *  先把各筆已收的配送費退回（錢包退款／付現從應收扣掉），再向第一筆收一次（錢包不足：整組改自取）。回傳要改自取的訂單。 */
+async function settleAddressFees(c, st, rows) {
+  const oids = [...new Set(rows.filter((r) => r['取餐方式'] === '地址' && r['訂單ID']).map((r) => r['訂單ID']))];
+  const out = {}; if (!oids.length) return out;
+  const groups = {};
+  for (const oid of oids) { const o = await c.db.first('訂單', { 訂單ID: oid }); if (!o || o['狀態'] === '已取消') continue; const k = [o['會員ID'], o['日期'], o['時段'], o['行政區'], o['地址']].join('|'); (groups[k] = groups[k] || []).push(o); }
+  // 同組裡也可能有這次還沒輪到鎖定的訂單（同一天同一時段一定一起鎖定，所以不用另外找）
+  for (const k of Object.keys(groups)) {
+    const list = groups[k].sort((a, b) => a._row - b._row), km = num(list[0]['距離公里'], 0), min = threshold(st, km), fee = feeOf(st, km);
+    let qty = 0; for (const o of list) qty += (await c.db.all('預約', { 訂單ID: o['訂單ID'] })).filter((r) => r['狀態'] !== '已取消').reduce((t, r) => t + num(r['份數'], 1), 0);
+    const want = min !== null && qty >= min ? 0 : fee;
+    const paid = list.map((o) => (o['配送費狀態'] === '已扣款' || o['配送費狀態'] === '現付') ? num(o['配送費'], 0) : 0);
+    if (paid[0] === want && paid.slice(1).every((x) => !x)) { for (const o of list) if (!want && o['配送費狀態'] !== '免運') await c.db.update('訂單', o._row, { 配送費狀態: '免運' }); continue; }
+    for (let i = 0; i < list.length; i++) {
+      const o = list[i]; if (!paid[i]) continue;
+      if (o['配送費狀態'] === '已扣款') await ledgerAdd(c, o['會員ID'], '退款轉入', paid[i], { 可退現金: true, 對應ID: o['訂單ID'], 經手人員: '系統', 備註: '截單重算配送費，先退回' });
+      await c.db.update('訂單', o._row, { 配送費: 0, 配送費狀態: '免運', 應收現金: o['配送費狀態'] === '現付' ? Math.max(0, num(o['應收現金'], 0) - paid[i]) : num(o['應收現金'], 0) });
+      o['應收現金'] = o['配送費狀態'] === '現付' ? Math.max(0, num(o['應收現金'], 0) - paid[i]) : o['應收現金']; o['配送費狀態'] = '免運';
+    }
+    if (!want) continue;
+    const first = list[0], note = '截單重算：共 ' + qty + ' 份，未滿 ' + min + ' 份，收配送費（同組只收一次）';
+    if (first['付款方式'] === '現付') { await c.db.update('訂單', first._row, { 配送費: want, 配送費狀態: '現付', 應收現金: num(first['應收現金'], 0) + want, 備註: (first['備註'] ? first['備註'] + '；' : '') + note }); continue; }
+    const wal = walletOf(await c.db.all('錢包紀錄', { 會員ID: first['會員ID'] }));
+    if (wal.total >= want) { await ledgerAdd(c, first['會員ID'], '配送費扣款', -want, { 對應ID: first['訂單ID'], 經手人員: '系統', 備註: note }); await c.db.update('訂單', first._row, { 配送費: want, 配送費狀態: '已扣款' }); }
+    else for (const o of list) { out[o['訂單ID']] = 1; await c.db.update('訂單', o._row, { 取餐方式: '自取', 配送費狀態: '錢包不足改自取' }); }
+  }
+  return out;
 }
 
 /* ---------- 結算：中途取消或到期 ---------- */
