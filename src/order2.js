@@ -1,6 +1,6 @@
 import { UserError, clean, nowStamp, isDate, weekday, rid, isTrue } from './util.js';
 import { needAll } from './service.js';
-import { settings, walletOf, currentSub, subUpg } from './members.js';
+import { settings, walletOf, walletFull, pointFee, currentSub, subUpg } from './members.js';
 import { rules, menu, ledgerAdd, slotCounts, points, threshold, feeOf, runCutoff, closeOrderIfEmpty } from './orders.js';
 
 /**
@@ -109,8 +109,11 @@ export async function createOrder2(c, m, p, by) {
     if (m['付現停用']) throw new UserError('你的「取餐時付現」已停用（沒來取餐次數過多），請改用錢包付款或洽門市');
     if ((await cashOpen(c, m['會員ID'])) - (oldO && oldO['付款方式'] === '現付' ? 1 : 0) >= num(st['付現未取上限'], 2)) throw new UserError('你已經有 ' + num(st['付現未取上限'], 2) + ' 筆付現訂單還沒取餐，請改用錢包付款');
   } else {
-    const need = singleTotal + feeNow, wal = walletOf(await c.db.all('錢包紀錄', { 會員ID: m['會員ID'] }));
-    if (wal.total + oldCredit < need) throw new UserError('錢包餘額不足：需要 ' + need.toLocaleString() + ' 元，目前 ' + wal.total.toLocaleString() + ' 元' + (oldCredit ? '（含原訂單退回 ' + oldCredit + ' 元）' : ''));
+    // 圈存：單點與地址配送費現在扣；方案餐升級＋加購、配送點願付的配送費先預留，截單才扣。都要在可用餘額內
+    const subHold = subLines[0] ? Math.max(0, num(subLines[0].it['訂閱加價'], 0) - up.value + subLines[0].addUnit) : 0;
+    const feeHold = pick === '配送點' && o['願付配送費'] ? pointFee(st, o['距離公里']) : 0;
+    const need = singleTotal + feeNow + subHold + feeHold, wal = (await walletFull(c, m['會員ID'], { res: oldIds, order: oldO ? oldO['訂單ID'] : '' })).avail;
+    if (wal.total + oldCredit < need) throw new UserError('錢包可用餘額不足：需要 ' + need.toLocaleString() + ' 元' + (subHold + feeHold ? '（含先預留的升級／加購／配送費 ' + (subHold + feeHold) + ' 元）' : '') + '，目前可用 ' + wal.total.toLocaleString() + ' 元' + (oldCredit ? '（含原訂單退回 ' + oldCredit + ' 元）' : ''));
   }
   // 改期：檢查都通過了，先取消舊的（退回錢與餐數），再寫入新的
   if (old.length) {

@@ -1,6 +1,6 @@
 import { UserError, clean, todayStr, nowHm, nowStamp, isDate, isHm, weekday, parseClosed, rid, imgUrl, isTrue, byOrder } from './util.js';
 import { needAll } from './service.js';
-import { settings, walletOf, currentSub, consumedOf, subUpg } from './members.js';
+import { settings, walletOf, walletFull, currentSub, consumedOf, subUpg } from './members.js';
 
 /**
  * 訂餐（2026-11-06，草圖 m37）：order.html 是唯一的訂餐入口，會員自己訂與店員代訂共用同一套規則。
@@ -186,7 +186,7 @@ async function orderInfo(c, m) {
   const mine = (await c.db.all('預約', { 會員ID: m['會員ID'] })).filter((r) => r['狀態'] !== '已取消' && String(r['日期']) >= R.today);
   return {
     member: { id: m['會員ID'], name: m['姓名'] },
-    wallet: walletOf(await c.db.all('錢包紀錄', { 會員ID: m['會員ID'] })),
+    wallet: await walletFull(c, m['會員ID']),
     sub: sub ? Object.assign({ id: sub['訂閱ID'], left: sub['剩餘餐數'], meals: sub['方案餐數'], start: sub['開始日'], end: sub['到期日'], status: sub['狀態'], pauseStart: String(sub['暫停起日'] || ''), pauseEnd: String(sub['暫停迄日'] || ''), upgSize: sub['整期升級份量'], upgMain: sub['整期升級主菜'] }, { upgValue: (await subUpg(c, sub)).value }) : null,
     cutoff: R.cut, days,
     items: items.map((i) => ({ id: i['品項ID'], size: i['份量'], main: i['主菜'], mainDesc: i['主菜內容'], name: i['品名'], desc: i['介紹'], kcal: num(i['熱量'], 0), protein: num(i['蛋白質'], 0), carb: num(i['碳水'], 0), fat: num(i['脂肪'], 0), price: num(i['單點價'], 0), upg: num(i['訂閱加價'], 0), image: imgUrl(i['圖片網址']) })),
@@ -241,13 +241,14 @@ async function createOrder(c, m, p, by) {
     if (num(sub['剩餘餐數'], 0) < 1) throw new UserError('方案的餐數已經用完，可以改用單點');
     if (sub['暫停起日'] && date >= String(sub['暫停起日']) && date <= String(sub['暫停迄日'])) throw new UserError('這天在暫停期間（' + sub['暫停起日'] + '～' + sub['暫停迄日'] + '）');
     if ((await c.db.all('預約', { 會員ID: m['會員ID'], 日期: date, 時段: slot, 類別: '訂閱' })).some((r) => r['狀態'] !== '已取消')) throw new UserError('這個時段已經用方案訂過一份了（要多訂請用單點）');
-    const up = await subUpg(c, sub);
+    const up = await subUpg(c, sub), hold = Math.max(0, num(it['訂閱加價'], 0) - up.value + addonUnit), av = (await walletFull(c, m['會員ID'])).avail;
+    if (hold > av.total) throw new UserError('錢包可用餘額不足：升級／加購要先預留 ' + hold + ' 元，目前可用 ' + av.total.toLocaleString() + ' 元');
     Object.assign(row, { 訂閱ID: sub['訂閱ID'], 升級差額: num(it['訂閱加價'], 0) - up.value, 加購金額: addonUnit, 扣款狀態: '未扣款' });
     await c.db.insert('預約', row);
     await c.env.DB.prepare('UPDATE subscriptions SET remaining = remaining - 1 WHERE sub_id = ? AND remaining > 0').bind(sub['訂閱ID']).run();
   } else {
-    const total = (price + addonUnit) * qty, wal = walletOf(await c.db.all('錢包紀錄', { 會員ID: m['會員ID'] }));
-    if (wal.total < total) throw new UserError('錢包餘額不足：需要 ' + total.toLocaleString() + ' 元，目前 ' + wal.total.toLocaleString() + ' 元');
+    const total = (price + addonUnit) * qty, wal = (await walletFull(c, m['會員ID'])).avail;
+    if (wal.total < total) throw new UserError('錢包可用餘額不足：需要 ' + total.toLocaleString() + ' 元，目前 ' + wal.total.toLocaleString() + ' 元');
     Object.assign(row, { 訂閱ID: '', 升級差額: 0, 加購金額: addonUnit * qty, 付款金額: total, 用掉紅利: Math.min(wal.bonus, total), 扣款狀態: '已扣款' });
     await c.db.insert('預約', row);
     await ledgerAdd(c, m['會員ID'], '單點扣款', -total, { 對應ID: resId, 經手人員: by, 備註: date + ' ' + slot + '：' + it['份量'] + ' ' + it['主菜'] + ' ×' + qty });
@@ -344,8 +345,10 @@ async function upgradePlan(c, m, p, by) {
   const n = num(sub['剩餘餐數'], 0) + open.length, total = diff * n;
   if (n < 1) throw new UserError('沒有可以升級的餐');
   if (p.preview) return { diff, n, total, left: num(sub['剩餘餐數'], 0), open: open.length };
-  const wal = walletOf(await c.db.all('錢包紀錄', { 會員ID: m['會員ID'] }));
-  if (wal.total < total) throw new UserError('錢包餘額不足：需要 ' + total.toLocaleString() + ' 元，目前 ' + wal.total.toLocaleString() + ' 元');
+  // 已預約、用錢包付的餐：升級後預留會變少，先算回來
+  const freed = open.filter((r) => r['扣款狀態'] === '未扣款').reduce((t, r) => t + Math.max(0, num(r['升級差額'], 0) + num(r['加購金額'], 0)) - Math.max(0, num(r['升級差額'], 0) - diff + num(r['加購金額'], 0)), 0);
+  const wal = (await walletFull(c, m['會員ID'])).avail;
+  if (wal.total + freed < total) throw new UserError('錢包可用餘額不足：需要 ' + total.toLocaleString() + ' 元，目前可用 ' + (wal.total + freed).toLocaleString() + ' 元');
   await ledgerAdd(c, m['會員ID'], '升級扣款', -total, { 對應ID: sub['訂閱ID'], 經手人員: by, 備註: '整期升級 ' + it['份量'] + ' ' + it['主菜'] + '：' + diff + ' × ' + n + ' 餐' });
   await c.db.update('訂閱', sub._row, { 整期升級份量: it['份量'], 整期升級主菜: it['主菜'], 備註: (sub['備註'] ? sub['備註'] + '；' : '') + '整期升級 ' + it['份量'] + ' ' + it['主菜'] + ' by ' + by });
   for (const r of open) {

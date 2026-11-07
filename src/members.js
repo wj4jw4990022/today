@@ -50,6 +50,30 @@ export function walletOf(rows, split) {
   });
   return { total: cash + bonus, cash, bonus };
 }
+/**
+ * 圈存（2026-11-07 使用者決定）：還沒截單、用錢包付的「方案餐升級＋加購」與「配送點願付的配送費」先預留，截單時才真的扣。
+ * 預留跟扣款一樣先算紅利。可用＝餘額－預留；下單、買方案、升級、退款都看可用餘額。
+ * ex＝要排除的預約 ID 與訂單 ID（改期時，舊訂單的預留先不算）。
+ */
+export async function heldOf(c, memberId, ex) {
+  ex = ex || {}; const exRes = ex.res || [], exOrder = ex.order || '';
+  const [rows, orders] = await Promise.all([c.db.all('預約', { 會員ID: memberId, 狀態: '已預約' }), c.db.all('訂單', { 會員ID: memberId })]);
+  const om = {}; orders.forEach((o) => { om[o['訂單ID']] = o; });
+  let held = 0;
+  rows.filter((r) => r['類別'] === '訂閱' && r['扣款狀態'] === '未扣款' && exRes.indexOf(r['預約ID']) < 0 && r['訂單ID'] !== exOrder && !(om[r['訂單ID']] && om[r['訂單ID']]['付款方式'] === '現付'))
+    .forEach((r) => { held += Math.max(0, num(r['升級差額'], 0) + num(r['加購金額'], 0)); });
+  const open = {}; rows.forEach((r) => { if (r['訂單ID']) open[r['訂單ID']] = 1; });
+  const fees = orders.filter((o) => open[o['訂單ID']] && o['訂單ID'] !== exOrder && o['狀態'] !== '已取消' && o['取餐方式'] === '配送' && o['願付配送費'] && o['付款方式'] === '錢包' && !o['配送費狀態']);
+  if (fees.length) { const st = await settings(c); fees.forEach((o) => { held += pointFee(st, o['距離公里']); }); }
+  return held;
+}
+export function pointFee(st, km) { km = Number(km) || 0; return km <= 2 ? num(st['配送費_2公里內'], 30) : km <= 5 ? num(st['配送費_2至5公里'], 50) : num(st['配送費_5至8公里'], 80); }
+/** 錢包（含預留與可用）：{ total, cash, bonus, held, avail: { total, cash, bonus } } */
+export async function walletFull(c, memberId, ex) {
+  const w = walletOf(await c.db.all('錢包紀錄', { 會員ID: memberId })), held = await heldOf(c, memberId, ex);
+  const hb = Math.min(Math.max(w.bonus, 0), held), hc = held - hb;
+  return Object.assign(w, { held, avail: { total: w.total - held, cash: w.cash - hc, bonus: w.bonus - hb } });
+}
 /** 錢包紀錄給畫面用：每筆加上 bonus（紅利變動）、cash（錢包變動） */
 export function ledgerView(rows) { const sp = {}; walletOf(rows, sp); return (r) => ({ bonus: (sp[r['紀錄ID']] || [0, 0])[0], cash: (sp[r['紀錄ID']] || [0, 0])[1] }); }
 
@@ -103,8 +127,8 @@ export async function buyPlan(c, m, p, by) {
     if (!price) throw new UserError('請選擇方案');
     const subs = await c.db.all('訂閱', { 會員ID: m['會員ID'] }), old = currentSub(subs);
     if (old && old['狀態'] !== '使用中') throw new UserError('方案暫停中，不能續訂');
-    const wal = walletOf(await ledgerOf(c, m['會員ID']));
-    if (wal.total < price) throw new UserError('錢包餘額不足：還差 ' + (price - wal.total).toLocaleString() + ' 元，請先儲值');
+    const wal = (await walletFull(c, m['會員ID'])).avail;
+    if (wal.total < price) throw new UserError('錢包可用餘額不足：還差 ' + (price - wal.total).toLocaleString() + ' 元，請先儲值' + (wal.total !== walletOf(await ledgerOf(c, m['會員ID'])).total ? '（已預留的訂餐升級／加購不能用）' : ''));
     let referrer = null; const code = clean(p.code, 10).toUpperCase();
     if (code) {
       if (m['曾訂閱'] || subs.length || old) throw new UserError('推薦碼只限第一次訂閱使用');
@@ -155,7 +179,7 @@ export const memberOps = {
     needAll(a);
     const m = await member(c, p.memberId);
     const [led, subs, refs] = await Promise.all([ledgerOf(c, m['會員ID']), c.db.all('訂閱', { 會員ID: m['會員ID'] }), c.db.all('推薦紀錄', { 推薦人會員ID: m['會員ID'] })]);
-    const s = summary(m, walletOf(led), currentSub(subs));
+    const s = summary(m, await walletFull(c, m['會員ID']), currentSub(subs));
     const lv = ledgerView(led);
     s.ledger = led.sort((x, y) => y._row - x._row).map((r) => Object.assign(lv(r), { id: r['紀錄ID'], at: String(r['時間']).slice(0, 16), type: r['類型'], amount: r['金額'], refundable: !!r['可退現金'], method: r['付款方式'], last5: r['轉帳末五碼'], ref: r['對應ID'], by: r['經手人員'], status: r['狀態'], note: r['備註'] }));
     if (s.sub) s.sub.future = (await c.db.all('預約', { 訂閱ID: s.sub.id })).filter((r) => ['已預約', '已鎖定'].indexOf(r['狀態']) >= 0).length;
@@ -222,8 +246,8 @@ export const memberOps = {
     if (!Number.isInteger(amt) || amt <= 0) throw new UserError('請輸入退款金額');
     if (!reason) throw new UserError('請填寫退款原因');
     if (PAY.indexOf(method) < 0) throw new UserError('請選擇退款方式');
-    const wal = walletOf(await ledgerOf(c, m['會員ID']));
-    if (amt > wal.cash) throw new UserError('最多只能退 ' + wal.cash.toLocaleString() + ' 元（紅利不能退現金）');
+    const wal = (await walletFull(c, m['會員ID'])).avail;
+    if (amt > wal.cash) throw new UserError('最多只能退 ' + wal.cash.toLocaleString() + ' 元（紅利不能退現金；已預留的訂餐升級／加購不能退）');
     await ledger(c, m['會員ID'], '退現金', -amt, { 付款方式: method, 經手人員: a.email, 備註: reason });
     return { ok: true };
   }

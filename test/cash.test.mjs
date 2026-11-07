@@ -95,10 +95,44 @@ await t('錢包紀錄：每筆顯示扣了多少紅利、多少錢包', async ()
   await q("INSERT INTO wallet_ledger (rec_id,member_id,at,type,amount,refundable,status) VALUES ('WB9',?,'2026-11-07 12:00:00','推薦紅利',100,0,'已入帳')", m.id);
   const r = await m.O({ action: 'orderCreate2', date: D1, slot: '晚上', pay: '錢包', lines: [{ itemId: 'HM-L-CB', sauce: 'AD-S-OIL', qty: 1 }] }); assert(r.ok, r.error);
   const me = (await m.O({ action: 'memberMe' })).data;
-  assert.deepEqual(me.wallet, { total: 910, cash: 910, bonus: 0 });
+  assert.equal(me.wallet.total, 910); assert.equal(me.wallet.cash, 910); assert.equal(me.wallet.bonus, 0); assert.equal(me.wallet.held, 0);
   const x = me.ledger.find((l) => l.type === '單點扣款'); assert.equal(x.bonus, -100); assert.equal(x.cash, -90);
   assert.equal(me.ledger.find((l) => l.type === '推薦紅利').bonus, 100);
   const g = (await post({ ...A, action: 'adminMemberGet', memberId: m.id })).data; assert.equal(g.ledger.find((l) => l.type === '單點扣款').bonus, -100);
+});
+
+await t('圈存：方案餐升級＋加購先預留，可用餘額不夠就不能再加點', async () => {
+  const m = await newMember('Uh1', '圈存壬', '0955000011', 1400, 8); // 買完錢包 0
+  await post({ ...A, action: 'adminTopup', memberId: m.id, amount: 1000, method: '現金' }); // 錢包 1000
+  let ok = 0, last; const days = []; for (let i = 1; days.length < 8; i++) if (dow(day(i)) !== 3) days.push(day(i));
+  for (const d of days) { last = await m.O({ action: 'orderCreate2', date: d, slot: '中午', pay: '錢包', lines: [{ itemId: 'HM-B-CB', sauce: 'AD-S-OIL', drinks: ['AD-D-PSM'], useSub: 1 }] }); if (last.ok) ok++; else break; } // 每份預留 20＋60＝80
+  assert.equal(ok, 8); // 8 × 80 = 640 ≤ 1000
+  const me = (await m.O({ action: 'memberMe' })).data; assert.equal(me.wallet.held, 640); assert.equal(me.wallet.avail.total, 360); assert.equal(me.wallet.total, 1000);
+  const r = await m.O({ action: 'orderCreate2', date: days[0], slot: '晚上', pay: '錢包', lines: [{ itemId: 'HM-L-CB', sauce: 'AD-S-OIL', qty: 2 }] }); // 單點 380 > 可用 360
+  assert(!r.ok && r.error.includes('可用餘額不足'), JSON.stringify(r));
+  const rf = await m.O({ action: 'payRefund', amount: 400, method: '門市領現' }); assert(!rf.ok && rf.error.includes('最多可以退 360'), JSON.stringify(rf));
+});
+
+await t('圈存：取消就解除預留；截單才真的扣', async () => {
+  const m = await newMember('Uh2', '圈存癸', '0955000012', 1400, 8);
+  await post({ ...A, action: 'adminTopup', memberId: m.id, amount: 1000, method: '現金' });
+  const a1 = await m.O({ action: 'orderCreate2', date: D1, slot: '中午', pay: '錢包', lines: [{ itemId: 'HM-B-CB', sauce: 'AD-S-OIL', drinks: ['AD-D-PSM'], useSub: 1 }] }); assert(a1.ok, a1.error);
+  let k2 = k + 1; while (dow(day(k2)) === 3) k2++;
+  const a2 = await m.O({ action: 'orderCreate2', date: day(k2), slot: '中午', pay: '錢包', lines: [{ itemId: 'HM-B-CB', sauce: 'AD-S-OIL', useSub: 1 }] }); assert(a2.ok, a2.error);
+  assert.equal((await m.O({ action: 'memberMe' })).data.wallet.held, 100);
+  assert((await m.O({ action: 'orderCancelWhole', orderId: a2.data.orderId })).ok);
+  assert.equal((await m.O({ action: 'memberMe' })).data.wallet.held, 80);
+  await cut(); // 截單只鎖 D1
+  const w = (await m.O({ action: 'memberMe' })).data.wallet; assert.equal(w.held, 0); assert.equal(w.total, 920);
+});
+
+await t('圈存：配送點勾「願付配送費」先預留，錢包付款的可用餘額要夠', async () => {
+  const m = await newMember('Uh3', '圈存子', '0955000013', 1400, 8);
+  await post({ ...A, action: 'adminTopup', memberId: m.id, amount: 1000, method: '現金' });
+  await post({ ...A, action: 'adminWalletAdjust', memberId: m.id, amount: -990, reason: '測試', refundable: true }); // 剩 10
+  const r = await m.O({ action: 'orderCreate2', date: D1, slot: '中午', pickup: '配送點', pointId: 'DPT', feeOk: true, pay: '錢包', lines: [sub] });
+  assert(!r.ok && r.error.includes('配送費'), JSON.stringify(r));
+  const r2 = await m.O({ action: 'orderCreate2', date: D1, slot: '中午', pickup: '配送點', pointId: 'DPT', feeOk: false, pay: '錢包', lines: [sub] }); assert(r2.ok, r2.error);
 });
 
 summary(); await S.dispose(); process.exit(process.exitCode || 0);

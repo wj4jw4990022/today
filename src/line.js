@@ -1,6 +1,6 @@
 import { UserError, clean, nowStamp, rid } from './util.js';
 import { needAll } from './service.js';
-import { settings, normEmail, walletOf, ledgerView, currentSub, newIds } from './members.js';
+import { settings, normEmail, walletOf, walletFull, ledgerView, currentSub, newIds } from './members.js';
 
 /**
  * 會員 LINE 登入與會員中心（2026-11-06，草圖 m33）
@@ -96,7 +96,8 @@ export async function memberApi(c, request, p) {
     const m = await c.db.first('會員', { 會員ID: s['會員ID'] });
     if (!m || m['狀態'] === '已刪除') return { login: true, registered: false, lineName: s['LINE名稱'] };
     const [led, subs] = await Promise.all([c.db.all('錢包紀錄', { 會員ID: m['會員ID'] }), c.db.all('訂閱', { 會員ID: m['會員ID'] })]);
-    return Object.assign({ login: true, lineName: s['LINE名稱'], referrerBonus: Number(st['推薦人獎勵']) || 0, referrerMeals: Number(st['推薦發放取餐數']) || 3 }, meView(m, led, subs));
+    const v = meView(m, led, subs); if (!v.pending) v.wallet = await walletFull(c, m['會員ID']);
+    return Object.assign({ login: true, lineName: s['LINE名稱'], referrerBonus: Number(st['推薦人獎勵']) || 0, referrerMeals: Number(st['推薦發放取餐數']) || 3 }, v);
   }
   if (!s) throw new UserError('請先用 LINE 登入');
   if (p.action === 'memberRegister') {

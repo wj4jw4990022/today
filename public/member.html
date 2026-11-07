@@ -120,6 +120,8 @@ function vPlanTab() {
   if (m) { h += acc('pause', '暫停方案', OI.sub.pauseStart ? '本期已暫停過' : '本期可用 1 次', m.pause); h += acc('upg', '整期升級', OI.sub.upgSize ? '已升級 ' + OI.sub.upgSize + ' ' + OI.sub.upgMain : '一次升級剩下的餐', m.upg); }
   return h;
 }
+function AVw(w) { return w.avail || w; }
+function heldNote(w, sm) { return w.held ? '<p class="mb-p" style="font-size:' + (sm || 12) + 'px;margin:6px 0 0">已預留 ' + money(w.held) + '（訂餐的升級／加購、配送費，截單時扣）・可用 錢包 ' + money(AVw(w).cash) + '・紅利 ' + money(AVw(w).bonus) + '</p>' : ''; }
 function useSplit(w, amt) { var b = Math.min(Math.max(w.bonus, 0), amt); return { b: b, c: amt - b }; }
 function splitRows(w, amt, label) { var x = useSplit(w, amt); return (x.b ? '<div class="mb-row" style="color:var(--gold)"><span>' + (label || '') + '先扣紅利</span><span>−' + money(x.b) + '（剩 ' + money(w.bonus - x.b) + '）</span></div>' : '') + '<div class="mb-row"><span>' + (x.b ? '再扣錢包' : (label || '') + '從錢包扣') + '</span><span>−' + money(x.c) + '（剩 ' + money(w.cash - x.c) + '）</span></div>'; }
 function ledAmt(r) {
@@ -131,7 +133,7 @@ function vWalletTab() {
   var w = ME.wallet;
   if (ME.pending) return '<p class="mb-p">資料合併完成後顯示。</p>';
   var led = ALLLED ? ME.ledger : ME.ledger.slice(0, 5);
-  return '<div class="mb-row"><span>錢包（可退現金）</span><span><b>' + money(w.cash) + '</b></span></div><div class="mb-row" style="color:var(--gold)"><span>紅利（只能消費，不能退現金）</span><span><b>' + money(w.bonus) + '</b></span></div><p class="mb-p" style="font-size:12px;margin:6px 0 0">用錢包付款時，先扣紅利，不夠的部分再扣錢包。</p><div style="height:12px"></div>' +
+  return '<div class="mb-row"><span>錢包（可退現金）</span><span><b>' + money(w.cash) + '</b></span></div><div class="mb-row" style="color:var(--gold)"><span>紅利（只能消費，不能退現金）</span><span><b>' + money(w.bonus) + '</b></span></div>' + (w.held ? '<div class="mb-row"><span>已預留（截單時扣）</span><span>−' + money(w.held) + '</span></div><div class="mb-row"><span><b>可用</b></span><span><b>錢包 ' + money(AVw(w).cash) + '・<span style="color:var(--gold)">紅利 ' + money(AVw(w).bonus) + '</span></b></span></div>' : '') + '<p class="mb-p" style="font-size:12px;margin:6px 0 0">用錢包付款時，先扣紅利，不夠的部分再扣錢包。方案餐的升級／加購和配送點的配送費，訂餐時先預留，前一天截單才扣；取消就解除預留。</p><div style="height:12px"></div>' +
     acc('topup', '儲值', '轉帳、LINE Pay 或到門市付現', PI ? (function () { PS.mode = 'topup'; var x = vPlan(); PS.mode = 'buy'; return x; })() : '載入中…') +
     acc('refund', '申請退款', '退回可退現金', vRefund()) +
     '<div class="mm-sec" style="margin-top:18px">' + (ALLLED ? '全部紀錄' : '最近紀錄') + '</div>' + (led.length ? led.map(function (r) { return '<div class="mb-row"><span>' + E(r.at.slice(5, 10).replace('-', '/')) + '　' + E(r.type) + '</span><span style="text-align:right">' + ledAmt(r) + '</span></div>'; }).join('') : '<div class="mb-row"><span>還沒有紀錄</span><span></span></div>') +
@@ -159,7 +161,7 @@ function vCenter() {
   var tabs = [['meals', '我的餐點'], ['plan', '方案'], ['wallet', '錢包'], ['ref', '推薦'], ['acc', '帳號']];
   var body = TAB === 'plan' ? vPlanTab() : TAB === 'wallet' ? vWalletTab() : TAB === 'ref' ? vRefTab() : TAB === 'acc' ? vAccTab() : vMeals();
   return err() + '<div class="mm"><div class="mm-l"><div class="mm-card"><div class="mm-id">' + E(ME.id) + '</div><div class="mm-nm">' + E(ME.name) + '</div>' +
-    '<div class="mm-g"><div>本期剩餘<b>' + (s ? s.left + ' / ' + s.meals + ' 餐' : '—') + '</b></div><div>到期日<b>' + (s ? E(s.end.slice(5).replace('-', '/')) : '—') + '</b></div><div>錢包<b>' + money(w.cash) + '</b>可退現金</div><div>紅利<b>' + money(w.bonus) + '</b>只能消費</div></div></div>' +
+    '<div class="mm-g"><div>本期剩餘<b>' + (s ? s.left + ' / ' + s.meals + ' 餐' : '—') + '</b></div><div>到期日<b>' + (s ? E(s.end.slice(5).replace('-', '/')) : '—') + '</b></div><div>錢包<b>' + money(w.cash) + '</b>可退現金</div><div>紅利<b>' + money(w.bonus) + '</b>只能消費</div></div>' + (w.held ? '<div style="font-size:12px;opacity:.85;margin-top:10px;border-top:1px solid rgba(217,180,119,.4);padding-top:8px">已預留 ' + money(w.held) + '（截單時扣）・可用 ' + money(AVw(w).total) + '</div>' : '') + '</div>' +
     (ME.pending ? '' : '<a class="mm-go" href="order.html">＋ 訂餐</a>') + note + pendNote() + '</div>' +
     '<div class="mm-r"><div class="mm-tabs">' + tabs.map(function (t) { return '<button type="button" data-tab="' + t[0] + '" class="' + (TAB === t[0] ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</div><div class="mm-body">' + body + '</div></div></div>';
 }
@@ -169,13 +171,13 @@ function vPlan() {
   if (PI.pending) return '<p class="mb-p">有一筆申請處理中（見上方提示），處理完才能再送出。</p>';
   if (false) { var q = PI.pending; return '<div class="mb-note"><b>' + (q.kind === '退款' ? '退款處理中' : '付款確認中') + '</b>：' + E(q.at.slice(5)) + ' 送出「' + (q.kind === '退款' ? '退款 ' + money(q.amount) : q.kind === '儲值並購買' ? '儲值 ' + money(q.amount) + ' 並購買 ' + q.meals + ' 餐' : '儲值 ' + money(q.amount)) + '」（' + E(q.method) + (q.last5 ? ' 末五碼 ' + E(q.last5) : '') + '）。店員確認後' + (q.kind === '儲值並購買' ? '開通方案' : q.kind === '退款' ? '退款' : '入帳') + '。<a href="#" data-pcx style="float:right;text-decoration:underline">取消申請</a><br><small>' + E(q.kind === '退款' ? (q.method === '門市領現' ? '請到門市領取' : '店員會轉到你填的帳號') : (PI.howto[q.method] || '')) + '</small></div>'; }
   if (!plan) return '';
-  var need = plan.total - w.total, renew = !!PI.sub, howto = PI.howto[PS.method] || '';
+  var need = plan.total - AVw(w).total, renew = !!PI.sub, howto = PI.howto[PS.method] || '';
   var pay = '<div class="hb-cap" style="margin-top:16px">付款方式</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px">' + ['轉帳', 'LINE Pay', '門市付現'].map(function (m) { return '<button type="button" data-pm="' + m + '" ' + ch(PS.method === m) + '>' + (m === '門市付現' ? '到門市付現' : m) + '</button>'; }).join('') + '</div>' +
     '<div class="mb-note" style="margin:6px 0 12px;white-space:pre-line">' + E(howto) + '</div>' + (PS.method === '轉帳' ? '<div class="mb-f"><label>轉帳末五碼</label><input id="p-l5" inputmode="numeric" maxlength="5" value="' + E(PS.l5) + '"></div>' : '');
   var body = PS.mode === 'buy'
     ? '<div class="pl3">' + PI.plans.map(function (p) { return '<button type="button" data-pp="' + p.meals + '" class="' + (p.meals === plan.meals ? 'on' : '') + '">' + p.meals + ' 餐<b>' + money(p.total) + '</b>每餐 ' + (p.per || Math.round(p.total / p.meals)) + '</button>'; }).join('') + '</div>' +
       (!renew && !PI.ever ? '<div class="mb-f"><label>朋友的推薦碼（選填，第一次訂閱得紅利）</label><input id="p-code" maxlength="6" style="text-transform:uppercase" value="' + E(PS.code) + '"></div>' : '') +
-      '<div class="mb-row"><span>' + (renew ? '續訂 ' : '') + plan.meals + ' 餐方案</span><span>' + money(plan.total) + '</span></div>' + splitRows(w, Math.min(plan.total, w.total)) +
+      '<div class="mb-row"><span>' + (renew ? '續訂 ' : '') + plan.meals + ' 餐方案</span><span>' + money(plan.total) + '</span></div>' + splitRows(AVw(w), Math.min(plan.total, AVw(w).total)) + heldNote(w) +
       (renew ? '<div class="mb-row"><span>續訂後</span><span>新一期今天起 ' + PI.days + ' 天，共 ' + (plan.meals + PI.sub.left) + ' 餐</span></div>' : '') +
       (need <= 0 ? '<button class="hb-btn g" style="display:block;width:100%;margin-top:14px" data-pbuy>用錢包' + (renew ? '續訂' : '購買') + '</button>'
         : '<div class="mb-row"><span>還需要付</span><span><b>' + money(need) + '</b></span></div>' + pay + '<button class="hb-btn g" style="display:block;width:100%" data-preq>送出：儲值 ' + money(need) + ' 並' + (renew ? '續訂 ' : '購買 ') + plan.meals + ' 餐</button>')
@@ -205,7 +207,7 @@ function vManage() {
     '<div class="hb-cap">份量</div><div>' + sizes.map(function (x) { return '<button type="button" data-zs="' + E(x) + '" ' + ch(PZ.size === x) + '>' + E(x) + '</button>'; }).join('') + '</div>' +
     '<div class="hb-cap" style="margin-top:6px">主菜</div><div>' + mains.map(function (x) { return '<button type="button" data-zm="' + E(x) + '" ' + ch(PZ.main === x) + '>' + E(x) + '</button>'; }).join('') + '</div>' +
     (!pick ? '<p class="mb-p">沒有這個組合</p>' : diff <= 0 ? '<p class="mb-p" style="margin:8px 0 0">' + (s.upgValue ? '請選比目前更高的組合' : '這是基本餐，不用升級') + '</p>' :
-      '<div class="mb-row"><span>每餐差額</span><span>$' + diff + '</span></div>' + (PZ.pv ? '<div class="mb-row"><span>適用餐數</span><span>剩 ' + PZ.pv.left + ' 餐＋已訂未截單 ' + PZ.pv.open + ' 餐＝' + PZ.pv.n + ' 餐</span></div><div class="mb-row"><span>共要付</span><span><b>' + money(PZ.pv.total) + '</b></span></div>' + splitRows(OI.wallet, Math.min(PZ.pv.total, OI.wallet.total)) + '<button class="hb-btn g" style="display:block;width:100%;margin-top:14px" data-zup>確認整期升級</button>' : '<button class="hb-btn" style="display:block;width:100%;margin-top:14px" data-zpv>計算金額</button>')) +
+      '<div class="mb-row"><span>每餐差額</span><span>$' + diff + '</span></div>' + (PZ.pv ? '<div class="mb-row"><span>適用餐數</span><span>剩 ' + PZ.pv.left + ' 餐＋已訂未截單 ' + PZ.pv.open + ' 餐＝' + PZ.pv.n + ' 餐</span></div><div class="mb-row"><span>共要付</span><span><b>' + money(PZ.pv.total) + '</b></span></div>' + splitRows(AVw(OI.wallet), Math.min(PZ.pv.total, AVw(OI.wallet).total)) + heldNote(OI.wallet) + '<button class="hb-btn g" style="display:block;width:100%;margin-top:14px" data-zup>確認整期升級</button>' : '<button class="hb-btn" style="display:block;width:100%;margin-top:14px" data-zpv>計算金額</button>')) +
     '<p class="mb-p" style="font-size:12px;margin:10px 0 0">升級後訂餐預設用這個組合；改訂較便宜的組合，截單時退差額到錢包。續訂或結算時，沒用到的升級差額退回錢包。</p>';
   return { pause: '<p class="mb-p" style="font-size:13px;margin:0 0 10px">每期可暫停 1 次、最多 7 天；暫停幾天，到期日就往後延幾天。</p>' + pause + '<div id="z-msg"></div>', upg: '<p class="mb-p" style="font-size:13px;margin:0 0 10px">一次把本期剩下的餐都升級；之後訂餐不再每餐扣差額。</p>' + upg + '<div id="u-msg"></div>' };
 }
@@ -213,9 +215,9 @@ function vManage() {
 var RF = { method: '門市領現', amt: '', acct: '' };
 function vRefund() {
   if (ME.pending || !PI) return '';
-  var cash = PI.wallet.cash, ch = function (on) { return 'style="padding:8px 14px;border:1px solid ' + (on ? 'var(--gold);background:var(--gold);color:#fff' : 'var(--line);background:#fff') + ';font:inherit;font-size:13px;cursor:pointer;margin:0 6px 6px 0"'; };
+  var cash = AVw(PI.wallet).cash, ch = function (on) { return 'style="padding:8px 14px;border:1px solid ' + (on ? 'var(--gold);background:var(--gold);color:#fff' : 'var(--line);background:#fff') + ';font:inherit;font-size:13px;cursor:pointer;margin:0 6px 6px 0"'; };
   var refund = PI.pending ? '<p class="mb-p" style="margin:6px 0 0">有一筆申請處理中，處理完才能再申請。</p>' : cash <= 0 ? '<p class="mb-p" style="margin:6px 0 0">目前沒有可退的金額（紅利不能退現金）。</p>' :
-    '<p class="mb-p" style="margin:6px 0 10px;font-size:13px">可退現金 ' + money(cash) + '（紅利不能退）。店員處理後從錢包扣除。</p><div class="mb-f"><label>退款金額</label><input id="rf-amt" inputmode="numeric" value="' + E(RF.amt || cash) + '"></div>' +
+    '<p class="mb-p" style="margin:6px 0 10px;font-size:13px">可退現金 ' + money(cash) + '（紅利不能退' + (PI.wallet.held ? '；已扣除訂餐預留' : '') + '）。店員處理後從錢包扣除。</p><div class="mb-f"><label>退款金額</label><input id="rf-amt" inputmode="numeric" value="' + E(RF.amt || cash) + '"></div>' +
     '<div class="hb-cap">退款方式</div><div>' + ['門市領現', '轉帳'].map(function (m) { return '<button type="button" data-rfm="' + m + '" ' + ch(RF.method === m) + '>' + m + '</button>'; }).join('') + '</div>' +
     (RF.method === '轉帳' ? '<div class="mb-f"><label>退款帳號（銀行、分行、帳號、戶名）</label><input id="rf-acct" value="' + E(RF.acct) + '"></div>' : '') + '<button class="hb-btn" style="display:block;width:100%" data-rfgo>送出退款申請</button>';
   return refund + '<div id="rf-msg"></div>';
