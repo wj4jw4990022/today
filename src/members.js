@@ -41,7 +41,8 @@ export function walletOf(rows, split) {
     else {
       const out = -amt;
       if (type === '退現金') c = -out;
-      else if (type === '紅利收回' || type === '獎勵收回') b = -out;
+      else if (type === '紅利收回' || type === '獎勵收回' || /・紅利$/.test(type)) b = -out; // 「訂餐・紅利」「購買方案・紅利」…：會員指定用紅利
+      else if (/・錢包$/.test(type)) c = -out; // 「訂餐・錢包」…：會員指定用錢包（可退現金）
       else if (type === '人工調整') { if (r['可退現金']) c = -out; else b = -out; }
       else { const fromBonus = Math.min(Math.max(bonus, 0), out); b = -fromBonus; c = -(out - fromBonus); } // 消費：先扣紅利
     }
@@ -59,20 +60,22 @@ export async function heldOf(c, memberId, ex) {
   ex = ex || {}; const exRes = ex.res || [], exOrder = ex.order || '';
   const [rows, orders] = await Promise.all([c.db.all('預約', { 會員ID: memberId, 狀態: '已預約' }), c.db.all('訂單', { 會員ID: memberId })]);
   const om = {}; orders.forEach((o) => { om[o['訂單ID']] = o; });
-  let held = 0;
-  rows.filter((r) => r['類別'] === '訂閱' && r['扣款狀態'] === '未扣款' && exRes.indexOf(r['預約ID']) < 0 && r['訂單ID'] !== exOrder && !(om[r['訂單ID']] && om[r['訂單ID']]['付款方式'] === '現付'))
+  const split = (id) => !!(om[id] && om[id]['分帳']);
+  let held = 0, hb = 0, hc = 0; // hb、hc：會員指定用紅利／錢包的訂單（分帳）
+  orders.filter((o) => o['分帳'] && !o['已扣款'] && o['狀態'] !== '已取消' && o['訂單ID'] !== exOrder).forEach((o) => { hb += num(o['用紅利'], 0); hc += num(o['用錢包'], 0); });
+  rows.filter((r) => r['類別'] === '訂閱' && r['扣款狀態'] === '未扣款' && !split(r['訂單ID']) && exRes.indexOf(r['預約ID']) < 0 && r['訂單ID'] !== exOrder && !(om[r['訂單ID']] && om[r['訂單ID']]['付款方式'] === '現付'))
     .forEach((r) => { held += Math.max(0, num(r['升級差額'], 0) + num(r['加購金額'], 0)); });
   const open = {}; rows.forEach((r) => { if (r['訂單ID']) open[r['訂單ID']] = 1; });
-  const fees = orders.filter((o) => open[o['訂單ID']] && o['訂單ID'] !== exOrder && o['狀態'] !== '已取消' && o['取餐方式'] === '配送' && o['願付配送費'] && o['付款方式'] === '錢包' && !o['配送費狀態']);
+  const fees = orders.filter((o) => !o['分帳'] && open[o['訂單ID']] && o['訂單ID'] !== exOrder && o['狀態'] !== '已取消' && o['取餐方式'] === '配送' && o['願付配送費'] && o['付款方式'] === '錢包' && !o['配送費狀態']);
   if (fees.length) { const st = await settings(c); fees.forEach((o) => { held += pointFee(st, o['距離公里']); }); }
-  return held;
+  return { other: held, hb, hc, total: held + hb + hc };
 }
 export function pointFee(st, km) { km = Number(km) || 0; return km <= 2 ? num(st['配送費_2公里內'], 30) : km <= 5 ? num(st['配送費_2至5公里'], 50) : num(st['配送費_5至8公里'], 80); }
 /** 錢包（含預留與可用）：{ total, cash, bonus, held, avail: { total, cash, bonus } } */
 export async function walletFull(c, memberId, ex) {
-  const w = walletOf(await c.db.all('錢包紀錄', { 會員ID: memberId })), held = await heldOf(c, memberId, ex);
-  const hb = Math.min(Math.max(w.bonus, 0), held), hc = held - hb;
-  return Object.assign(w, { held, avail: { total: w.total - held, cash: w.cash - hc, bonus: w.bonus - hb } });
+  const w = walletOf(await c.db.all('錢包紀錄', { 會員ID: memberId })), h = await heldOf(c, memberId, ex);
+  const ob = Math.min(Math.max(w.bonus - h.hb, 0), h.other), hb = h.hb + ob, hc = h.hc + h.other - ob; // 其他預留先算紅利
+  return Object.assign(w, { held: h.total, heldBonus: hb, heldCash: hc, avail: { total: w.total - h.total, cash: w.cash - hc, bonus: w.bonus - hb } });
 }
 /** 錢包紀錄給畫面用：每筆加上 bonus（紅利變動）、cash（錢包變動） */
 export function ledgerView(rows) { const sp = {}; walletOf(rows, sp); return (r) => ({ bonus: (sp[r['紀錄ID']] || [0, 0])[0], cash: (sp[r['紀錄ID']] || [0, 0])[1] }); }
@@ -127,8 +130,13 @@ export async function buyPlan(c, m, p, by) {
     if (!price) throw new UserError('請選擇方案');
     const subs = await c.db.all('訂閱', { 會員ID: m['會員ID'] }), old = currentSub(subs);
     if (old && old['狀態'] !== '使用中') throw new UserError('方案暫停中，不能續訂');
-    const wal = (await walletFull(c, m['會員ID'])).avail;
-    if (wal.total < price) throw new UserError('錢包可用餘額不足：還差 ' + (price - wal.total).toLocaleString() + ' 元，請先儲值' + (wal.total !== walletOf(await ledgerOf(c, m['會員ID'])).total ? '（已預留的訂餐升級／加購不能用）' : ''));
+    const wal = (await walletFull(c, m['會員ID'])).avail, avB = Math.max(0, wal.bonus);
+    // 2026-11-07：會員可以自己填這次用多少紅利，其餘從錢包扣；沒填＝紅利能用就先用
+    const hasB = p.useBonus !== undefined && p.useBonus !== null && String(p.useBonus).trim() !== '';
+    const useB = hasB ? Math.floor(num(p.useBonus, 0)) : Math.min(avB, price), useW = price - useB;
+    if (!(useB >= 0) || useB > price) throw new UserError('紅利請填 0～' + price + ' 元');
+    if (useB > avB) throw new UserError('紅利可用只有 ' + avB.toLocaleString() + ' 元');
+    if (useW > wal.cash) throw new UserError('錢包可用餘額不足：還差 ' + (useW - Math.max(0, wal.cash)).toLocaleString() + ' 元，請先儲值' + (wal.total !== walletOf(await ledgerOf(c, m['會員ID'])).total ? '（已預留的訂餐金額不能用）' : ''));
     let referrer = null; const code = clean(p.code, 10).toUpperCase();
     if (code) {
       if (m['曾訂閱'] || subs.length || old) throw new UserError('推薦碼只限第一次訂閱使用');
@@ -149,7 +157,9 @@ export async function buyPlan(c, m, p, by) {
     }
     await c.db.insert('訂閱', { 訂閱ID: subId, 會員ID: m['會員ID'], 方案餐數: meals, 剩餘餐數: meals + carryMeals, 方案金額: price, 推薦折扣: 0, 實付金額: price + carry, 付款方式: '錢包', 收款確認人員: a.email, 收款時間: nowStamp(), 開始日: start, 到期日: addDays(start, days - 1), 狀態: '使用中', 續訂來源訂閱ID: old ? old['訂閱ID'] : '', 建立時間: nowStamp(), 備註: old ? '續訂：含舊期 ' + carryMeals + ' 餐、可結算 ' + carry + ' 元' : '' });
     if (old) await c.env.DB.prepare("UPDATE reservations SET sub_id = ? WHERE sub_id = ? AND status IN ('已預約','已鎖定')").bind(subId, old['訂閱ID']).run();
-    await ledger(c, m['會員ID'], '購買方案', -price, { 對應ID: subId, 經手人員: a.email, 備註: (old ? '續訂 ' : '') + meals + ' 餐方案' });
+    const pn = (old ? '續訂 ' : '') + meals + ' 餐方案';
+    if (useB > 0) await ledger(c, m['會員ID'], '購買方案・紅利', -useB, { 可退現金: false, 對應ID: subId, 經手人員: a.email, 備註: pn });
+    if (useW > 0) await ledger(c, m['會員ID'], '購買方案・錢包', -useW, { 對應ID: subId, 經手人員: a.email, 備註: pn });
     const upd = { 曾訂閱: true };
     let bonus = 0;
     if (referrer) {

@@ -11,7 +11,7 @@ import { settings, walletOf, walletFull, currentSub, buyPlan, topupOptions } fro
 const PAY = ['轉帳', 'LINE Pay', '門市付現'], REFUND = ['門市領現', '轉帳'];
 const num = (v, d) => { const n = Number(String(v === undefined || v === null ? '' : v).replace(/,/g, '')); return isNaN(n) || String(v).trim() === '' ? d : n; };
 const plansOf = (st) => [8, 12, 20].map((n) => ({ meals: n, total: num(st['方案' + n + '餐_總價'], 0), per: num(st['方案' + n + '餐_每餐'], 0), bonus: num(st['新會員折扣_' + n + '餐'], 0) })).filter((x) => x.total > 0);
-const view = (r) => ({ refund: r['類型'] === '退款', id: r['申請ID'], kind: r['類型'], amount: r['金額'], meals: r['餐數'], code: r['推薦碼'], method: r['付款方式'], last5: r['末五碼'], status: r['狀態'], at: String(r['建立時間']).slice(0, 16), by: r['處理人員'], doneAt: String(r['處理時間']).slice(0, 16), note: r['備註'] });
+const view = (r) => ({ useBonus: r['用紅利'] || 0, refund: r['類型'] === '退款', id: r['申請ID'], kind: r['類型'], amount: r['金額'], meals: r['餐數'], code: r['推薦碼'], method: r['付款方式'], last5: r['末五碼'], status: r['狀態'], at: String(r['建立時間']).slice(0, 16), by: r['處理人員'], doneAt: String(r['處理時間']).slice(0, 16), note: r['備註'] });
 
 async function checkCode(c, m, code) {
   if (!code) return null;
@@ -39,7 +39,7 @@ export const payMemberApi = {
     if (await c.db.first('付款申請', { 會員ID: m['會員ID'], 狀態: '待確認' })) throw new UserError('你有一筆付款確認中的申請，請等店員確認或先取消');
     const sub = currentSub(await c.db.all('訂閱', { 會員ID: m['會員ID'] }));
     if (sub && sub['狀態'] !== '使用中') throw new UserError('方案暫停中，不能續訂');
-    return buyPlan(c, m, { meals: p.meals, code: clean(p.code, 10).toUpperCase() }, '會員');
+    return buyPlan(c, m, { meals: p.meals, code: clean(p.code, 10).toUpperCase(), useBonus: p.useBonus }, '會員');
   },
   /** 送出付款申請：kind＝儲值並購買（金額＝方案價－錢包餘額）或 儲值（固定金額） */
   async payRequest(c, m, p) {
@@ -47,19 +47,23 @@ export const payMemberApi = {
     const st = await settings(c), method = clean(p.method, 12), last5 = clean(p.last5, 5);
     if (PAY.indexOf(method) < 0) throw new UserError('請選擇付款方式');
     if (method === '轉帳' && !/^\d{5}$/.test(last5)) throw new UserError('請填寫轉帳帳號末五碼');
-    let kind, amount, meals = 0, code = '';
+    let kind, amount, meals = 0, code = '', useB = 0;
     if (p.kind === '儲值並購買') {
       const plan = plansOf(st).find((x) => x.meals === num(p.meals, 0)); if (!plan) throw new UserError('請選擇方案');
       const sub = currentSub(await c.db.all('訂閱', { 會員ID: m['會員ID'] })); if (sub && sub['狀態'] !== '使用中') throw new UserError('方案暫停中，不能續訂');
       code = clean(p.code, 10).toUpperCase(); if (code) { if (sub) throw new UserError('推薦碼只限第一次訂閱使用'); await checkCode(c, m, code); }
-      const wal = (await walletFull(c, m['會員ID'])).avail;
-      amount = plan.total - wal.total; if (amount <= 0) throw new UserError('錢包已經足夠，可以直接用錢包購買');
+      const wal = (await walletFull(c, m['會員ID'])).avail, avB = Math.max(0, wal.bonus);
+      const hasB = p.useBonus !== undefined && p.useBonus !== null && String(p.useBonus).trim() !== '';
+      useB = hasB ? Math.floor(num(p.useBonus, 0)) : Math.min(avB, plan.total);
+      if (!(useB >= 0) || useB > plan.total) throw new UserError('紅利請填 0～' + plan.total + ' 元');
+      if (useB > avB) throw new UserError('紅利可用只有 ' + avB.toLocaleString() + ' 元');
+      amount = plan.total - useB - Math.max(0, wal.cash); if (amount <= 0) throw new UserError('錢包已經足夠，可以直接用錢包購買');
       kind = '儲值並購買'; meals = plan.meals;
     } else {
       amount = num(p.amount, 0); if (topupOptions(st).indexOf(amount) < 0) throw new UserError('請選擇儲值金額');
       kind = '儲值';
     }
-    await c.db.insert('付款申請', { 申請ID: 'P' + Date.now().toString(36).toUpperCase() + rid(3), 會員ID: m['會員ID'], 類型: kind, 金額: amount, 餐數: meals, 推薦碼: code, 付款方式: method, 末五碼: method === '轉帳' ? last5 : '', 狀態: '待確認', 建立時間: nowStamp() });
+    await c.db.insert('付款申請', { 申請ID: 'P' + Date.now().toString(36).toUpperCase() + rid(3), 會員ID: m['會員ID'], 類型: kind, 金額: amount, 餐數: meals, 推薦碼: code, 付款方式: method, 末五碼: method === '轉帳' ? last5 : '', 狀態: '待確認', 建立時間: nowStamp(), 用紅利: useB });
     return { ok: true };
   },
   /** 申請退款：只能退「可退現金」的部分；門市領現，或轉帳（填銀行帳號） */
@@ -111,7 +115,7 @@ export const payOps = {
     let msg = '已入帳 ' + r['金額'] + ' 元';
     await c.db.update('付款申請', r._row, { 狀態: '已確認', 處理人員: a.email, 處理時間: nowStamp() });
     if (r['類型'] === '儲值並購買') {
-      try { await buyPlan(c, m, { meals: r['餐數'], code: r['推薦碼'] }, a.email); msg += '，已開通 ' + r['餐數'] + ' 餐方案'; }
+      try { await buyPlan(c, m, { meals: r['餐數'], code: r['推薦碼'], useBonus: r['用紅利'] }, a.email); msg += '，已開通 ' + r['餐數'] + ' 餐方案'; }
       catch (e) { if (!(e instanceof UserError)) throw e; msg += '，但開通方案失敗：' + e.message + '（錢已在錢包，可在會員頁面手動購買）'; await c.db.update('付款申請', r._row, { 備註: '開通失敗：' + e.message }); }
     }
     return { ok: true, msg };

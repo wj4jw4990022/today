@@ -98,22 +98,27 @@ export async function createOrder2(c, m, p, by) {
       if (!list.some((x) => x['地址'] === address && x['行政區'] === ar.area) && list.length < 10) await c.db.insert('常用地址', { 地址ID: 'AD' + Date.now().toString(36).toUpperCase() + rid(3), 會員ID: m['會員ID'], 名稱: clean(a.label, 20) || ar.area, 行政區: ar.area, 地址: address, 收件人: recipient, 電話: phone, 備註: clean(a.note, 100), 建立時間: nowStamp() });
     }
   }
-  // 付款
+  // 付款（2026-11-07 會員自己分配）：這筆共要付 T＝單點＋地址配送費＋方案餐升級加購；用紅利 B＋用錢包 W，剩下 C 取餐時付現。
+  // B、W 先預留，截單才扣；配送點願付的配送費截單時才決定（有現場付就加到現場，沒有就從錢包扣）。
   const singles = lines.filter((l) => !l.sub), singleTotal = singles.reduce((s, l) => s + (num(l.it['單點價'], 0) + l.addUnit) * l.qty, 0);
-  const pay = p.pay === '現付' ? '現付' : '錢包';
   const feeNow = pick === '地址' ? o['配送費'] : 0;
-  // 付現訂單：方案那份的升級差額＋加購也在取餐時一起付（使用者 11/7 決定 3A）；淨額是退款時仍退到錢包
-  const subCash = pay === '現付' && subLines[0] ? Math.max(0, num(subLines[0].it['訂閱加價'], 0) - up.value + subLines[0].addUnit) : 0;
-  if (pay === '現付') {
-    if (!singles.length && !feeNow && !subCash) throw new UserError('這筆沒有需要付現的金額');
-    if (m['付現停用']) throw new UserError('你的「取餐時付現」已停用（沒來取餐次數過多），請改用錢包付款或洽門市');
-    if ((await cashOpen(c, m['會員ID'])) - (oldO && oldO['付款方式'] === '現付' ? 1 : 0) >= num(st['付現未取上限'], 2)) throw new UserError('你已經有 ' + num(st['付現未取上限'], 2) + ' 筆付現訂單還沒取餐，請改用錢包付款');
-  } else {
-    // 圈存：單點與地址配送費現在扣；方案餐升級＋加購、配送點願付的配送費先預留，截單才扣。都要在可用餘額內
-    const subHold = subLines[0] ? Math.max(0, num(subLines[0].it['訂閱加價'], 0) - up.value + subLines[0].addUnit) : 0;
-    const feeHold = pick === '配送點' && o['願付配送費'] ? pointFee(st, o['距離公里']) : 0;
-    const need = singleTotal + feeNow + subHold + feeHold, wal = (await walletFull(c, m['會員ID'], { res: oldIds, order: oldO ? oldO['訂單ID'] : '' })).avail;
-    if (wal.total + oldCredit < need) throw new UserError('錢包可用餘額不足：需要 ' + need.toLocaleString() + ' 元' + (subHold + feeHold ? '（含先預留的升級／加購／配送費 ' + (subHold + feeHold) + ' 元）' : '') + '，目前可用 ' + wal.total.toLocaleString() + ' 元' + (oldCredit ? '（含原訂單退回 ' + oldCredit + ' 元）' : ''));
+  const subAmt = subLines[0] ? Math.max(0, num(subLines[0].it['訂閱加價'], 0) - up.value + subLines[0].addUnit) : 0;
+  const T = singleTotal + feeNow + subAmt;
+  const wf = await walletFull(c, m['會員ID'], { res: oldIds, order: oldO ? oldO['訂單ID'] : '' });
+  const avB = Math.max(0, wf.avail.bonus), avW = Math.max(0, wf.avail.cash + oldCredit);
+  let B, W;
+  const has = (v) => v !== undefined && v !== null && String(v).trim() !== '';
+  if (has(p.useBonus) || has(p.useWallet)) { B = Math.floor(num(p.useBonus, 0)); W = Math.floor(num(p.useWallet, 0)); }
+  else if (p.pay === '現付') { B = 0; W = 0; }
+  else { B = Math.min(avB, T); W = T - B; } // 沒有指定：先用紅利、再用錢包（舊的呼叫方式）
+  if (!(B >= 0 && W >= 0)) throw new UserError('紅利、錢包請填 0 以上的整數');
+  if (B + W > T) throw new UserError('紅利＋錢包不能超過這筆要付的 ' + T.toLocaleString() + ' 元');
+  if (B > avB) throw new UserError('紅利可用只有 ' + avB.toLocaleString() + ' 元');
+  if (W > avW) throw new UserError('錢包可用餘額不足：錢包可用只有 ' + avW.toLocaleString() + ' 元' + (wf.held ? '（已扣除預留 ' + wf.held.toLocaleString() + ' 元）' : '') + (oldCredit ? '（含原訂單退回 ' + oldCredit + ' 元）' : ''));
+  const C = T - B - W;
+  if (C > 0) {
+    if (m['付現停用']) throw new UserError('你的「取餐時付現」已停用（沒來取餐次數過多），請全部用紅利或錢包付，或洽門市');
+    if ((await cashOpen(c, m['會員ID'])) - (oldO && oldO['付款方式'] === '現付' ? 1 : 0) >= num(st['付現未取上限'], 2)) throw new UserError('你已經有 ' + num(st['付現未取上限'], 2) + ' 筆有現場付的訂單還沒取餐，這筆請全部用紅利或錢包付');
   }
   // 改期：檢查都通過了，先取消舊的（退回錢與餐數），再寫入新的
   if (old.length) {
@@ -122,27 +127,20 @@ export async function createOrder2(c, m, p, by) {
     if (oldO) await closeOrderIfEmpty(c, oldO['訂單ID'], by);
   }
   const oid = 'O' + Date.now().toString(36).toUpperCase() + rid(3), now = nowStamp();
-  const wal0 = walletOf(await c.db.all('錢包紀錄', { 會員ID: m['會員ID'] }));
-  let bonusLeft = wal0.bonus;
-  await c.db.insert('訂單', Object.assign(o, { 訂單ID: oid, 會員ID: m['會員ID'], 日期: date, 時段: slot, 付款方式: pay, 應收現金: pay === '現付' ? singleTotal + feeNow + subCash : 0, 狀態: '已預約', 建立時間: now, 建立者: by, 配送費狀態: feeNow ? (pay === '現付' ? '現付' : '已扣款') : o['配送費狀態'] }));
+  await c.db.insert('訂單', Object.assign(o, { 訂單ID: oid, 會員ID: m['會員ID'], 日期: date, 時段: slot, 分帳: true, 用紅利: B, 用錢包: W, 已扣款: false, 付款方式: C > 0 ? '現付' : '錢包', 應收現金: C, 狀態: '已預約', 建立時間: now, 建立者: by, 配送費狀態: feeNow ? '含在訂單' : o['配送費狀態'] }));
   for (const l of lines) {
     const resId = 'B' + Date.now().toString(36).toUpperCase() + rid(4), price = num(l.it['單點價'], 0);
     const row = { 預約ID: resId, 訂單ID: oid, 會員ID: m['會員ID'], 日期: date, 時段: slot, 取餐方式: o['取餐方式'], 配送點ID: o['配送點ID'], 份量: l.it['份量'], 主菜: l.it['主菜'], 品項ID: l.it['品項ID'], 醬汁: l.sauce['名稱'], 加購項目: l.drinks.map((d) => d['品項ID']).join(','), 單點原價: price, 份數: l.qty, 狀態: '已預約', 建立時間: now, 建立者: by, 備註: l.drinks.length ? '加購：' + l.drinks.map((d) => d['名稱']).join('、') : '' };
     if (l.sub) {
-      Object.assign(row, { 類別: '訂閱', 訂閱ID: sub['訂閱ID'], 升級差額: num(l.it['訂閱加價'], 0) - up.value, 加購金額: l.addUnit, 扣款狀態: subCash ? '取餐付現' : '未扣款' });
+      Object.assign(row, { 類別: '訂閱', 訂閱ID: sub['訂閱ID'], 升級差額: num(l.it['訂閱加價'], 0) - up.value, 加購金額: l.addUnit, 扣款狀態: '訂單付款' });
       await c.db.insert('預約', row);
       await c.env.DB.prepare('UPDATE subscriptions SET remaining = remaining - 1 WHERE sub_id = ? AND remaining > 0').bind(sub['訂閱ID']).run();
     } else {
-      const amt = (price + l.addUnit) * l.qty, b = pay === '錢包' ? Math.min(bonusLeft, amt) : 0; bonusLeft -= b;
-      Object.assign(row, { 類別: '單點', 訂閱ID: '', 升級差額: 0, 加購金額: l.addUnit * l.qty, 付款金額: pay === '錢包' ? amt : 0, 用掉紅利: b, 扣款狀態: pay === '錢包' ? '已扣款' : '取餐付現' });
+      Object.assign(row, { 類別: '單點', 訂閱ID: '', 升級差額: 0, 加購金額: l.addUnit * l.qty, 付款金額: (price + l.addUnit) * l.qty, 用掉紅利: 0, 扣款狀態: '訂單付款' });
       await c.db.insert('預約', row);
     }
   }
-  if (pay === '錢包') {
-    if (singleTotal) await ledgerAdd(c, m['會員ID'], '單點扣款', -singleTotal, { 對應ID: oid, 經手人員: by, 備註: date + ' ' + slot + ' 單點 ' + singles.reduce((s, l) => s + l.qty, 0) + ' 份' });
-    if (feeNow) await ledgerAdd(c, m['會員ID'], '配送費扣款', -feeNow, { 對應ID: oid, 經手人員: by, 備註: date + ' ' + slot + ' 送到 ' + o['行政區'] + '（未滿 ' + threshold(st, o['距離公里']) + ' 份）' });
-  }
-  return { ok: true, orderId: oid, total, fee: feeNow, cashDue: pay === '現付' ? singleTotal + feeNow + subCash : 0, pointName };
+  return { ok: true, orderId: oid, total, fee: feeNow, amount: T, bonus: B, wallet: W, cashDue: C, pointName };
 }
 
 export const order2MemberApi = {

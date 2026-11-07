@@ -92,6 +92,12 @@ function acc(key, title, sub, body) {
   return '<div class="mm-acc' + (on ? ' on' : '') + '"><button type="button" class="mm-acch" data-open="' + key + '"><span>' + title + (sub ? '<small>' + sub + '</small>' : '') + '</span><i>' + (on ? '－' : '＞') + '</i></button>' + (on ? '<div class="mm-accb">' + body + '</div>' : '') + '</div>';
 }
 function mdw(d) { var t = new Date(d + 'T00:00:00Z'); return Number(d.slice(5, 7)) + '/' + Number(d.slice(8)) + '（' + '日一二三四五六'.charAt(t.getUTCDay()) + '）'; }
+/** 這筆訂單怎麼付：紅利／錢包（截單前＝預留）＋取餐時付現 */
+function payLine(oid) {
+  var o = OI && OI.orders ? OI.orders.filter(function (x) { return x.id === oid; })[0] : null; if (!o || !o.split || !(o.bonus + o.wallet + o.cash)) return '';
+  var a = []; if (o.bonus) a.push('<span style="color:var(--gold)">紅利 ' + money(o.bonus) + '</span>'); if (o.wallet) a.push('錢包 ' + money(o.wallet)); if (o.cash) a.push('取餐時付現 ' + money(o.cash) + (o.cashPaid ? '（已收）' : ''));
+  return '<div class="mm-its" style="margin-top:6px">' + a.join('・') + (o.bonus + o.wallet ? (o.charged ? '' : '<span style="opacity:.75">（紅利、錢包截單才扣）</span>') : '') + '</div>';
+}
 function vMeals() {
   if (ME.pending) return '<p class="mb-p">資料合併完成後才能訂餐。</p>';
   if (MINE === null) return '<p class="mb-p">載入中…</p>';
@@ -103,7 +109,7 @@ function vMeals() {
     var r = g.rows[0], open = g.rows.every(function (x) { return x.status === '已預約'; });
     var where = r.pickup === '配送' ? '送到配送點' : r.pickup === '地址' ? '送到我的地址' : '門市自取';
     return '<div class="mm-it"><div class="mm-ith"><b>' + mdw(r.date) + ' ' + E(r.slot) + '</b><span>' + (open ? '<a href="order.html?change=' + encodeURIComponent(r.orderId || r.id) + '&item=' + encodeURIComponent(r.itemId) + '">改期</a><a href="#" ' + (r.orderId ? 'data-cxo="' + E(r.orderId) + '"' : 'data-cx="' + E(r.id) + '"') + '>取消</a>' : '<em>' + E(r.status) + '</em>') + '</span></div>' +
-      '<div class="mm-its">' + where + '</div>' + g.rows.map(function (x) { return '<div class="mm-itl">' + E(x.size + ' ' + x.main) + (x.qty > 1 ? ' ×' + x.qty : '') + '・' + E(x.sauce) + '<span>' + (x.kind === '訂閱' ? '方案' : '單點') + (x.charge === '餘額不足改回基本餐' ? '・錢包不足已改回基本餐' : '') + (/配送改自取/.test(x.note || '') ? '・未達門檻改自取' : '') + '</span></div>'; }).join('') + '</div>';
+      '<div class="mm-its">' + where + '</div>' + g.rows.map(function (x) { return '<div class="mm-itl">' + E(x.size + ' ' + x.main) + (x.qty > 1 ? ' ×' + x.qty : '') + '・' + E(x.sauce) + '<span>' + (x.kind === '訂閱' ? '方案' : '單點') + (x.charge === '餘額不足改回基本餐' ? '・錢包不足已改回基本餐' : '') + (/配送改自取/.test(x.note || '') ? '・未達門檻改自取' : '') + '</span></div>'; }).join('') + payLine(r.orderId) + '</div>';
   }).join('') : '<p class="mb-p" style="margin:6px 0 14px">' + (PAST ? '還沒有過去的餐點。' : '還沒有預約，按上方「＋ 訂餐」開始。') + '</p>';
   return h + '<button type="button" class="mm-more" data-past>' + (PAST ? '看即將取餐' : '看過去的餐點') + '</button>';
 }
@@ -121,6 +127,14 @@ function vPlanTab() {
   return h;
 }
 function AVw(w) { return w.avail || w; }
+/** 自己填用多少紅利（2026-11-07）：v＝null 代表自動（紅利能用就先用）。回傳 { B, W, need, err, html } */
+function bonusPick(w, total, v, key) {
+  var aB = Math.max(0, AVw(w).bonus), aW = Math.max(0, AVw(w).cash), B = v === null ? Math.min(aB, total) : v, W = Math.min(aW, Math.max(0, total - B)), need = Math.max(0, total - B - W);
+  var err = B > aB ? '紅利最多可用 ' + money(aB) : B > total ? '紅利最多填 ' + money(total) : '';
+  var html = '<div class="mb-row" style="color:var(--gold)"><span>用紅利 <small style="opacity:.75">（可用 ' + money(aB) + '）</small></span><span style="white-space:nowrap"><input data-bp="' + key + '" inputmode="numeric" value="' + B + '" style="width:80px;text-align:right;border:1px solid var(--line);padding:4px 6px;font:inherit;font-size:16px;background:#fff"> <a href="#" data-bpa="' + key + '" style="text-decoration:underline;font-size:12px">全用</a> <a href="#" data-bpn="' + key + '" style="text-decoration:underline;font-size:12px">不用</a></span></div>' +
+    '<div class="mb-row"><span>用錢包</span><span>−' + money(W) + '（剩 ' + money(aW - W) + '）</span></div>' + (err ? '<p class="mb-p" style="color:#9a3b2b;margin:4px 0">' + err + '</p>' : '');
+  return { B: B, W: W, need: need, err: err, html: html };
+}
 function heldNote(w, sm) { return w.held ? '<p class="mb-p" style="font-size:' + (sm || 12) + 'px;margin:6px 0 0">已預留 ' + money(w.held) + '（訂餐的升級／加購、配送費，截單時扣）・可用 錢包 ' + money(AVw(w).cash) + '・紅利 ' + money(AVw(w).bonus) + '</p>' : ''; }
 function useSplit(w, amt) { var b = Math.min(Math.max(w.bonus, 0), amt); return { b: b, c: amt - b }; }
 function splitRows(w, amt, label) { var x = useSplit(w, amt); return (x.b ? '<div class="mb-row" style="color:var(--gold)"><span>' + (label || '') + '先扣紅利</span><span>−' + money(x.b) + '（剩 ' + money(w.bonus - x.b) + '）</span></div>' : '') + '<div class="mb-row"><span>' + (x.b ? '再扣錢包' : (label || '') + '從錢包扣') + '</span><span>−' + money(x.c) + '（剩 ' + money(w.cash - x.c) + '）</span></div>'; }
@@ -171,15 +185,15 @@ function vPlan() {
   if (PI.pending) return '<p class="mb-p">有一筆申請處理中（見上方提示），處理完才能再送出。</p>';
   if (false) { var q = PI.pending; return '<div class="mb-note"><b>' + (q.kind === '退款' ? '退款處理中' : '付款確認中') + '</b>：' + E(q.at.slice(5)) + ' 送出「' + (q.kind === '退款' ? '退款 ' + money(q.amount) : q.kind === '儲值並購買' ? '儲值 ' + money(q.amount) + ' 並購買 ' + q.meals + ' 餐' : '儲值 ' + money(q.amount)) + '」（' + E(q.method) + (q.last5 ? ' 末五碼 ' + E(q.last5) : '') + '）。店員確認後' + (q.kind === '儲值並購買' ? '開通方案' : q.kind === '退款' ? '退款' : '入帳') + '。<a href="#" data-pcx style="float:right;text-decoration:underline">取消申請</a><br><small>' + E(q.kind === '退款' ? (q.method === '門市領現' ? '請到門市領取' : '店員會轉到你填的帳號') : (PI.howto[q.method] || '')) + '</small></div>'; }
   if (!plan) return '';
-  var need = plan.total - AVw(w).total, renew = !!PI.sub, howto = PI.howto[PS.method] || '';
+  var bp = bonusPick(w, plan.total, PS.useB === undefined ? null : PS.useB, 'buy'), need = bp.need, renew = !!PI.sub, howto = PI.howto[PS.method] || '';
   var pay = '<div class="hb-cap" style="margin-top:16px">付款方式</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px">' + ['轉帳', 'LINE Pay', '門市付現'].map(function (m) { return '<button type="button" data-pm="' + m + '" ' + ch(PS.method === m) + '>' + (m === '門市付現' ? '到門市付現' : m) + '</button>'; }).join('') + '</div>' +
     '<div class="mb-note" style="margin:6px 0 12px;white-space:pre-line">' + E(howto) + '</div>' + (PS.method === '轉帳' ? '<div class="mb-f"><label>轉帳末五碼</label><input id="p-l5" inputmode="numeric" maxlength="5" value="' + E(PS.l5) + '"></div>' : '');
   var body = PS.mode === 'buy'
     ? '<div class="pl3">' + PI.plans.map(function (p) { return '<button type="button" data-pp="' + p.meals + '" class="' + (p.meals === plan.meals ? 'on' : '') + '">' + p.meals + ' 餐<b>' + money(p.total) + '</b>每餐 ' + (p.per || Math.round(p.total / p.meals)) + '</button>'; }).join('') + '</div>' +
       (!renew && !PI.ever ? '<div class="mb-f"><label>朋友的推薦碼（選填，第一次訂閱得紅利）</label><input id="p-code" maxlength="6" style="text-transform:uppercase" value="' + E(PS.code) + '"></div>' : '') +
-      '<div class="mb-row"><span>' + (renew ? '續訂 ' : '') + plan.meals + ' 餐方案</span><span>' + money(plan.total) + '</span></div>' + splitRows(AVw(w), Math.min(plan.total, AVw(w).total)) + heldNote(w) +
+      '<div class="mb-row"><span>' + (renew ? '續訂 ' : '') + plan.meals + ' 餐方案</span><span>' + money(plan.total) + '</span></div>' + bp.html + heldNote(w) +
       (renew ? '<div class="mb-row"><span>續訂後</span><span>新一期今天起 ' + PI.days + ' 天，共 ' + (plan.meals + PI.sub.left) + ' 餐</span></div>' : '') +
-      (need <= 0 ? '<button class="hb-btn g" style="display:block;width:100%;margin-top:14px" data-pbuy>用錢包' + (renew ? '續訂' : '購買') + '</button>'
+      (bp.err ? '' : need <= 0 ? '<button class="hb-btn g" style="display:block;width:100%;margin-top:14px" data-pbuy>用錢包' + (renew ? '續訂' : '購買') + '</button>'
         : '<div class="mb-row"><span>還需要付</span><span><b>' + money(need) + '</b></span></div>' + pay + '<button class="hb-btn g" style="display:block;width:100%" data-preq>送出：儲值 ' + money(need) + ' 並' + (renew ? '續訂 ' : '購買 ') + plan.meals + ' 餐</button>')
     : '<div class="hb-cap" style="margin-top:6px">儲值金額</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px">' + PI.topup.map(function (a) { return '<button type="button" data-pa="' + a + '" ' + ch(PS.amt === a) + '>' + money(a) + '</button>'; }).join('') + '</div>' + pay + '<button class="hb-btn g" style="display:block;width:100%" data-preq>送出：儲值 ' + money(PS.amt) + '</button>';
   return (PS.mode === 'buy' ? '<p class="mb-p" style="margin:0;font-size:13px">一期 ' + PI.days + ' 天，前一天 20:00 前預約；錢包不夠時先付款，店員確認收款後自動開通。</p>' : '<p class="mb-p" style="margin:0;font-size:13px">儲值後可以買方案、單點、升級與加購。店員確認收款後入帳。</p>') + body + '<div id="p-msg"></div>';
@@ -207,7 +221,7 @@ function vManage() {
     '<div class="hb-cap">份量</div><div>' + sizes.map(function (x) { return '<button type="button" data-zs="' + E(x) + '" ' + ch(PZ.size === x) + '>' + E(x) + '</button>'; }).join('') + '</div>' +
     '<div class="hb-cap" style="margin-top:6px">主菜</div><div>' + mains.map(function (x) { return '<button type="button" data-zm="' + E(x) + '" ' + ch(PZ.main === x) + '>' + E(x) + '</button>'; }).join('') + '</div>' +
     (!pick ? '<p class="mb-p">沒有這個組合</p>' : diff <= 0 ? '<p class="mb-p" style="margin:8px 0 0">' + (s.upgValue ? '請選比目前更高的組合' : '這是基本餐，不用升級') + '</p>' :
-      '<div class="mb-row"><span>每餐差額</span><span>$' + diff + '</span></div>' + (PZ.pv ? '<div class="mb-row"><span>適用餐數</span><span>剩 ' + PZ.pv.left + ' 餐＋已訂未截單 ' + PZ.pv.open + ' 餐＝' + PZ.pv.n + ' 餐</span></div><div class="mb-row"><span>共要付</span><span><b>' + money(PZ.pv.total) + '</b></span></div>' + splitRows(AVw(OI.wallet), Math.min(PZ.pv.total, AVw(OI.wallet).total)) + heldNote(OI.wallet) + '<button class="hb-btn g" style="display:block;width:100%;margin-top:14px" data-zup>確認整期升級</button>' : '<button class="hb-btn" style="display:block;width:100%;margin-top:14px" data-zpv>計算金額</button>')) +
+      '<div class="mb-row"><span>每餐差額</span><span>$' + diff + '</span></div>' + (PZ.pv ? '<div class="mb-row"><span>適用餐數</span><span>剩 ' + PZ.pv.left + ' 餐＋已訂未截單 ' + PZ.pv.open + ' 餐＝' + PZ.pv.n + ' 餐</span></div><div class="mb-row"><span>共要付</span><span><b>' + money(PZ.pv.total) + '</b></span></div>' + (function () { var zp = bonusPick(OI.wallet, PZ.pv.total, PZ.useB === undefined ? null : PZ.useB, 'upg'); PZ.bp = zp; return zp.html + heldNote(OI.wallet) + (zp.err ? '' : zp.need > 0 ? '<p class="mb-p" style="color:#9a3b2b;margin:6px 0 0">錢包還差 ' + money(zp.need) + '，請先儲值或多用紅利</p>' : '<button class="hb-btn g" style="display:block;width:100%;margin-top:14px" data-zup>確認整期升級</button>'); })() : '<button class="hb-btn" style="display:block;width:100%;margin-top:14px" data-zpv>計算金額</button>')) +
     '<p class="mb-p" style="font-size:12px;margin:10px 0 0">升級後訂餐預設用這個組合；改訂較便宜的組合，截單時退差額到錢包。續訂或結算時，沒用到的升級差額退回錢包。</p>';
   return { pause: '<p class="mb-p" style="font-size:13px;margin:0 0 10px">每期可暫停 1 次、最多 7 天；暫停幾天，到期日就往後延幾天。</p>' + pause + '<div id="z-msg"></div>', upg: '<p class="mb-p" style="font-size:13px;margin:0 0 10px">一次把本期剩下的餐都升級；之後訂餐不再每餐扣差額。</p>' + upg + '<div id="u-msg"></div>' };
 }
@@ -265,7 +279,7 @@ document.addEventListener('click', function (e) {
     else if (zb.hasAttribute('data-zs')) { PZ.size = zb.getAttribute('data-zs'); PZ.pv = null; }
     else if (zb.hasAttribute('data-zm')) { PZ.main = zb.getAttribute('data-zm'); PZ.pv = null; }
     else if (zb.hasAttribute('data-zpv')) { Z.post({ action: 'planUpgrade', size: PZ.size, main: PZ.main, preview: true }).then(function (r) { PZ.pv = r; draw(); }).catch(function (er) { say('u-msg', er.message); }); return; }
-    else if (zb.hasAttribute('data-zup')) { if (!confirm('整期升級為 ' + PZ.size + ' ' + PZ.main + '，從錢包扣 ' + money(PZ.pv.total) + '？')) return; zb.disabled = true; Z.post({ action: 'planUpgrade', size: PZ.size, main: PZ.main }).then(function () { PZ.pv = null; load(); }).catch(function (er) { zb.disabled = false; say('u-msg', er.message); }); return; }
+    else if (zb.hasAttribute('data-zup')) { if (!confirm('整期升級為 ' + PZ.size + ' ' + PZ.main + '，共 ' + money(PZ.pv.total) + '（紅利 ' + money(PZ.bp.B) + '＋錢包 ' + money(PZ.bp.W) + '）？')) return; zb.disabled = true; Z.post({ action: 'planUpgrade', size: PZ.size, main: PZ.main, useBonus: PZ.bp.B }).then(function () { PZ.pv = null; load(); }).catch(function (er) { zb.disabled = false; say('u-msg', er.message); }); return; }
     else if (zb.hasAttribute('data-zgo')) { if (!confirm('確認從 ' + PZ.start + ' 暫停 ' + PZ.days + ' 天？送出後不能取消。')) return; zb.disabled = true; Z.post({ action: 'planPause', start: PZ.start, days: PZ.days }).then(function () { load(); }).catch(function (er) { zb.disabled = false; say('z-msg', er.message); }); return; }
     draw(); return;
   }
@@ -277,14 +291,22 @@ document.addEventListener('click', function (e) {
     else if (pb.hasAttribute('data-pa')) PS.amt = Number(pb.getAttribute('data-pa'));
     else if (pb.hasAttribute('data-pmode')) PS.mode = pb.getAttribute('data-pmode');
     else if (pb.hasAttribute('data-pcx')) { if (confirm('取消這筆付款申請？')) Z.post({ action: 'payCancel' }).then(load).catch(function (er) { alert(er.message); }); return; }
-    else if (pb.hasAttribute('data-pbuy')) { if (!confirm('用錢包' + (PI.sub ? '續訂 ' : '購買 ') + PS.meals + ' 餐方案？')) return; pb.disabled = true; Z.post({ action: 'payBuy', meals: PS.meals, code: PS.code }).then(function () { PI = null; PS.code = ''; load(); }).catch(function (er) { pb.disabled = false; say('p-msg', er.message); }); return; }
-    else if (pb.hasAttribute('data-preq')) { pb.disabled = true; Z.post({ action: 'payRequest', kind: TAB === 'wallet' ? '儲值' : '儲值並購買', meals: PS.meals, amount: PS.amt, code: PS.code, method: PS.method, last5: PS.l5 }).then(function () { PI = null; load(); }).catch(function (er) { pb.disabled = false; say('p-msg', er.message); }); return; }
+    else if (pb.hasAttribute('data-pbuy')) { if (!confirm('用錢包' + (PI.sub ? '續訂 ' : '購買 ') + PS.meals + ' 餐方案？')) return; pb.disabled = true; Z.post({ action: 'payBuy', meals: PS.meals, code: PS.code, useBonus: bonusPick(PI.wallet, (PI.plans.filter(function (p) { return p.meals === PS.meals; })[0] || PI.plans[0]).total, PS.useB === undefined ? null : PS.useB, 'buy').B }).then(function () { PI = null; PS.code = ''; load(); }).catch(function (er) { pb.disabled = false; say('p-msg', er.message); }); return; }
+    else if (pb.hasAttribute('data-preq')) { pb.disabled = true; Z.post({ action: 'payRequest', kind: TAB === 'wallet' ? '儲值' : '儲值並購買', meals: PS.meals, amount: PS.amt, code: PS.code, method: PS.method, last5: PS.l5, useBonus: TAB === 'wallet' ? '' : bonusPick(PI.wallet, (PI.plans.filter(function (p) { return p.meals === PS.meals; })[0] || PI.plans[0]).total, PS.useB === undefined ? null : PS.useB, 'buy').B }).then(function () { PI = null; load(); }).catch(function (er) { pb.disabled = false; say('p-msg', er.message); }); return; }
     draw(); return;
   }
   if (t.id === 'cp') { try { navigator.clipboard.writeText(ME.code); t.textContent = '已複製'; } catch (x) { prompt('推薦碼', ME.code); } }
 });
 // 輸入框的內容記在 PS，畫面重畫（例如切換付款方式）時不會被清掉
-document.addEventListener('change', function (e) { if (e.target.id === 'z-start') { PZ.start = e.target.value; draw(); } });
+document.addEventListener('change', function (e) {
+  if (e.target.id === 'z-start') { PZ.start = e.target.value; draw(); }
+  if (e.target.hasAttribute('data-bp')) { var v = e.target.value.replace(/[^\d]/g, ''), n = v === '' ? 0 : Number(v); if (e.target.getAttribute('data-bp') === 'buy') PS.useB = n; else PZ.useB = n; draw(); }
+});
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('[data-bpa],[data-bpn]'); if (!a) return; e.preventDefault();
+  var k = a.getAttribute('data-bpa') || a.getAttribute('data-bpn'), all = a.hasAttribute('data-bpa');
+  if (k === 'buy') PS.useB = all ? null : 0; else PZ.useB = all ? null : 0; draw();
+});
 document.addEventListener('input', function (e) { if (e.target.id === 'rf-amt') RF.amt = e.target.value; if (e.target.id === 'rf-acct') RF.acct = e.target.value; });
 document.addEventListener('input', function (e) { if (e.target.id === 'p-code') PS.code = e.target.value.trim().toUpperCase(); if (e.target.id === 'p-l5') PS.l5 = e.target.value.trim(); });
 Z.init('healthy', load);

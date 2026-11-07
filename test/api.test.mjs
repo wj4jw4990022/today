@@ -567,28 +567,28 @@ await t('測試按鈕：已用餐＋1 扣餐並觸發推薦紅利', async () => 
   const P = (o) => S.postc(o, ck); const W0 = async () => (await P({ action: 'orderInfo' })).data;
   const L = (o) => ({ itemId: 'HM-L-CB', sauce: 'AD-S-OIL', qty: 1, ...o });
   let pt;
-  await t('一筆訂單多便當：方案 1 份＋單點不同便當，錢包立即扣單點', async () => {
-    const before = (await W0()).wallet.total;
+  await t('一筆訂單多便當：方案 1 份＋單點不同便當，單點先預留（可用餘額立即減少）', async () => {
+    const before = (await W0()).wallet.avail.total;
     const r = await P({ action: 'orderCreate2', date: nd(1), slot: '中午', pickup: '自取', pay: '錢包', lines: [L({ useSub: true }), L({ itemId: 'HM-B-CB', qty: 2 })] }); assert(r.ok, r.error);
-    const info = await W0(); assert.equal(info.wallet.total, before - 440); assert.equal(info.sub.left, 7); assert.equal(info.mine.filter((x) => x.orderId === r.data.orderId).length, 2);
+    const info = await W0(); assert.equal(info.wallet.avail.total, before - 440); assert.equal(info.sub.left, 7); assert.equal(info.mine.filter((x) => x.orderId === r.data.orderId).length, 2);
     assert(!(await P({ action: 'orderCreate2', date: nd(2), slot: '中午', pay: '錢包', lines: [L({ useSub: true, qty: 2 })] })).ok, '方案一份');
   });
   await t('自己的地址：依行政區，未滿門檻收配送費、滿門檻免運；超過 8 公里不送；存常用地址', async () => {
-    const before = (await W0()).wallet.total;
+    const before = (await W0()).wallet.avail.total;
     const addr = { area: '苓雅區', address: '四維三路 2 號', recipient: '王', phone: '0912345678', save: true, label: '公司' };
     const r = await P({ action: 'orderCreate2', date: nd(2), slot: '中午', pickup: '地址', addr, pay: '錢包', lines: [L()] }); assert(r.ok, r.error); assert.equal(r.data.fee, 50);
-    assert.equal((await W0()).wallet.total, before - 190 - 50);
+    assert.equal((await W0()).wallet.avail.total, before - 190 - 50);
     const r2 = await P({ action: 'orderCreate2', date: nd(2), slot: '晚上', pickup: '地址', addr, pay: '錢包', lines: [L({ qty: 5 })] }); assert(r2.ok); assert.equal(r2.data.fee, 0);
     assert(!(await P({ action: 'orderCreate2', date: nd(2), slot: '晚上', pickup: '地址', addr: { ...addr, area: '鳳山區' }, pay: '錢包', lines: [L()] })).ok);
     const ex = (await W0()).extra; assert.equal(ex.addresses.length, 1); assert(!ex.areas.some((a) => a.area === '鳳山區'));
-    assert((await P({ action: 'orderCancelWhole', orderId: r.data.orderId })).ok); assert.equal((await W0()).wallet.total, before - 950, '取消退單點與配送費');
+    assert((await P({ action: 'orderCancelWhole', orderId: r.data.orderId })).ok); assert.equal((await W0()).wallet.avail.total, before - 950, '取消退單點與配送費');
   });
   await t('取餐付現：不扣錢包；最多 2 筆；沒來 2 次關閉；店員收現金', async () => {
-    const before = (await W0()).wallet.total;
+    const before = (await W0()).wallet.avail.total;
     const c1 = await P({ action: 'orderCreate2', date: nd(3), slot: '中午', pay: '現付', lines: [L()] }); assert(c1.ok, c1.error); assert.equal(c1.data.cashDue, 190);
     const c2 = await P({ action: 'orderCreate2', date: nd(3), slot: '晚上', pay: '現付', lines: [L()] }); assert(c2.ok);
     assert(!(await P({ action: 'orderCreate2', date: nd(4), slot: '中午', pay: '現付', lines: [L()] })).ok, '上限 2 筆');
-    assert.equal((await W0()).wallet.total, before);
+    assert.equal((await W0()).wallet.avail.total, before);
     assert((await post({ ...A, action: 'adminOrderCash', orderId: c1.data.orderId })).ok);
     for (const id of [c2.data.orderId]) { await q("UPDATE reservations SET date=? WHERE order_id=?", day(0), id); }
     await runCutoff(cx);
@@ -601,14 +601,14 @@ await t('測試按鈕：已用餐＋1 扣餐並觸發推薦紅利', async () => 
   });
   await t('固定配送點未達門檻：勾願付配送費照送並扣一次；沒勾改自取', async () => {
     pt = (await M({ action: 'adminSavePoint', point: { name: '湊單點', km: 1, slots: ['中午', '晚上'], on: true } })).id;
-    const before = (await W0()).wallet.total;
+    const before = (await W0()).wallet.avail.total;
     const a1 = await P({ action: 'orderCreate2', date: nd(6), slot: '中午', pickup: '配送點', pointId: pt, feeOk: true, pay: '錢包', lines: [L({ useSub: true })] }); assert(a1.ok, a1.error);
     const a2 = await P({ action: 'orderCreate2', date: nd(6), slot: '晚上', pickup: '配送點', pointId: pt, pay: '錢包', lines: [L()] }); assert(a2.ok, a2.error);
     await q("UPDATE reservations SET date=?, slot=slot||'A' WHERE order_id IN (?,?)", day(1), a1.data.orderId, a2.data.orderId);
     await q("UPDATE health_settings SET value='00:00' WHERE key='截單時間'"); await runCutoff(cx); await q("UPDATE health_settings SET value='23:59' WHERE key='截單時間'");
     const p1 = (await q('SELECT pickup FROM reservations WHERE order_id=?', a1.data.orderId))[0].pickup, p2 = (await q('SELECT pickup FROM reservations WHERE order_id=?', a2.data.orderId))[0].pickup;
     assert.equal(p1, '配送'); assert.equal(p2, '自取');
-    assert.equal((await W0()).wallet.total, before - 190 - 30);
+    assert.equal((await W0()).wallet.avail.total, before - 190 - 30);
   });
   await t('行政區管理只限總管理員', async () => { assert(!(await post({ ...B, action: 'adminAreas' })).ok); assert((await post({ ...A, action: 'adminSaveArea', area: { area: '仁武區', km: 8, on: true } })).ok); assert((await M({ action: 'adminAreas' })).areas.some((x) => x.area === '仁武區' && x.fee === 80)); });
   await q("UPDATE health_settings SET value='20:00' WHERE key='截單時間'");
@@ -622,7 +622,7 @@ await t('測試按鈕：已用餐＋1 扣餐並觸發推薦紅利', async () => 
   const F = (await M({ action: 'adminSaveMember', member: { name: '修正人', phone: '0933123001' } })).memberId;
   await post({ ...A, action: 'adminTopup', memberId: F, amount: 2000, method: '現金' });
   const ck = 'zm=' + await startSession(cx, 'Ufix2', 'f'); await q("UPDATE member_sessions SET member_id=? WHERE line_id='Ufix2'", F);
-  const P = (o) => S.postc(o, ck); const bal = async () => (await M({ action: 'adminMemberGet', memberId: F })).wallet.total;
+  const P = (o) => S.postc(o, ck); const bal = async () => (await M({ action: 'adminMemberGet', memberId: F })).wallet.avail.total;
   const addr = { area: '三民區', address: '建國路 1 號', recipient: '修', phone: '0912000111' };
   const L = (q2) => [{ itemId: 'HM-L-CB', sauce: 'AD-S-OIL', qty: q2 }];
   const lock = async (oids) => { for (const o of oids) await q("UPDATE reservations SET date=? WHERE order_id=?", day(1), o); await q("UPDATE orders SET date=? WHERE order_id IN (" + oids.map(() => '?').join(',') + ")", day(1), ...oids); await q("UPDATE health_settings SET value='00:00' WHERE key='截單時間'"); await runCutoff(cx); await q("UPDATE health_settings SET value='23:59' WHERE key='截單時間'"); };

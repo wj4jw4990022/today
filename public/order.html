@@ -61,7 +61,7 @@
 var E = Z.esc, Q = new URLSearchParams(location.search), ADMIN = Q.get('admin') === '1', MID = Q.get('member') || '', CHANGE = Q.get('change') || '';
 var TOK = ''; try { TOK = sessionStorage.getItem('zt') || ''; } catch (e) {}
 var D = null, STEP = 1, ERR = '', DONE = null, WD = ['日', '一', '二', '三', '四', '五', '六'], MORE = false, PICKER = false;
-var S = { date: '', slot: '', pickup: '自取', point: '', feeOk: true, addr: { id: '', label: '', area: '', address: '', recipient: '', phone: '', note: '', save: true }, lines: [], pay: '錢包' };
+var S = { useB: null, useW: null, date: '', slot: '', pickup: '自取', point: '', feeOk: true, addr: { id: '', label: '', area: '', address: '', recipient: '', phone: '', note: '', save: true }, lines: [], pay: '錢包' };
 function money(n) { return '$' + Number(n || 0).toLocaleString('en-US'); }
 function md(d) { var p = d.split('-'); return Number(p[1]) + '/' + Number(p[2]); }
 function api(action, body) { return Z.post(Object.assign(ADMIN ? { action: 'admin' + action.charAt(0).toUpperCase() + action.slice(1), idToken: TOK, memberId: MID } : { action: action }, body || {})); }
@@ -81,6 +81,20 @@ function sum() {
   var pf = S.pickup === '配送點' && S.feeOk && point() ? feeFor(point().km) : 0;
   return { n: n, single: single, later: later, fee: fee, feeNote: feeNote, subUsed: subUsed, now: S.pay === '錢包' ? single + fee : 0, cash: S.pay === '現付' ? single + fee + Math.max(0, later) : 0, hold: S.pay === '錢包' ? Math.max(0, later) + pf : 0 };
 }
+/** 付款自己分配（2026-11-07）：這筆共要付 T＝單點＋地址配送費＋方案餐升級加購；用紅利 B＋用錢包 W，剩下 C 取餐時付現 */
+function oldOrder() { return CHANGE && D.orders ? D.orders.filter(function (o) { return o.id === CHANGE; })[0] : null; }
+function pay() {
+  var t = sum(), T = t.single + t.fee + Math.max(0, t.later), oo = oldOrder();
+  var aB = Math.max(0, AV().bonus + (oo && oo.split ? oo.bonus : 0)), aW = Math.max(0, AV().cash + (oo && oo.split ? oo.wallet : 0) + credit());
+  var B = S.useB === null ? Math.min(aB, T) : S.useB, W = S.useW === null ? Math.min(aW, Math.max(0, T - B)) : S.useW;
+  var err = B < 0 || W < 0 ? '請填 0 以上的整數' : B > aB ? '紅利最多可用 ' + money(aB) : W > aW ? '錢包最多可用 ' + money(aW) : B + W > T ? '紅利＋錢包不能超過 ' + money(T) : '';
+  var C = Math.max(0, T - B - W), x = D.extra.cash, open = x.open - (oo && oo.cash > 0 ? 1 : 0);
+  if (!err && C > 0 && x.blocked) err = '你的「取餐時付現」已停用（沒來取餐次數過多），請全部用紅利或錢包付';
+  else if (!err && C > 0 && open >= x.limit) err = '你已經有 ' + x.limit + ' 筆有現場付的訂單還沒取餐，這筆請全部用紅利或錢包付';
+  return { T: T, B: B, W: W, C: C, aB: aB, aW: aW, err: err };
+}
+function payRows(p) { return (p.B ? '<div class="wz-row" style="color:var(--gold)"><span>紅利</span><span>−' + money(p.B) + '</span></div>' : '') + (p.W ? '<div class="wz-row"><span>錢包</span><span>−' + money(p.W) + '</span></div>' : '') + (p.C ? '<div class="wz-row"><b>取餐時付現</b><b>' + money(p.C) + '</b></div>' : ''); }
+function payTxt(p) { return (p.B ? '<span style="color:var(--gold)">紅利 ' + money(p.B) + '</span>' : '') + (p.W ? (p.B ? '＋' : '') + '錢包 ' + money(p.W) : '') + (p.C ? (p.B || p.W ? '＋' : '') + '現場 ' + money(p.C) : ''); }
 /** 圈存：可用餘額＝錢包－已預留；改期時把原訂單會退回的錢與預留先算回來 */
 function AV() { return D.wallet.avail || D.wallet; }
 function credit() { if (!CHANGE) return 0; return D.mine.filter(function (r) { return (r.orderId === CHANGE || r.id === CHANGE) && r.status === '已預約'; }).reduce(function (t, r) { return t + (r.kind === '單點' ? r.paid : r.charge === '未扣款' ? Math.max(0, r.upg + r.addonAmt) : 0); }, 0); }
@@ -94,7 +108,7 @@ function ok(step) {
   if (step === 2) return S.pickup === '自取' || (S.pickup === '配送點' && point()) || (S.pickup === '地址' && S.addr.area && S.addr.address.length >= 4 && S.addr.recipient && /^0\d{8,9}$/.test(S.addr.phone.replace(/[\s-]/g, '')));
   if (step === 3) return S.lines.length > 0;
   if (step === 4) return S.lines.every(function (l) { return l.sauce; });
-  if (step === 5) { var t = sum(); return S.pay === '錢包' ? t.now + t.hold <= AV().total + credit() : (!D.extra.cash.blocked && D.extra.cash.open < D.extra.cash.limit); }
+  if (step === 5) return !pay().err;
   return true;
 }
 var Q1 = ['哪一天要吃？', '怎麼取餐？', '要哪些便當？', '每個便當配什麼醬？', '怎麼付？', '確認訂單'];
@@ -140,12 +154,14 @@ function vStep() {
     if (D.drinks.length) h += '<div class="wz-q2">要加飲品嗎？</div><p class="wz-note" style="margin:-6px 0 10px">每個便當可以各自加（份數跟著便當）。</p>' + S.lines.map(function (l, i) { var it = item(l.itemId); return '<div class="wz-row"><span>' + E(it.size + '・' + it.main) + '</span><span>' + D.drinks.map(function (dk) { return '<label style="margin-left:8px;cursor:pointer"><input type="checkbox" data-dk="' + i + '" value="' + E(dk.id) + '"' + (l.drinks.indexOf(dk.id) >= 0 ? ' checked' : '') + '> ' + E(dk.name) + ' +' + dk.price + '</label>'; }).join('') + '</span></div>'; }).join('');
   }
   if (STEP === 5) {
-    var t5 = sum(), x = D.extra.cash, need = t5.single + t5.fee, cashNeed = need + Math.max(0, t5.later), hold5 = Math.max(0, t5.later) + (S.pickup === '配送點' && S.feeOk && point() ? feeFor(point().km) : 0);
-    if (!need && t5.later <= 0 && !hold5) h += '<p class="wz-note" style="font-size:14px">這一筆只有方案的餐，不用另外付錢' + (t5.later < 0 ? '（差額截單時退到錢包）' : '') + '。</p>';
+    var p5 = pay(), t5 = sum();
+    if (!p5.T) h += '<p class="wz-note" style="font-size:14px">這一筆只有方案的餐，不用另外付錢' + (t5.later < 0 ? '（差額截單時退到錢包）' : '') + '。</p>';
     else {
-      h += '<button type="button" class="wz-op' + (S.pay === '錢包' ? ' on' : '') + '" data-pay="錢包">錢包付款<small>現在扣 ' + money(need) + (hold5 > 0 ? '，先預留 ' + money(hold5) + '（' + (t5.later > 0 ? '升級／加購' : '') + (t5.later > 0 && hold5 > t5.later ? '＋' : '') + (hold5 > Math.max(0, t5.later) ? '配送費' : '') + '，截單時扣）' : '') + '<br>' + (need > 0 && need <= AV().total ? splitTxt(need) + '・' : '') + '可用 錢包 ' + money(AV().cash) + '・<span style="color:var(--gold)">紅利 ' + money(AV().bonus) + '</span>' + (D.wallet.held ? '（已預留 ' + money(D.wallet.held) + '）' : '') + (need + hold5 > AV().total + credit() ? '・<b style="color:#9a3b2b">可用餘額不足，請先到會員頁儲值</b>' : '') + '</small></button>';
-      h += '<button type="button" class="wz-op' + (S.pay === '現付' ? ' on' : '') + '" data-pay="現付"' + (x.blocked || x.open >= x.limit ? ' disabled' : '') + '>取餐時付現<small>' + (x.blocked ? '已停用（沒來取餐次數過多），請洽門市' : '門市或配送時收現金 ' + money(cashNeed) + (t5.later > 0 ? '（含升級／加購 ' + money(t5.later) + '）' : '') + '・付現不會用到紅利・目前 ' + x.open + ' / ' + x.limit + ' 筆未取') + '</small></button>';
-      h += '<p class="wz-note">' + (t5.subUsed ? '方案那 1 份不用付錢（扣 1 餐）。' : '') + (S.pickup === '配送點' ? '配送點的配送費只在截單時沒達門檻、且你願意付時才收，跟著這筆的付款方式。' : '') + '</p>';
+      var inp = function (k, v, av, gold) { return '<div class="wz-row"' + (gold ? ' style="color:var(--gold)"' : '') + '><span>用' + (k === 'b' ? '紅利' : '錢包') + ' <small style="color:var(--mute)">（可用 ' + money(av) + '）</small></span><span style="white-space:nowrap"><input class="wz-num" data-u' + k + ' inputmode="numeric" value="' + v + '" style="width:84px;text-align:right;border:1px solid var(--line);padding:6px 8px;font:inherit;font-size:16px;background:#fff"><button type="button" class="wz-tag" data-u' + k + 'all>全用</button><button type="button" class="wz-tag" data-u' + k + 'none>不用</button></span></div>'; };
+      h += '<div class="wz-row"><span>這筆共要付</span><b style="font-size:18px">' + money(p5.T) + '</b></div>' + inp('b', p5.B, p5.aB, true) + inp('w', p5.W, p5.aW, false) +
+        '<div class="wz-row"><span>取餐時付現 <small style="color:var(--mute)">（自動算）</small></span><b style="font-size:18px" id="pay-c">' + money(p5.C) + '</b></div>' +
+        '<div id="pay-err" class="wz-err" style="margin-top:8px' + (p5.err ? '' : ';display:none') + '">' + E(p5.err) + '</div>' +
+        '<p class="wz-note">紅利、錢包先預留，前一天 ' + E(D.cutoff) + ' 截單才扣；取消就解除。有現場付的部分，算 1 筆付現未取（目前 ' + D.extra.cash.open + ' / ' + D.extra.cash.limit + '）。' + (t5.subUsed ? '方案那 1 份扣 1 餐' + (t5.later > 0 ? '，升級／加購 ' + money(t5.later) + ' 已算在裡面' : '') + '。' : '') + (S.pickup === '配送點' && S.feeOk ? '配送點沒達門檻時的配送費截單才收：這筆有現場付就加到現場，沒有就從錢包扣。' : '') + '</p>';
     }
   }
   if (STEP === 6) {
@@ -154,10 +170,10 @@ function vStep() {
     h += '<div class="wz-row"><span>取餐</span><span>' + (S.pickup === '自取' ? '門市自取' : S.pickup === '配送點' ? '送到 ' + E(pp6.name) : '送到 ' + E(S.addr.area + ' ' + S.addr.address) + '<br><small>' + E(S.addr.recipient + ' ' + S.addr.phone) + '</small>') + '</span></div>';
     h += S.lines.map(function (l) { var it = item(l.itemId), sn = (D.sauces.filter(function (s) { return s.id === l.sauce; })[0] || {}).name, dn = l.drinks.map(function (id) { return (D.drinks.filter(function (x) { return x.id === id; })[0] || {}).name; }).join('、'); return '<div class="wz-row"><span>' + E(it.size + ' ' + it.main) + '・' + E(sn) + (dn ? '＋' + E(dn) : '') + (l.qty > 1 ? ' ×' + l.qty : '') + '</span><span>' + (l.useSub ? '方案 1 餐' : money((it.price + sauceP(l.sauce) + drinkP(l.drinks)) * l.qty)) + '</span></div>'; }).join('');
     if (S.pickup !== '自取') h += '<div class="wz-row"><span>配送費</span><span>' + (S.pickup === '地址' ? (t6.fee ? money(t6.fee) + '（' + t6.feeNote + '）' : '免運（' + t6.feeNote + '）') : E(t6.feeNote)) + '</span></div>';
-    if (t6.later) h += '<div class="wz-row"><span>方案升級／加購</span><span>' + (t6.later > 0 ? (S.pay === '現付' ? '取餐時一起付 ' : '先預留，截單時扣 ') + money(t6.later) : '截單時退到錢包 ' + money(-t6.later)) + '</span></div>';
-    h += '<div class="wz-row"><b>' + (S.pay === '現付' ? '取餐時付現' : '現在從錢包付') + '</b><b>' + money(S.pay === '現付' ? t6.cash : t6.now) + '</b></div>';
-    if (S.pay === '錢包' && t6.now > 0) h += splitRows(t6.now);
-    if (S.pay === '錢包' && t6.hold > 0) h += '<div class="wz-row"><span>先預留（截單時扣）</span><span>' + money(t6.hold) + '・預留後可用 ' + money(AV().total - t6.now - t6.hold) + '</span></div>';
+    if (t6.later) h += '<div class="wz-row"><span>方案升級／加購</span><span>' + (t6.later > 0 ? money(t6.later) : '截單時退到錢包 ' + money(-t6.later)) + '</span></div>';
+    var p6 = pay();
+    h += '<div class="wz-row"><b>共要付</b><b>' + money(p6.T) + '</b></div>' + payRows(p6);
+    if (p6.B + p6.W) h += '<p class="wz-note" style="margin-top:6px">紅利、錢包先預留，截單才扣；預留後可用 錢包 ' + money(p6.aW - p6.W) + '・紅利 ' + money(p6.aB - p6.B) + '。</p>';
     h += '<p class="wz-note">前一天 ' + E(D.cutoff) + ' 前可以在會員頁修改或取消；之後鎖定。</p>';
   }
   return h;
@@ -172,18 +188,16 @@ function vSide() {
   return '<div class="wz-st">目前的訂單</div>' + '<div class="wz-row"><span>時間</span><span>' + (S.date ? md(S.date) + (S.slot ? ' ' + S.slot : '') : '—') + '</span></div>' +
     '<div class="wz-row"><span>取餐</span><span>' + (STEP < 2 ? '—' : S.pickup === '自取' ? '門市自取' : S.pickup === '配送點' ? (point() ? E(point().name) : '配送點') : E(S.addr.area || '我的地址')) + '</span></div>' +
     (S.lines.length ? S.lines.map(function (l) { var it = item(l.itemId); return '<div class="wz-row"><span>' + E(it.size + ' ' + it.main) + (l.qty > 1 ? ' ×' + l.qty : '') + '</span><span>' + (l.useSub ? '方案' : money(it.price * l.qty)) + '</span></div>'; }).join('') : '<div class="wz-row"><span>便當</span><span>—</span></div>') +
-    '<div class="wz-row"><b>' + (S.pay === '現付' ? '取餐付現' : '錢包付') + '</b><b>' + money(S.pay === '現付' ? t.cash : t.now) + '</b></div>' +
-    (S.pay === '錢包' && t.now > 0 ? splitRows(Math.min(t.now, AV().total)) : '') +
-    (S.pay === '錢包' && t.hold > 0 ? '<div class="wz-row"><span>先預留</span><span>' + money(t.hold) + '</span></div>' : '') +
+    (function () { var p = pay(); return '<div class="wz-row"><b>共要付</b><b>' + money(p.T) + '</b></div>' + (STEP >= 5 ? payRows(p) : ''); })() +
     '<p class="wz-note">可用 錢包 ' + money(AV().cash) + '・<span style="color:var(--gold)">紅利 ' + money(AV().bonus) + '</span>' + (D.wallet.held ? '・已預留 ' + money(D.wallet.held) : '') + (D.sub ? '・方案剩 ' + D.sub.left + ' 餐' : '') + '</p>';
 }
 function draw() {
   var w = document.getElementById('wz');
   if (DONE) { w.innerHTML = '<div class="wz-ok"><div class="hb-en">Thank you</div><div class="wz-q">訂好了</div><p class="wz-note" style="font-size:14px">' + DONE + '</p><p style="margin-top:16px"><a class="hb-btn g" href="order.html' + (ADMIN ? '?admin=1&member=' + encodeURIComponent(MID) : '') + '">再訂一餐</a> <a class="hb-btn" href="' + (ADMIN ? 'admin.html' : 'member.html') + '">' + (ADMIN ? '回後台' : '回會員頁') + '</a></p></div>'; return; }
   w.innerHTML = (ADMIN ? '<div class="wz-adm"><span>店員代訂模式　會員：<b>' + E(D.member.name) + '・' + E(D.member.id) + '</b>（' + (D.sub ? '剩 ' + D.sub.left + '/' + D.sub.meals + ' 餐・' : '') + '錢包 ' + money(D.wallet.cash) + '・紅利 ' + money(D.wallet.bonus) + '）</span><a href="admin.html" style="text-decoration:underline">回後台</a></div>' : '') +
-    '<div class="wz-main"><div class="wz-pr"><i style="width:' + Math.round(STEP / 6 * 100) + '%"></i></div><div class="wz-st">STEP ' + STEP + ' / 6' + (STEP > 1 && S.date ? '・' + md(S.date) + '（' + WD[day().wd] + '）' + (S.slot || '') : '') + (CHANGE ? '・改期' : '') + '</div><div class="wz-q">' + (STEP === 5 && !sum().single && !sum().fee ? '不用另外付錢' : STEP === 5 ? '單點 ' + money(sum().single + sum().fee) + ' 怎麼付？' : Q1[STEP - 1]) + '</div>' + vStep() +
+    '<div class="wz-main"><div class="wz-pr"><i style="width:' + Math.round(STEP / 6 * 100) + '%"></i></div><div class="wz-st">STEP ' + STEP + ' / 6' + (STEP > 1 && S.date ? '・' + md(S.date) + '（' + WD[day().wd] + '）' + (S.slot || '') : '') + (CHANGE ? '・改期' : '') + '</div><div class="wz-q">' + (STEP === 5 && !pay().T ? '不用另外付錢' : STEP === 5 ? money(pay().T) + ' 怎麼付？' : Q1[STEP - 1]) + '</div>' + vStep() +
     (ERR ? '<div class="wz-err">' + E(ERR) + '</div>' : '') +
-    '<div class="wz-ft">' + (STEP >= 5 && S.pay === '錢包' && sum().now > 0 && sum().now <= AV().total ? '<div class="wz-ftsum">錢包付 ' + money(sum().now) + '：' + splitTxt(sum().now) + '</div>' : '') + '<button type="button" class="wz-bk" data-back>' + (STEP === 1 ? '取消' : '上一步') + '</button><button type="button" class="wz-nx" data-next' + (ok(STEP) ? '' : ' disabled') + '>' + (STEP === 6 ? (CHANGE ? '確認改期' : '確認訂餐') : '下一步') + '</button></div></div>' +
+    '<div class="wz-ft">' + (STEP >= 5 && pay().T > 0 ? '<div class="wz-ftsum" id="pay-ft">' + payTxt(pay()) + '</div>' : '') + '<button type="button" class="wz-bk" data-back>' + (STEP === 1 ? '取消' : '上一步') + '</button><button type="button" class="wz-nx" data-next' + (ok(STEP) ? '' : ' disabled') + '>' + (STEP === 6 ? (CHANGE ? '確認改期' : '確認訂餐') : '下一步') + '</button></div></div>' +
     '<aside class="wz-side">' + vSide() + '</aside>';
 }
 function login() { try { localStorage.setItem('zr_after', location.pathname + location.search); } catch (e) {} document.getElementById('wz').innerHTML = '<div class="wz-ok"><div class="wz-q">訂餐需要會員登入</div><a class="hb-btn g" href="/api/line/login">用 LINE 登入</a> <a class="hb-btn" href="healthy.html">看菜單</a></div>'; }
@@ -199,7 +213,15 @@ function load() {
   }).catch(function (e) { if (!ADMIN && /登入/.test(e.message)) return login(); if (!ADMIN && /註冊|合併/.test(e.message)) { location.href = 'member.html'; return; } document.getElementById('wz').innerHTML = '<div class="wz-err">' + E(e.message) + '</div>'; });
 }
 function readAddr() { ['address', 'recipient', 'phone', 'note', 'label'].forEach(function (k) { var el = document.getElementById('ad-' + k); if (el) S.addr[k] = el.value.trim(); }); var sv = document.getElementById('ad-save'); if (sv) S.addr.save = sv.checked; }
-document.addEventListener('input', function (e) { if (/^ad-/.test(e.target.id)) { readAddr(); var nx = document.querySelector('[data-next]'); if (nx) nx.disabled = !ok(STEP); } });
+document.addEventListener('input', function (e) {
+  if (e.target.hasAttribute('data-ub') || e.target.hasAttribute('data-uw')) { // 填金額：不重畫整頁（避免游標跳掉），只更新現場付、錯誤、摘要
+    var v = e.target.value.replace(/[^\d]/g, ''), n = v === '' ? 0 : Number(v);
+    if (e.target.hasAttribute('data-ub')) { S.useB = n; S.useW = null; var wi = document.querySelector('[data-uw]'); if (wi) wi.value = pay().W; } else S.useW = n;
+    var p = pay(), c = document.getElementById('pay-c'), er = document.getElementById('pay-err'), nx = document.querySelector('[data-next]'), ft = document.getElementById('pay-ft'), sd = document.querySelector('.wz-side');
+    if (c) c.textContent = money(p.C); if (er) { er.textContent = p.err; er.style.display = p.err ? '' : 'none'; } if (nx) nx.disabled = !!p.err; if (ft) ft.innerHTML = payTxt(p); if (sd) sd.innerHTML = vSide();
+    return;
+  }
+  if (/^ad-/.test(e.target.id)) { readAddr(); var nx = document.querySelector('[data-next]'); if (nx) nx.disabled = !ok(STEP); } });
 document.addEventListener('change', function (e) {
   var t = e.target;
   if (t.id === 'fee-ok') S.feeOk = t.checked;
@@ -223,16 +245,19 @@ document.addEventListener('click', function (e) {
   else if (b.hasAttribute('data-add')) { addLine(b.getAttribute('data-add')); PICKER = false; }
   else if (b.hasAttribute('data-sub')) { var i = Number(b.getAttribute('data-sub')), on = !S.lines[i].useSub; S.lines.forEach(function (l) { l.useSub = false; }); S.lines[i].useSub = on; if (on) S.lines[i].qty = 1; }
   else if (b.hasAttribute('data-q')) { var j = Number(b.getAttribute('data-q')), v = Number(b.getAttribute('data-v')); S.lines[j].qty += v; if (S.lines[j].qty < 1) S.lines.splice(j, 1); else if (S.lines[j].qty > 20) S.lines[j].qty = 20; }
-  else if (b.hasAttribute('data-pay')) S.pay = b.getAttribute('data-pay');
+  else if (b.hasAttribute('data-uball')) { S.useB = pay().aB; S.useB = Math.min(S.useB, pay().T); S.useW = null; }
+  else if (b.hasAttribute('data-ubnone')) { S.useB = 0; S.useW = null; }
+  else if (b.hasAttribute('data-uwall')) { var pw = pay(); S.useW = Math.min(pw.aW, Math.max(0, pw.T - pw.B)); }
+  else if (b.hasAttribute('data-uwnone')) { S.useW = 0; }
   else if (b.hasAttribute('data-back')) { if (STEP === 1) { location.href = ADMIN ? 'admin.html' : 'member.html'; return; } readAddr(); STEP--; ERR = ''; scrollTo(0, 0); }
   else if (b.hasAttribute('data-next')) {
     readAddr();
     if (STEP === 2 && S.preItem && !S.lines.length) { addLine(S.preItem); S.preItem = ''; }
     if (STEP === 2 && !S.lines.length) PICKER = true;
-    if (STEP === 4 && !sum().single && !sum().fee && sum().later <= 0) S.pay = '錢包';
+    if (STEP === 4) { S.useB = null; S.useW = null; } // 每次進付款步驟都先自動填（紅利先用，再用錢包）
     if (STEP < 6) { STEP++; ERR = ''; scrollTo(0, 0); draw(); return; }
     b.disabled = true; ERR = '';
-    var body = { date: S.date, slot: S.slot, pickup: S.pickup, pointId: S.point, feeOk: S.feeOk, pay: S.pay, addr: S.addr, lines: S.lines.map(function (l) { return { itemId: l.itemId, qty: l.qty, useSub: l.useSub, sauce: l.sauce, drinks: l.drinks }; }) };
+    var body = { date: S.date, slot: S.slot, pickup: S.pickup, pointId: S.point, feeOk: S.feeOk, useBonus: pay().B, useWallet: pay().W, addr: S.addr, lines: S.lines.map(function (l) { return { itemId: l.itemId, qty: l.qty, useSub: l.useSub, sauce: l.sauce, drinks: l.drinks }; }) };
     if (CHANGE && CHANGE !== 'done') body.replace = CHANGE;
     api('orderCreate2', body)
       .then(function (r) { CHANGE = 'done'; return r; })

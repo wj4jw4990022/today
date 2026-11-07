@@ -40,15 +40,16 @@ await t('付現：方案餐的升級與加購算進應收，截單時不從錢�
   assert.equal((await order(r.data.orderId)).cash_due, 80);
   await cut();
   const res = (await q('SELECT * FROM reservations WHERE order_id=?', r.data.orderId))[0];
-  assert.equal(res.status, '已鎖定'); assert.equal(res.size, 'BALANCE'); assert.equal(res.charge_status, '取餐付現');
-  assert.equal((await q("SELECT COUNT(*) n FROM wallet_ledger WHERE member_id=? AND type='升級加購扣款'", m.id))[0].n, 0);
+  assert.equal(res.status, '已鎖定'); assert.equal(res.size, 'BALANCE'); assert.equal(res.charge_status, '已扣款');
+  assert.equal((await q("SELECT COUNT(*) n FROM wallet_ledger WHERE member_id=? AND amount<0 AND type LIKE '訂餐%'", m.id))[0].n, 0);
+  assert.equal((await order(r.data.orderId)).cash_due, 80);
 });
 
 await t('付現：錢包付款的訂單照舊截單時從錢包扣', async () => {
   const m = await newMember('Uc3', '錢包丙', '0955000003', 2000, 8);
   const r = await m.O({ action: 'orderCreate2', date: D1, slot: '中午', pay: '錢包', lines: [{ itemId: 'HM-B-CB', sauce: 'AD-S-OIL', useSub: 1 }] });
   assert(r.ok, r.error); await cut();
-  assert.equal((await q("SELECT SUM(amount) s FROM wallet_ledger WHERE member_id=? AND type='升級加購扣款'", m.id))[0].s, -20);
+  assert.equal((await q("SELECT SUM(amount) s FROM wallet_ledger WHERE member_id=? AND type='訂餐・錢包'", m.id))[0].s, -20);
 });
 
 await t('付現：已收現金後店家補償，付的錢退到錢包、方案加回 1 餐', async () => {
@@ -68,7 +69,6 @@ await t('整期升級：付現的已預約餐，應收跟著減少', async () =>
   assert.equal((await order(r.data.orderId)).cash_due, 20);
   const u = await m.O({ action: 'planUpgrade', size: 'BALANCE', main: '雞胸' }); assert(u.ok, u.error);
   assert.equal((await order(r.data.orderId)).cash_due, 0);
-  assert.equal((await q('SELECT charge_status FROM reservations WHERE order_id=?', r.data.orderId))[0].charge_status, '未扣款');
 });
 
 await t('配送點未達門檻改自取：訂單也改成自取', async () => {
@@ -94,11 +94,13 @@ await t('錢包紀錄：每筆顯示扣了多少紅利、多少錢包', async ()
   const m = await newMember('Uc8', '紅利辛', '0955000008', 1000, 0);
   await q("INSERT INTO wallet_ledger (rec_id,member_id,at,type,amount,refundable,status) VALUES ('WB9',?,'2026-11-07 12:00:00','推薦紅利',100,0,'已入帳')", m.id);
   const r = await m.O({ action: 'orderCreate2', date: D1, slot: '晚上', pay: '錢包', lines: [{ itemId: 'HM-L-CB', sauce: 'AD-S-OIL', qty: 1 }] }); assert(r.ok, r.error);
+  assert.equal((await m.O({ action: 'memberMe' })).data.wallet.avail.total, 910);
+  await cut();
   const me = (await m.O({ action: 'memberMe' })).data;
   assert.equal(me.wallet.total, 910); assert.equal(me.wallet.cash, 910); assert.equal(me.wallet.bonus, 0); assert.equal(me.wallet.held, 0);
-  const x = me.ledger.find((l) => l.type === '單點扣款'); assert.equal(x.bonus, -100); assert.equal(x.cash, -90);
+  assert.equal(me.ledger.find((l) => l.type === '訂餐・紅利').bonus, -100); assert.equal(me.ledger.find((l) => l.type === '訂餐・錢包').cash, -90);
   assert.equal(me.ledger.find((l) => l.type === '推薦紅利').bonus, 100);
-  const g = (await post({ ...A, action: 'adminMemberGet', memberId: m.id })).data; assert.equal(g.ledger.find((l) => l.type === '單點扣款').bonus, -100);
+  const g = (await post({ ...A, action: 'adminMemberGet', memberId: m.id })).data; assert.equal(g.ledger.find((l) => l.type === '訂餐・紅利').bonus, -100);
 });
 
 await t('圈存：方案餐升級＋加購先預留，可用餘額不夠就不能再加點', async () => {
@@ -126,13 +128,52 @@ await t('圈存：取消就解除預留；截單才真的扣', async () => {
   const w = (await m.O({ action: 'memberMe' })).data.wallet; assert.equal(w.held, 0); assert.equal(w.total, 920);
 });
 
-await t('圈存：配送點勾「願付配送費」先預留，錢包付款的可用餘額要夠', async () => {
+await t('配送點願付配送費（截單才決定）：沒有現場付就從錢包扣，錢包不夠加到現場付', async () => {
   const m = await newMember('Uh3', '圈存子', '0955000013', 1400, 8);
   await post({ ...A, action: 'adminTopup', memberId: m.id, amount: 1000, method: '現金' });
   await post({ ...A, action: 'adminWalletAdjust', memberId: m.id, amount: -990, reason: '測試', refundable: true }); // 剩 10
-  const r = await m.O({ action: 'orderCreate2', date: D1, slot: '中午', pickup: '配送點', pointId: 'DPT', feeOk: true, pay: '錢包', lines: [sub] });
-  assert(!r.ok && r.error.includes('配送費'), JSON.stringify(r));
-  const r2 = await m.O({ action: 'orderCreate2', date: D1, slot: '中午', pickup: '配送點', pointId: 'DPT', feeOk: false, pay: '錢包', lines: [sub] }); assert(r2.ok, r2.error);
+  const r = await m.O({ action: 'orderCreate2', date: D1, slot: '中午', pickup: '配送點', pointId: 'DPT', feeOk: true, pay: '錢包', lines: [sub] }); assert(r.ok, r.error);
+  await cut();
+  const o = await order(r.data.orderId); assert.equal(o.pickup, '配送'); assert.equal(o.cash_due, 30); assert.equal(o.pay, '現付');
+});
+
+await t('分帳：自己填紅利與錢包，剩下現場付；超過可用被擋', async () => {
+  const m = await newMember('Us1', '分帳一', '0955000021', 1000, 0);
+  await q("INSERT INTO wallet_ledger (rec_id,member_id,at,type,amount,refundable,status) VALUES ('WS1',?,'2026-11-07 12:00:00','推薦紅利',150,0,'已入帳')", m.id);
+  const L2 = [{ itemId: 'HM-B-CB', sauce: 'AD-S-OIL', qty: 1 }, { itemId: 'HM-L-CB', sauce: 'AD-S-OIL', qty: 1 }]; // 220＋190＝410
+  assert(!(await m.O({ action: 'orderCreate2', date: D1, slot: '中午', useBonus: 200, useWallet: 0, lines: L2 })).ok, '紅利超過可用');
+  assert(!(await m.O({ action: 'orderCreate2', date: D1, slot: '中午', useBonus: 150, useWallet: 300, lines: L2 })).ok, '超過總額');
+  const r = await m.O({ action: 'orderCreate2', date: D1, slot: '中午', useBonus: 100, useWallet: 200, lines: L2 }); assert(r.ok, r.error);
+  assert.equal(r.data.cashDue, 110);
+  const w = (await m.O({ action: 'memberMe' })).data.wallet; assert.equal(w.avail.bonus, 50); assert.equal(w.avail.cash, 800); assert.equal(w.total, 1150);
+  const o = await order(r.data.orderId); assert.equal(o.pay, '現付'); assert.equal(o.pay_bonus, 100); assert.equal(o.pay_wallet, 200);
+});
+
+await t('分帳：取消便當先減現場付、再減錢包、最後紅利；截單扣款；店家補償照順序退回', async () => {
+  const m = await newMember('Us2', '分帳二', '0955000022', 1000, 0);
+  await q("INSERT INTO wallet_ledger (rec_id,member_id,at,type,amount,refundable,status) VALUES ('WS2',?,'2026-11-07 12:00:00','推薦紅利',150,0,'已入帳')", m.id);
+  const L3 = [{ itemId: 'HM-L-CB', sauce: 'AD-S-OIL', qty: 1 }, { itemId: 'HM-L-CB', sauce: 'AD-S-OIL', qty: 1 }, { itemId: 'HM-B-CB', sauce: 'AD-S-OIL', qty: 1 }]; // 190＋190＋220＝600
+  const r = await m.O({ action: 'orderCreate2', date: D1, slot: '晚上', useBonus: 150, useWallet: 300, lines: L3 }); assert(r.ok, r.error); // 現場 150
+  const ids = (await q("SELECT res_id FROM reservations WHERE order_id=? ORDER BY id", r.data.orderId)).map((x) => x.res_id);
+  assert((await m.O({ action: 'orderCancel', resId: ids[0] })).ok); // −190：現場 150→0，錢包 300→260
+  let o = await order(r.data.orderId); assert.equal(o.cash_due, 0); assert.equal(o.pay_wallet, 260); assert.equal(o.pay_bonus, 150); assert.equal(o.pay, '錢包');
+  await cut();
+  o = await order(r.data.orderId); assert.equal(o.charged, 1);
+  assert.equal((await q("SELECT SUM(amount) s FROM wallet_ledger WHERE member_id=? AND type='訂餐・紅利'", m.id))[0].s, -150);
+  assert.equal((await q("SELECT SUM(amount) s FROM wallet_ledger WHERE member_id=? AND type='訂餐・錢包'", m.id))[0].s, -260);
+  await q('UPDATE reservations SET date=? WHERE order_id=?', day(0), r.data.orderId);
+  assert((await post({ ...A, action: 'adminMarkPickup', resId: ids[2], status: '店家補償', reason: '做錯' })).ok); // −220：錢包退 220
+  const w = (await m.O({ action: 'memberMe' })).data.wallet; assert.equal(w.cash, 1000 - 260 + 220); assert.equal(w.bonus, 0);
+});
+
+await t('買方案、整期升級：可以自己填用多少紅利', async () => {
+  const m = await newMember('Us3', '分帳三', '0955000023', 2000, 0);
+  await q("INSERT INTO wallet_ledger (rec_id,member_id,at,type,amount,refundable,status) VALUES ('WS3',?,'2026-11-07 12:00:00','推薦紅利',100,0,'已入帳')", m.id);
+  const b = await m.O({ action: 'payBuy', meals: 8, useBonus: 0 }); assert(b.ok, b.error);
+  let w = (await m.O({ action: 'memberMe' })).data.wallet; assert.equal(w.bonus, 100); assert.equal(w.cash, 600);
+  const u = await m.O({ action: 'planUpgrade', size: 'BALANCE', main: '雞胸', useBonus: 60 }); assert(u.ok, u.error); // 20 × 8 ＝ 160：紅利 60＋錢包 100
+  w = (await m.O({ action: 'memberMe' })).data.wallet; assert.equal(w.bonus, 40); assert.equal(w.cash, 500);
+  assert(!(await m.O({ action: 'planUpgrade', size: 'POWER', main: '牛排', useBonus: 500 })).ok);
 });
 
 summary(); await S.dispose(); process.exit(process.exitCode || 0);
