@@ -248,7 +248,7 @@ document.addEventListener('click', function (e) {
   if (rb) {
     if (rb.hasAttribute('data-rfm')) { RF.method = rb.getAttribute('data-rfm'); draw(); return; }
     if (rb.hasAttribute('data-rfgo')) { var amt = Number(v('rf-amt').replace(/,/g, '')); if (!confirm('申請退款 ' + money(amt) + '（' + RF.method + '）？')) return; rb.disabled = true; Z.post({ action: 'payRefund', amount: amt, method: RF.method, account: RF.acct }).then(function () { RF.amt = ''; PI = null; load(); }).catch(function (er) { rb.disabled = false; say('rf-msg', er.message); }); return; }
-    if (rb.hasAttribute('data-del')) { var w = prompt('確定要刪除帳號？刪除後無法復原。\n請輸入「刪除」兩個字確認：'); if (w === null) return; Z.post({ action: 'memberDelete', confirm: w.trim() }).then(function () { alert('帳號已刪除'); location.href = 'healthy.html'; }).catch(function (er) { say('del-msg', er.message); }); return; }
+    if (rb.hasAttribute('data-del')) { var w = prompt('確定要刪除帳號？刪除後無法復原，錢包裡的紅利會歸零。\n請輸入「刪除」兩個字確認：'); if (w === null) return; Z.post({ action: 'memberDelete', confirm: w.trim() }).then(function () { alert('帳號已刪除'); location.href = 'healthy.html'; }).catch(function (er) { say('del-msg', er.message); }); return; }
   }
   var zb = t.closest && t.closest('[data-zd],[data-zs],[data-zm],[data-zpv],[data-zup],[data-zgo]');
   if (zb) {

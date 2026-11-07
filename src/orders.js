@@ -59,8 +59,8 @@ export async function slotCounts(c, from, to) {
 /* ---------- 截單：鎖定已過截單時間的預約；訂閱的升級與加購從錢包扣 ---------- */
 export async function runCutoff(c) {
   const st = await settings(c), R = rules(st);
+  await runExpiry(c); // 先結算到期的方案（會取消它們沒吃的預約），再抓要鎖定的預約
   const rows = (await c.db.all('預約', { 狀態: '已預約' })).filter((r) => String(r['日期']) <= R.lockDate);
-  await runExpiry(c);
   if (!rows.length) return 0;
   const { items } = await menu(c);
   const base = items.find((i) => !num(i['訂閱加價'], 0)) || items[0];
@@ -84,12 +84,16 @@ export async function runCutoff(c) {
   }
   // 送到地址：截單時重算免運（同一位會員、同一天、同一時段、同一個地址合併；取消後不到門檻要補收、多筆只收一次）
   const toSelfOrder = await settleAddressFees(c, st, rows);
+  for (const oid of [...new Set(rows.filter((r) => r['取餐方式'] === '配送' && toSelf[r['日期'] + '|' + r['時段'] + '|' + r['配送點ID']] && !keepOrder[r['訂單ID']] && r['訂單ID']).map((r) => r['訂單ID']))]) {
+    const o = await c.db.first('訂單', { 訂單ID: oid }); if (o && o['取餐方式'] === '配送') await c.db.update('訂單', o._row, { 取餐方式: '自取', 配送點ID: '' });
+  }
   for (const r of rows.sort((a, b) => a._row - b._row)) {
     const upd = { 狀態: '已鎖定', 修改時間: nowStamp() };
     const gk = r['日期'] + '|' + r['時段'] + '|' + r['配送點ID'];
     if (r['取餐方式'] === '地址' && toSelfOrder[r['訂單ID']]) Object.assign(upd, { 取餐方式: '自取', 備註: (r['備註'] ? r['備註'] + '；' : '') + '錢包不足以補收配送費，改門市自取' });
     if (r['取餐方式'] === '配送' && toSelf[gk] && !keepOrder[r['訂單ID']]) Object.assign(upd, { 取餐方式: '自取', 配送點ID: '', 備註: (r['備註'] ? r['備註'] + '；' : '') + '配送改自取（' + (pts[r['配送點ID']] ? pts[r['配送點ID']].name + '：' : '') + toSelf[gk] + '）' });
-    if (r['類別'] === '訂閱') {
+    if (r['類別'] === '訂閱' && r['扣款狀態'] === '取餐付現') { /* 升級與加購已算進訂單的應收現金 */ }
+    else if (r['類別'] === '訂閱') {
       const due = num(r['升級差額'], 0) + num(r['加購金額'], 0);
       if (due < 0) { // 整期升級後改訂較便宜的組合：退差額
         await ledgerAdd(c, r['會員ID'], '退款轉入', -due, { 可退現金: true, 對應ID: r['預約ID'], 經手人員: '系統', 備註: r['日期'] + ' ' + r['時段'] + '：整期升級改訂 ' + r['份量'] + ' ' + r['主菜'] + '，退差額' });
@@ -252,7 +256,18 @@ async function createOrder(c, m, p, by) {
 }
 
 /** 退回：訂閱加回 1 餐；單點退回錢包（用掉的紅利退回紅利） */
+/** 付現便當的金額：單點＝(單點價×份數)＋加購；方案餐＝升級差額＋加購（不小於 0） */
+const cashOf = (r) => r['類別'] === '單點' ? num(r['單點原價'], 0) * num(r['份數'], 1) + num(r['加購金額'], 0) : Math.max(0, num(r['升級差額'], 0) + num(r['加購金額'], 0));
 export async function giveBack(c, r, why, by) {
+  if (r['扣款狀態'] === '取餐付現') { // 還沒收現金：從應收扣掉；已經收了：退到錢包
+    const amt = cashOf(r), o = r['訂單ID'] && await c.db.first('訂單', { 訂單ID: r['訂單ID'] });
+    if (amt > 0 && o) {
+      if (o['已收現金']) await ledgerAdd(c, r['會員ID'], '退款轉入', amt, { 可退現金: true, 對應ID: r['預約ID'], 經手人員: by, 備註: why + '（已付現金，退到錢包）' });
+      else await c.db.update('訂單', o._row, { 應收現金: Math.max(0, num(o['應收現金'], 0) - amt) });
+    }
+    if (r['類別'] === '訂閱' && r['訂閱ID']) await c.env.DB.prepare('UPDATE subscriptions SET remaining = remaining + 1 WHERE sub_id = ?').bind(r['訂閱ID']).run();
+    return;
+  }
   if (r['類別'] === '訂閱') {
     if (r['訂閱ID']) await c.env.DB.prepare('UPDATE subscriptions SET remaining = remaining + 1 WHERE sub_id = ?').bind(r['訂閱ID']).run();
     if (r['扣款狀態'] === '已扣款') { const paid = num(r['升級差額'], 0) + num(r['加購金額'], 0); if (paid > 0) await ledgerAdd(c, r['會員ID'], '退款轉入', paid, { 可退現金: true, 對應ID: r['預約ID'], 經手人員: by, 備註: why + '：退回升級加購' }); }
@@ -333,7 +348,15 @@ async function upgradePlan(c, m, p, by) {
   if (wal.total < total) throw new UserError('錢包餘額不足：需要 ' + total.toLocaleString() + ' 元，目前 ' + wal.total.toLocaleString() + ' 元');
   await ledgerAdd(c, m['會員ID'], '升級扣款', -total, { 對應ID: sub['訂閱ID'], 經手人員: by, 備註: '整期升級 ' + it['份量'] + ' ' + it['主菜'] + '：' + diff + ' × ' + n + ' 餐' });
   await c.db.update('訂閱', sub._row, { 整期升級份量: it['份量'], 整期升級主菜: it['主菜'], 備註: (sub['備註'] ? sub['備註'] + '；' : '') + '整期升級 ' + it['份量'] + ' ' + it['主菜'] + ' by ' + by });
-  for (const r of open) await c.db.update('預約', r._row, { 升級差額: num(r['升級差額'], 0) - diff });
+  for (const r of open) {
+    const nu = num(r['升級差額'], 0) - diff, upd = { 升級差額: nu };
+    if (r['扣款狀態'] === '取餐付現') { // 付現的餐：應收減少；變成要退錢時改由截單退到錢包
+      const before = cashOf(r), after = Math.max(0, nu + num(r['加購金額'], 0)), o = r['訂單ID'] && await c.db.first('訂單', { 訂單ID: r['訂單ID'] });
+      if (o && before > after) await c.db.update('訂單', o._row, { 應收現金: Math.max(0, num(o['應收現金'], 0) - (before - after)) });
+      if (nu + num(r['加購金額'], 0) <= 0) upd['扣款狀態'] = '未扣款';
+    }
+    await c.db.update('預約', r._row, upd);
+  }
   return { ok: true, diff, n, total };
 }
 

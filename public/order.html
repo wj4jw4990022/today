@@ -77,7 +77,7 @@ function sum() {
   var fee = 0, feeNote = '', min = 0;
   if (S.pickup === '地址') { var a = D.extra.areas.filter(function (x) { return x.area === S.addr.area; })[0]; if (a) { min = a.min; fee = n >= a.min ? 0 : a.fee; feeNote = fee ? '未滿 ' + a.min + ' 份' : '滿 ' + a.min + ' 份免運'; } }
   if (S.pickup === '配送點') { var p = point(); if (p) { min = p.min; var have = (D.pointCount || {})[S.date + '|' + S.slot + '|' + p.id] || 0; feeNote = have + n >= p.min ? '目前已達 ' + p.min + ' 份' : (S.feeOk ? '截單時未達 ' + p.min + ' 份才收 ' + money(feeFor(p.km)) : '未達 ' + p.min + ' 份會改門市自取'); } }
-  return { n: n, single: single, later: later, fee: fee, feeNote: feeNote, subUsed: subUsed, now: S.pay === '錢包' ? single + fee : 0, cash: S.pay === '現付' ? single + fee : 0 };
+  return { n: n, single: single, later: later, fee: fee, feeNote: feeNote, subUsed: subUsed, now: S.pay === '錢包' ? single + fee : 0, cash: S.pay === '現付' ? single + fee + Math.max(0, later) : 0 };
 }
 function point() { return (D.points || []).filter(function (p) { return p.id === S.point; })[0]; }
 function feeFor(km) { var f = D.extra.feeOf; return km <= 2 ? f[2] : km <= 5 ? f[5] : f[8]; }
@@ -132,11 +132,11 @@ function vStep() {
     if (D.drinks.length) h += '<div class="wz-q2">要加飲品嗎？</div><p class="wz-note" style="margin:-6px 0 10px">每個便當可以各自加（份數跟著便當）。</p>' + S.lines.map(function (l, i) { var it = item(l.itemId); return '<div class="wz-row"><span>' + E(it.size + '・' + it.main) + '</span><span>' + D.drinks.map(function (dk) { return '<label style="margin-left:8px;cursor:pointer"><input type="checkbox" data-dk="' + i + '" value="' + E(dk.id) + '"' + (l.drinks.indexOf(dk.id) >= 0 ? ' checked' : '') + '> ' + E(dk.name) + ' +' + dk.price + '</label>'; }).join('') + '</span></div>'; }).join('');
   }
   if (STEP === 5) {
-    var t5 = sum(), x = D.extra.cash, need = t5.single + t5.fee;
-    if (!need) h += '<p class="wz-note" style="font-size:14px">這一筆只有方案的餐，不用另外付錢（升級或加購的差額截單時從錢包扣）。</p>';
+    var t5 = sum(), x = D.extra.cash, need = t5.single + t5.fee, cashNeed = need + Math.max(0, t5.later);
+    if (!need && t5.later <= 0) h += '<p class="wz-note" style="font-size:14px">這一筆只有方案的餐，不用另外付錢' + (t5.later < 0 ? '（差額截單時退到錢包）' : '') + '。</p>';
     else {
-      h += '<button type="button" class="wz-op' + (S.pay === '錢包' ? ' on' : '') + '" data-pay="錢包">錢包付款<small>現在扣 ' + money(need) + '・餘額 ' + money(D.wallet.total) + (D.wallet.bonus ? '（紅利 ' + money(D.wallet.bonus) + ' 先扣）' : '') + (need > D.wallet.total ? '・<b style="color:#9a3b2b">餘額不足，請先到會員頁儲值</b>' : '') + '</small></button>';
-      h += '<button type="button" class="wz-op' + (S.pay === '現付' ? ' on' : '') + '" data-pay="現付"' + (x.blocked || x.open >= x.limit ? ' disabled' : '') + '>取餐時付現<small>' + (x.blocked ? '已停用（沒來取餐次數過多），請洽門市' : '門市或配送時收現金 ' + money(need) + '・目前 ' + x.open + ' / ' + x.limit + ' 筆未取') + '</small></button>';
+      h += '<button type="button" class="wz-op' + (S.pay === '錢包' ? ' on' : '') + '" data-pay="錢包">錢包付款<small>現在扣 ' + money(need) + (t5.later > 0 ? '，升級／加購 ' + money(t5.later) + ' 截單時扣' : '') + '・餘額 ' + money(D.wallet.total) + (D.wallet.bonus ? '（紅利 ' + money(D.wallet.bonus) + ' 先扣）' : '') + (need > D.wallet.total ? '・<b style="color:#9a3b2b">餘額不足，請先到會員頁儲值</b>' : '') + '</small></button>';
+      h += '<button type="button" class="wz-op' + (S.pay === '現付' ? ' on' : '') + '" data-pay="現付"' + (x.blocked || x.open >= x.limit ? ' disabled' : '') + '>取餐時付現<small>' + (x.blocked ? '已停用（沒來取餐次數過多），請洽門市' : '門市或配送時收現金 ' + money(cashNeed) + (t5.later > 0 ? '（含升級／加購 ' + money(t5.later) + '）' : '') + '・目前 ' + x.open + ' / ' + x.limit + ' 筆未取') + '</small></button>';
       h += '<p class="wz-note">' + (t5.subUsed ? '方案那 1 份不用付錢（扣 1 餐）。' : '') + (S.pickup === '配送點' ? '配送點的配送費只在截單時沒達門檻、且你願意付時才收，跟著這筆的付款方式。' : '') + '</p>';
     }
   }
@@ -146,7 +146,7 @@ function vStep() {
     h += '<div class="wz-row"><span>取餐</span><span>' + (S.pickup === '自取' ? '門市自取' : S.pickup === '配送點' ? '送到 ' + E(pp6.name) : '送到 ' + E(S.addr.area + ' ' + S.addr.address) + '<br><small>' + E(S.addr.recipient + ' ' + S.addr.phone) + '</small>') + '</span></div>';
     h += S.lines.map(function (l) { var it = item(l.itemId), sn = (D.sauces.filter(function (s) { return s.id === l.sauce; })[0] || {}).name, dn = l.drinks.map(function (id) { return (D.drinks.filter(function (x) { return x.id === id; })[0] || {}).name; }).join('、'); return '<div class="wz-row"><span>' + E(it.size + ' ' + it.main) + '・' + E(sn) + (dn ? '＋' + E(dn) : '') + (l.qty > 1 ? ' ×' + l.qty : '') + '</span><span>' + (l.useSub ? '方案 1 餐' : money((it.price + sauceP(l.sauce) + drinkP(l.drinks)) * l.qty)) + '</span></div>'; }).join('');
     if (S.pickup !== '自取') h += '<div class="wz-row"><span>配送費</span><span>' + (S.pickup === '地址' ? (t6.fee ? money(t6.fee) + '（' + t6.feeNote + '）' : '免運（' + t6.feeNote + '）') : E(t6.feeNote)) + '</span></div>';
-    if (t6.later) h += '<div class="wz-row"><span>方案升級／加購</span><span>' + (t6.later > 0 ? '截單時錢包扣 ' + money(t6.later) : '截單時退 ' + money(-t6.later)) + '</span></div>';
+    if (t6.later) h += '<div class="wz-row"><span>方案升級／加購</span><span>' + (t6.later > 0 ? (S.pay === '現付' ? '取餐時一起付 ' : '截單時錢包扣 ') + money(t6.later) : '截單時退到錢包 ' + money(-t6.later)) + '</span></div>';
     h += '<div class="wz-row"><b>' + (S.pay === '現付' ? '取餐時付現' : '現在從錢包扣') + '</b><b>' + money(S.pay === '現付' ? t6.cash : t6.now) + '</b></div>';
     h += '<p class="wz-note">前一天 ' + E(D.cutoff) + ' 前可以在會員頁修改或取消；之後鎖定。</p>';
   }
@@ -217,7 +217,7 @@ document.addEventListener('click', function (e) {
     readAddr();
     if (STEP === 2 && S.preItem && !S.lines.length) { addLine(S.preItem); S.preItem = ''; }
     if (STEP === 2 && !S.lines.length) PICKER = true;
-    if (STEP === 4 && !sum().single && !sum().fee) S.pay = '錢包';
+    if (STEP === 4 && !sum().single && !sum().fee && sum().later <= 0) S.pay = '錢包';
     if (STEP < 6) { STEP++; ERR = ''; scrollTo(0, 0); draw(); return; }
     b.disabled = true; ERR = '';
     var body = { date: S.date, slot: S.slot, pickup: S.pickup, pointId: S.point, feeOk: S.feeOk, pay: S.pay, addr: S.addr, lines: S.lines.map(function (l) { return { itemId: l.itemId, qty: l.qty, useSub: l.useSub, sauce: l.sauce, drinks: l.drinks }; }) };

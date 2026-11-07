@@ -102,8 +102,10 @@ export async function createOrder2(c, m, p, by) {
   const singles = lines.filter((l) => !l.sub), singleTotal = singles.reduce((s, l) => s + (num(l.it['單點價'], 0) + l.addUnit) * l.qty, 0);
   const pay = p.pay === '現付' ? '現付' : '錢包';
   const feeNow = pick === '地址' ? o['配送費'] : 0;
+  // 付現訂單：方案那份的升級差額＋加購也在取餐時一起付（使用者 11/7 決定 3A）；淨額是退款時仍退到錢包
+  const subCash = pay === '現付' && subLines[0] ? Math.max(0, num(subLines[0].it['訂閱加價'], 0) - up.value + subLines[0].addUnit) : 0;
   if (pay === '現付') {
-    if (!singles.length && !feeNow) throw new UserError('這筆沒有需要付現的單點');
+    if (!singles.length && !feeNow && !subCash) throw new UserError('這筆沒有需要付現的金額');
     if (m['付現停用']) throw new UserError('你的「取餐時付現」已停用（沒來取餐次數過多），請改用錢包付款或洽門市');
     if ((await cashOpen(c, m['會員ID'])) - (oldO && oldO['付款方式'] === '現付' ? 1 : 0) >= num(st['付現未取上限'], 2)) throw new UserError('你已經有 ' + num(st['付現未取上限'], 2) + ' 筆付現訂單還沒取餐，請改用錢包付款');
   } else {
@@ -119,12 +121,12 @@ export async function createOrder2(c, m, p, by) {
   const oid = 'O' + Date.now().toString(36).toUpperCase() + rid(3), now = nowStamp();
   const wal0 = walletOf(await c.db.all('錢包紀錄', { 會員ID: m['會員ID'] }));
   let bonusLeft = wal0.bonus;
-  await c.db.insert('訂單', Object.assign(o, { 訂單ID: oid, 會員ID: m['會員ID'], 日期: date, 時段: slot, 付款方式: pay, 應收現金: pay === '現付' ? singleTotal + feeNow : 0, 狀態: '已預約', 建立時間: now, 建立者: by, 配送費狀態: feeNow ? (pay === '現付' ? '現付' : '已扣款') : o['配送費狀態'] }));
+  await c.db.insert('訂單', Object.assign(o, { 訂單ID: oid, 會員ID: m['會員ID'], 日期: date, 時段: slot, 付款方式: pay, 應收現金: pay === '現付' ? singleTotal + feeNow + subCash : 0, 狀態: '已預約', 建立時間: now, 建立者: by, 配送費狀態: feeNow ? (pay === '現付' ? '現付' : '已扣款') : o['配送費狀態'] }));
   for (const l of lines) {
     const resId = 'B' + Date.now().toString(36).toUpperCase() + rid(4), price = num(l.it['單點價'], 0);
     const row = { 預約ID: resId, 訂單ID: oid, 會員ID: m['會員ID'], 日期: date, 時段: slot, 取餐方式: o['取餐方式'], 配送點ID: o['配送點ID'], 份量: l.it['份量'], 主菜: l.it['主菜'], 品項ID: l.it['品項ID'], 醬汁: l.sauce['名稱'], 加購項目: l.drinks.map((d) => d['品項ID']).join(','), 單點原價: price, 份數: l.qty, 狀態: '已預約', 建立時間: now, 建立者: by, 備註: l.drinks.length ? '加購：' + l.drinks.map((d) => d['名稱']).join('、') : '' };
     if (l.sub) {
-      Object.assign(row, { 類別: '訂閱', 訂閱ID: sub['訂閱ID'], 升級差額: num(l.it['訂閱加價'], 0) - up.value, 加購金額: l.addUnit, 扣款狀態: '未扣款' });
+      Object.assign(row, { 類別: '訂閱', 訂閱ID: sub['訂閱ID'], 升級差額: num(l.it['訂閱加價'], 0) - up.value, 加購金額: l.addUnit, 扣款狀態: subCash ? '取餐付現' : '未扣款' });
       await c.db.insert('預約', row);
       await c.env.DB.prepare('UPDATE subscriptions SET remaining = remaining - 1 WHERE sub_id = ? AND remaining > 0').bind(sub['訂閱ID']).run();
     } else {
@@ -137,7 +139,7 @@ export async function createOrder2(c, m, p, by) {
     if (singleTotal) await ledgerAdd(c, m['會員ID'], '單點扣款', -singleTotal, { 對應ID: oid, 經手人員: by, 備註: date + ' ' + slot + ' 單點 ' + singles.reduce((s, l) => s + l.qty, 0) + ' 份' });
     if (feeNow) await ledgerAdd(c, m['會員ID'], '配送費扣款', -feeNow, { 對應ID: oid, 經手人員: by, 備註: date + ' ' + slot + ' 送到 ' + o['行政區'] + '（未滿 ' + threshold(st, o['距離公里']) + ' 份）' });
   }
-  return { ok: true, orderId: oid, total, fee: feeNow, cashDue: pay === '現付' ? singleTotal + feeNow : 0, pointName };
+  return { ok: true, orderId: oid, total, fee: feeNow, cashDue: pay === '現付' ? singleTotal + feeNow + subCash : 0, pointName };
 }
 
 export const order2MemberApi = {

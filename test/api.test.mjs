@@ -511,11 +511,10 @@ await t('測試按鈕：已用餐＋1 扣餐並觸發推薦紅利', async () => 
     const r = await post({ ...A, action: 'adminPayHandle', reqId: rq.id, ok: true }); assert(r.ok, r.error);
     const w = (await M({ action: 'adminMemberGet', memberId: V })).wallet; assert.equal(w.cash, 0); assert.equal(w.bonus, 50);
   });
-  await t('刪除帳號：錢包有餘額不能刪；清空後輸入「刪除」才刪，個資清除、紀錄保留', async () => {
-    assert(!(await P({ action: 'memberDelete', confirm: '刪除' })).ok);
-    await post({ ...A, action: 'adminWalletAdjust', memberId: V, amount: -50, reason: '清紅利' });
+  await t('刪除帳號：只剩紅利也可以刪（紅利歸零，11/7 決定）；輸入「刪除」才刪，個資清除、紀錄保留', async () => {
     assert(!(await P({ action: 'memberDelete' })).ok);
     assert((await P({ action: 'memberDelete', confirm: '刪除' })).ok);
+    assert((await q("SELECT * FROM wallet_ledger WHERE member_id=? AND type='紅利收回'", V)).length === 1);
     const row = (await q('SELECT * FROM members WHERE member_id=?', V))[0]; assert.equal(row.status, '已刪除'); assert.equal(row.phone, ''); assert.equal(row.name, '');
     assert((await q('SELECT * FROM wallet_ledger WHERE member_id=?', V)).length >= 3);
     assert.equal((await S.postc({ action: 'memberMe' }, ck)).data.login, false);
